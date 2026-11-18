@@ -1,0 +1,5 @@
+from django.db import migrations, models
+
+class Migration(migrations.Migration):
+    dependencies = [('catalog', '0007_sitebranding')]
+    operations = [migrations.CreateModel(name='ProductPresentation', fields=[('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')), ('short_description', models.TextField(blank=True, verbose_name='Mô tả nổi bật')), ('technical_specs', models.JSONField(blank=True, default=dict, help_text='Nhập JSON, ví dụ: {"Màn hình": "6.9 inch", "Chip": "A18 Pro"}.', verbose_name='Thông số kỹ thuật')), ('highlights', models.JSONField(blank=True, default=list, help_text='Nhập JSON danh sách, ví dụ: ["Chip A18 Pro", "Camera 48MP"].', verbose_name='Điểm nổi bật')), ('warranty_text', models.CharField(default='Bảo hành chính hãng 12 tháng', max_length=120, verbose_name='Bảo hành')), ('product', models.OneToOneField(on_delete=models.deletion.CASCADE, related_name='presentation', to='catalog.product', verbose_name='Sản phẩm'))], options={'verbose_name': 'Nội dung hiển thị sản phẩm', 'verbose_name_plural': 'Nội dung hiển thị sản phẩm'})]

@@ -69,7 +69,7 @@ def cart_detail_view(request):
         'title': 'Giỏ hàng — Quốc Hùng Mobile',
         'has_pending_guest_cart': has_pending_guest_cart,
     }
-    return render(request, 'cart/cart_detail.html', context)
+    return render(request, 'storefront/cart_detail.html', context)
 
 
 from urllib.parse import urlparse, urlunparse, parse_qsl, urlencode
@@ -337,7 +337,7 @@ def cart_coupon_preview_view(request):
             'coupon_error': 'Giỏ hàng của bạn đang trống hoặc không có sản phẩm khả dụng.',
             'raw_coupon_code': raw_code,
         }
-        return render(request, 'cart/cart_detail.html', context)
+        return render(request, 'storefront/cart_detail.html', context)
 
     form = CouponPreviewForm(request.POST)
     if not form.is_valid():
@@ -353,7 +353,7 @@ def cart_coupon_preview_view(request):
             'coupon_error': error_message,
             'raw_coupon_code': raw_code,
         }
-        return render(request, 'cart/cart_detail.html', context)
+        return render(request, 'storefront/cart_detail.html', context)
 
     cleaned_code = form.cleaned_data['code']
     try:
@@ -375,7 +375,7 @@ def cart_coupon_preview_view(request):
             'coupon_applied': True,
             'raw_coupon_code': cleaned_code,
         }
-        return render(request, 'cart/cart_detail.html', context)
+        return render(request, 'storefront/cart_detail.html', context)
     except ValidationError as exc:
         context = {
             'cart': cart,
@@ -388,5 +388,5 @@ def cart_coupon_preview_view(request):
             'coupon_error': exc.message,
             'raw_coupon_code': cleaned_code,
         }
-        return render(request, 'cart/cart_detail.html', context)
+        return render(request, 'storefront/cart_detail.html', context)
 

@@ -1,0 +1,21 @@
+{% extends 'storefront/base_storefront.html' %}
+{% load static %}
+{% block title %}Quốc Hùng Mobile — Công nghệ chính hãng{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/storefront_home.css' %}">{% endblock %}
+{% block content %}
+<main class="sf-home">
+  <section class="sf-home-hero">
+    <article class="sf-hero-main">{% if hero_product %}<span class="sf-eyebrow">Sản phẩm nổi bật</span><h1>{{ hero_product.name }}</h1><p>{% if hero_product.short_description %}{{ hero_product.short_description|truncatechars:135 }}{% else %}Sản phẩm chính hãng, thông tin giá và phiên bản được cập nhật trực tiếp từ hệ thống quản trị.{% endif %}</p><strong>{{ hero_product.price_display }}</strong><div><a class="sf-btn sf-btn--primary" href="{% url 'catalog:public_product_detail' hero_product.id %}">Mua ngay</a><a class="sf-btn sf-btn--secondary" href="{% url 'catalog:public_product_detail' hero_product.id %}">Xem chi tiết</a></div><small>✓ Bảo hành chính hãng &nbsp; ✓ Hỗ trợ trả góp</small>{% else %}<span class="sf-eyebrow">Quốc Hùng Mobile</span><h1>Công nghệ chính hãng, giá tốt mỗi ngày</h1><p>Sản phẩm và ưu đãi sẽ xuất hiện ngay khi được cập nhật trên Django Admin.</p><a class="sf-btn sf-btn--primary" href="{% url 'catalog:public_catalog' %}">Khám phá sản phẩm</a>{% endif %}</article>
+    <div class="sf-hero-side"><article><span class="sf-deal-label">Ưu đãi hôm nay</span><h2>Sản phẩm giảm giá sốc</h2><p>Khám phá những sản phẩm có mức giá tốt đang được cập nhật.</p><a href="#deals">Xem ưu đãi ›</a></article><article class="sf-voucher">{% if active_coupon %}<span>Mã {{ active_coupon.code }}</span><h2>Voucher độc quyền</h2><p>Giảm {{ active_coupon.value_display }} cho đơn từ {{ active_coupon.min_order_amount_display }}.</p><button type="button" data-copy-coupon="{{ active_coupon.code }}">Sao chép mã</button>{% else %}<span>Ưu đãi thành viên</span><h2>Voucher đang cập nhật</h2><p>Mã giảm giá mới sẽ được hiển thị tại đây khi quản trị viên kích hoạt.</p>{% endif %}</article></div>
+  </section>
+
+  <section class="sf-home-section"><h2>Danh mục sản phẩm</h2><div class="sf-category-grid">{% for category in categories %}<a href="{% url 'catalog:public_category' category.id %}"><span>▣</span><strong>{{ category.name }}</strong></a>{% empty %}<p class="sf-empty">Chưa có danh mục hiển thị.</p>{% endfor %}</div></section>
+
+  <section class="sf-home-section" id="deals"><header class="sf-section-header"><div><h2>Ưu đãi nổi bật hôm nay</h2><p>Giá và khuyến mãi được cập nhật trực tiếp từ hệ thống.</p></div><a href="{% url 'catalog:public_catalog' %}">Xem tất cả ›</a></header><div class="sf-product-grid">{% for product in deal_products %}{% include 'storefront/includes/product_card.html' with product=product deal=True %}{% empty %}<p class="sf-empty">Chưa có sản phẩm ưu đãi để hiển thị.</p>{% endfor %}</div></section>
+
+  <section class="sf-home-section"><header class="sf-section-header"><div><h2>Điện thoại & thiết bị nổi bật</h2><p>Hàng chính hãng, bảo hành theo chính sách từng sản phẩm.</p></div><a href="{% url 'catalog:public_catalog' %}">Xem tất cả ›</a></header><div class="sf-product-grid">{% for product in featured_products %}{% include 'storefront/includes/product_card.html' with product=product %}{% empty %}<p class="sf-empty">Chưa có thêm sản phẩm nổi bật.</p>{% endfor %}</div></section>
+
+  <section class="sf-service-strip"><article><b>◈</b><div><strong>Sản phẩm chính hãng 100%</strong><p>Thông tin xuất xứ minh bạch.</p></div></article><article><b>▣</b><div><strong>Giao hàng nhanh toàn quốc</strong><p>Hỗ trợ giao nhận an toàn.</p></div></article><article><b>↔</b><div><strong>Bảo hành & đổi trả</strong><p>Theo chính sách của sản phẩm.</p></div></article><article><b>☎</b><div><strong>Hỗ trợ tư vấn 24/7</strong><p>Giải đáp nhu cầu công nghệ.</p></div></article></section>
+</main>
+<script>document.querySelectorAll('[data-copy-coupon]').forEach(function(button){button.addEventListener('click',function(){navigator.clipboard&&navigator.clipboard.writeText(button.dataset.copyCoupon);button.textContent='Đã sao chép';});});</script>
+{% endblock %}

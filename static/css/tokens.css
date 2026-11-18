@@ -1,0 +1,20 @@
+:root {
+  --color-primary-red: #E92722;
+  --color-primary-red-hover: #C91F1B;
+  --color-primary-red-tint: #FFF5F5;
+  --color-forest-charcoal: #283630;
+  --color-sage-green: #AEC3BA;
+  --color-sage-tint: #F0F5F3;
+  --bg-header: #F8F9FA;
+  --bg-page: #F7F8FA;
+  --bg-surface: #FFFFFF;
+  --border-default: #E5E8E6;
+  --text-primary: #252525;
+  --text-secondary: #666666;
+  --text-muted: #8A9290;
+  --text-inverse: #FFFFFF;
+  --status-success: #23865C;
+  --status-success-bg: #EBF7F2;
+  --font-heading: 'Plus Jakarta Sans', sans-serif;
+  --font-sans: 'Be Vietnam Pro', sans-serif;
+}

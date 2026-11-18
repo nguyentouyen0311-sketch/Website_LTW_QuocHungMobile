@@ -1,0 +1,32 @@
+{% load static %}
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ title }}</title>
+  <link rel="stylesheet" href="{% static 'css/tokens.css' %}">
+  <link rel="stylesheet" href="{% static 'css/admin_category.css' %}">
+  <link rel="stylesheet" href="{% static 'css/admin_forms.css' %}">
+  <style>.af-auto-sku{margin:0 0 20px;padding:14px 16px;border:1px solid #E5E7EB;border-radius:12px;background:#F3F4F6;color:#111827}.af-auto-sku strong{display:block;font-size:14px;font-weight:700}.af-auto-sku p{margin:4px 0 0;color:#6B7280;font-size:13px;line-height:1.5}.af-form-errors{margin:0 0 18px;padding:12px 14px;border-radius:8px;background:#FEF2F2;color:#C82322;font-size:14px}</style>
+</head>
+<body>
+  <div class="adm-shell">
+    {% include 'admin/includes/backend_sidebar.html' %}
+    <section class="adm-workspace">
+      <header class="adm-topbar"><span class="adm-menu">☰</span><div class="adm-crumb">Quản lý hàng hóa <b>/</b> <strong>{{ title }}</strong></div><input placeholder="Tìm kiếm nhanh..."><b class="adm-role">ADMINISTRATOR</b></header>
+      <main class="adm-main"><div class="af-content">
+        <a class="af-back" href="{% url 'catalog:attribute_list' %}">← Quay lại Biến thể & Thuộc tính</a>
+        <div class="af-heading"><div><h1>{{ title }}</h1><p>{% if product %}Chọn giá trị thuộc tính để tạo tổ hợp biến thể; hệ thống sẽ chặn tổ hợp trùng.{% else %}Nhập nội dung ngắn gọn, rõ ràng để nhân viên bán hàng dễ sử dụng.{% endif %}</p></div></div>
+        <form method="post" class="af-card">
+          {% csrf_token %}
+          {% if sku_is_automatic %}<section class="af-auto-sku" aria-label="Thông tin mã SKU"><strong>SKU được tạo tự động</strong><p>Hệ thống sẽ tạo SKU từ mã sản phẩm và các lựa chọn thuộc tính sau khi bạn lưu. Bạn không cần nhập mã thủ công.</p></section>{% endif %}
+          {% if form.non_field_errors %}<div class="af-form-errors">{{ form.non_field_errors }}</div>{% endif %}
+          <div class="af-grid">{% for field in form %}<label class="af-field {% if field.name == 'attribute_value_ids' %}wide{% endif %}">{{ field.label }}{{ field }}{% if field.help_text %}<small style="color:#6B7280">{{ field.help_text }}</small>{% endif %}{% for error in field.errors %}<small>{{ error }}</small>{% endfor %}</label>{% endfor %}</div>
+          <div class="af-actions"><a class="af-btn" href="{% url 'catalog:attribute_list' %}">Hủy</a><button class="af-btn primary">{% if is_edit %}Lưu thay đổi{% else %}Lưu biến thể{% endif %}</button></div>
+        </form>
+      </div></main>
+    </section>
+  </div>
+</body>
+</html>
