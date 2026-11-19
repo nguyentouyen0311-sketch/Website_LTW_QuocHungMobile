@@ -40,7 +40,14 @@ from cart.services import merge_guest_cart_to_user, retry_on_db_lock
 def get_post_login_redirect_url(user, next_url=None, request=None):
 
     login_url = reverse('accounts:login')
-    landing_url = reverse('accounts:landing')
+    # Các template tài khoản cũ không còn là điểm đến mặc định. Điều hướng người
+    # dùng đến đúng khu vực đang có giao diện hoạt động theo vai trò của họ.
+    if is_admin(user) or is_sales_staff(user):
+        landing_url = reverse('catalog:product_list')
+    elif is_inventory_staff(user):
+        landing_url = reverse('inventory:inventory_list')
+    else:
+        landing_url = reverse('home')
 
     if next_url:
         next_clean = next_url.strip()
