@@ -14,7 +14,10 @@
 <body class="auth-page">
   <main class="auth-shell">
     <section class="auth-intro" aria-labelledby="auth-intro-title">
-      <a class="auth-brand" href="{% url 'home' %}" aria-label="Về trang chủ Quốc Hùng Mobile"><span class="auth-brand__mark">QH</span><span>QUỐC HÙNG MOBILE</span></a>
+      <a class="auth-brand" href="{% url 'home' %}" aria-label="Về trang chủ Quốc Hùng Mobile">
+        <span class="auth-brand__mark">{% if site_branding and site_branding.logo %}<img src="{{ site_branding.logo.url }}" alt="{{ site_branding.logo_alt }}">{% else %}QH{% endif %}</span>
+        <span>QUỐC HÙNG MOBILE</span>
+      </a>
       <p class="auth-eyebrow">Cổng tài khoản</p>
       <h1 id="auth-intro-title">Công nghệ chính hãng, phục vụ tận tâm.</h1>
       <p>Đăng nhập để quản lý đơn hàng, theo dõi ưu đãi và tiếp tục trải nghiệm mua sắm tại Quốc Hùng Mobile.</p>
