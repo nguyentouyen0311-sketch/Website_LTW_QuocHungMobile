@@ -31,5 +31,18 @@ body.auth-page { min-height: 100vh; margin: 0; background: var(--bg-page); color
 .auth-submit:hover { background: var(--color-primary-red-hover); }.auth-submit:active { transform: translateY(1px); }
 .auth-register { margin: 24px 0 0; padding-top: 20px; border-top: 1px solid var(--border-default); color: var(--text-secondary); font-size: 13px; text-align: center; }.auth-register a { color: var(--color-primary-red); font-weight: 700; text-decoration: none; }.auth-register a:hover { text-decoration: underline; }
 .auth-back { display: inline-flex; margin-top: 22px; color: var(--text-secondary); font-size: 13px; text-decoration: none; }.auth-back:hover { color: var(--color-primary-red); }
+.auth-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 14px; }
+.auth-form-grid .auth-field { min-width: 0; }
+.auth-field-hint { margin: 6px 0 0; color: var(--text-muted); font-size: 11px; line-height: 1.45; }
+.auth-contact-hint { margin: -8px 0 18px; }
+.auth-options--terms { align-items: flex-start; line-height: 1.45; }
+.auth-options--terms input { flex: 0 0 auto; margin-top: 1px; }
+.auth-options--terms a { color: var(--color-primary-red); font-weight: 600; text-decoration: none; }
+.auth-options--terms a:hover { text-decoration: underline; }
+.auth-terms-error { margin: -16px 0 18px; }
+.auth-success { padding: 18px; border: 1px solid #b9dfcf; border-radius: 12px; background: var(--status-success-bg); color: var(--text-primary); }
+.auth-success__icon { display: grid; width: 36px; height: 36px; place-items: center; margin-bottom: 12px; border-radius: 50%; background: var(--status-success); color: var(--text-inverse); font-weight: 700; }
+.auth-success h3 { margin: 0; font-family: var(--font-heading); font-size: 18px; }.auth-success p { margin: 7px 0 0; color: var(--text-secondary); font-size: 13px; line-height: 1.55; }.auth-success .auth-submit { margin-top: 18px; text-decoration: none; }
 @media (max-width: 820px) { .auth-shell { grid-template-columns: 1fr; gap: 20px; width: min(100% - 32px, 540px); padding: 24px 0; } .auth-intro { padding: 0; } .auth-eyebrow, .auth-intro > p, .auth-benefits { display: none; } .auth-card { padding: 28px 24px; } }
+@media (max-width: 520px) { .auth-form-grid { grid-template-columns: 1fr; gap: 0; } }
 @media (max-width: 420px) { .auth-shell { width: min(100% - 24px, 540px); } .auth-card { padding: 24px 18px; } .auth-card__header h2 { font-size: 23px; } }

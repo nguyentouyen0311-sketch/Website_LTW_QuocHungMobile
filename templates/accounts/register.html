@@ -1,0 +1,54 @@
+{% load static %}
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Đăng ký | Quốc Hùng Mobile</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/tokens.css' %}">
+  <link rel="stylesheet" href="{% static 'css/auth_login.css' %}">
+</head>
+<body class="auth-page">
+  <main class="auth-shell">
+    <section class="auth-intro" aria-labelledby="auth-intro-title">
+      <a class="auth-brand" href="{% url 'home' %}" aria-label="Về trang chủ Quốc Hùng Mobile">
+        <span class="auth-brand__mark">{% if site_branding and site_branding.logo %}<img src="{{ site_branding.logo.url }}" alt="{{ site_branding.logo_alt }}">{% else %}QH{% endif %}</span>
+        <span>QUỐC HÙNG MOBILE</span>
+      </a>
+      <p class="auth-eyebrow">Tài khoản khách hàng</p>
+      <h1 id="auth-intro-title">Bắt đầu hành trình mua sắm của bạn.</h1>
+      <p>Tạo tài khoản để theo dõi đơn hàng, lưu thông tin tiện lợi và nhận các ưu đãi dành riêng cho thành viên.</p>
+      <ul class="auth-benefits" aria-label="Lợi ích tài khoản"><li><strong>Theo dõi đơn hàng</strong>Tra cứu tiến trình mua sắm thuận tiện.</li><li><strong>Lưu thông tin</strong>Đặt hàng nhanh hơn trong những lần sau.</li><li><strong>Nhận ưu đãi</strong>Cập nhật khuyến mãi dành cho thành viên.</li></ul>
+    </section>
+    <section class="auth-card" aria-labelledby="register-title">
+      <header class="auth-card__header"><h2 id="register-title">Tạo tài khoản</h2><p>Điền thông tin bên dưới để trở thành thành viên của Quốc Hùng Mobile.</p></header>
+      {% if registered_success %}
+        <div class="auth-success" role="status"><span class="auth-success__icon">✓</span><h3>Đăng ký thành công</h3><p>Tài khoản của bạn đã sẵn sàng. Hãy đăng nhập để bắt đầu mua sắm.</p><a class="auth-submit" href="{% url 'accounts:login' %}">Đến trang đăng nhập</a></div>
+      {% else %}
+        {% if form.non_field_errors %}<div class="auth-alert" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+        <form method="post" novalidate>
+          {% csrf_token %}
+          <div class="auth-field"><label class="auth-label" for="{{ form.username.id_for_label }}">{{ form.username.label }} *</label><input class="auth-input{% if form.username.errors %} is-invalid{% endif %}" type="text" name="{{ form.username.html_name }}" id="{{ form.username.id_for_label }}" value="{{ form.username.value|default_if_none:'' }}" placeholder="nguyenvana_qh" autocomplete="username" required autofocus><p class="auth-field-hint">Dùng chữ, số, dấu gạch dưới, gạch ngang hoặc dấu chấm.</p>{% for error in form.username.errors %}<p class="auth-field-error">{{ error }}</p>{% endfor %}</div>
+          <div class="auth-form-grid">
+            <div class="auth-field"><label class="auth-label" for="{{ form.email.id_for_label }}">{{ form.email.label }}</label><input class="auth-input{% if form.email.errors %} is-invalid{% endif %}" type="email" name="{{ form.email.html_name }}" id="{{ form.email.id_for_label }}" value="{{ form.email.value|default_if_none:'' }}" placeholder="example@gmail.com" autocomplete="email">{% for error in form.email.errors %}<p class="auth-field-error">{{ error }}</p>{% endfor %}</div>
+            <div class="auth-field"><label class="auth-label" for="{{ form.phone.id_for_label }}">{{ form.phone.label }}</label><input class="auth-input{% if form.phone.errors %} is-invalid{% endif %}" type="tel" name="{{ form.phone.html_name }}" id="{{ form.phone.id_for_label }}" value="{{ form.phone.value|default_if_none:'' }}" placeholder="0982 805 704" autocomplete="tel">{% for error in form.phone.errors %}<p class="auth-field-error">{{ error }}</p>{% endfor %}</div>
+          </div>
+          <p class="auth-field-hint auth-contact-hint">Vui lòng cung cấp email hoặc số điện thoại để chúng tôi có thể hỗ trợ bạn.</p>
+          <div class="auth-form-grid">
+            <div class="auth-field"><label class="auth-label" for="{{ form.password.id_for_label }}">{{ form.password.label }} *</label><input class="auth-input{% if form.password.errors %} is-invalid{% endif %}" type="password" name="{{ form.password.html_name }}" id="{{ form.password.id_for_label }}" placeholder="••••••••" autocomplete="new-password" required>{% for error in form.password.errors %}<p class="auth-field-error">{{ error }}</p>{% endfor %}</div>
+            <div class="auth-field"><label class="auth-label" for="{{ form.password_confirm.id_for_label }}">{{ form.password_confirm.label }} *</label><input class="auth-input{% if form.password_confirm.errors %} is-invalid{% endif %}" type="password" name="{{ form.password_confirm.html_name }}" id="{{ form.password_confirm.id_for_label }}" placeholder="••••••••" autocomplete="new-password" required>{% for error in form.password_confirm.errors %}<p class="auth-field-error">{{ error }}</p>{% endfor %}</div>
+          </div>
+          <label class="auth-options auth-options--terms" for="{{ form.terms_agreed.id_for_label }}"><input type="checkbox" name="{{ form.terms_agreed.html_name }}" id="{{ form.terms_agreed.id_for_label }}"{% if form.terms_agreed.value %} checked{% endif %}><span>Tôi đồng ý với <a href="#terms">Điều khoản dịch vụ</a> và <a href="#privacy">Chính sách bảo mật</a>.</span></label>
+          {% for error in form.terms_agreed.errors %}<p class="auth-field-error auth-terms-error">{{ error }}</p>{% endfor %}
+          <button class="auth-submit" type="submit">Tạo tài khoản</button>
+        </form>
+        <p class="auth-register">Đã có tài khoản? <a href="{% url 'accounts:login' %}">Đăng nhập</a></p>
+      {% endif %}
+      <a class="auth-back" href="{% url 'home' %}">← Quay về trang chủ</a>
+    </section>
+  </main>
+</body>
+</html>
