@@ -108,6 +108,23 @@ body.qhm-dashboard-page {
     gap: 12px;
 }
 
+.dashboard-sidebar-back-to-storefront {
+    display: block;
+    margin: 14px 20px 6px;
+    padding: 10px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.24);
+    border-radius: 8px;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    text-align: center;
+    text-decoration: none;
+}
+
+.dashboard-sidebar-back-to-storefront:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
 .dashboard-brand-icon {
     width: 32px;
     height: 32px;
