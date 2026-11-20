@@ -25,6 +25,7 @@ INSTALLED_APPS = [
     'orders.apps.OrdersConfig',
     'payments.apps.PaymentsConfig',
     'chat.apps.ChatConfig',
+    'dashboard.apps.DashboardConfig',
 ]
 
 MIDDLEWARE = [
