@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="{% static 'css/chat.css' %}">
 </head>
 <body class="chat-body">
-{% include 'includes/account_navigation.html' %}
+<header class="site-header" role="banner"><a href="{% url 'home' %}" class="brand-logo-link">QUỐC HÙNG MOBILE</a><a href="{% url 'catalog:product_list' %}" class="account-widget">ADMIN PORTAL</a></header>
 
 <main class="chat-page chat-page-wide">
     <section class="chat-card" aria-labelledby="inbox-title">
@@ -58,7 +58,7 @@
         {% endif %}
     </section>
 </main>
-{% include 'catalog/includes/shared_footer.html' %}
+<footer class="site-footer">© Quốc Hùng Mobile</footer>
 </body>
 </html>
 
