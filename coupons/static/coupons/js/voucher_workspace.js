@@ -24,7 +24,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const menuBtn = document.getElementById('qhm-menu-btn');
   const sidebarClose = document.getElementById('qhm-sidebar-close');
 
-  if (menuBtn && sidebar && overlay) {
+  if (menuBtn && typeof window.toggleQhmSidebar === 'function') {
+    menuBtn.addEventListener('click', () => window.toggleQhmSidebar(true));
+  } else if (menuBtn && sidebar && overlay) {
     menuBtn.addEventListener('click', () => {
       sidebar.classList.add('is-open');
       overlay.classList.add('is-open');

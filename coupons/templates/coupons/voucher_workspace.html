@@ -9,52 +9,12 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{% static 'css/tokens.css' %}">
+  <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
   <link rel="stylesheet" href="{% static 'coupons/css/voucher_workspace.css' %}">
 </head>
 <body>
 <div id="qhm-voucher-root">
-  <aside class="qhm-sidebar" id="qhm-sidebar" aria-label="Điều hướng quản trị">
-    <button type="button" class="qhm-sidebar-close" id="qhm-sidebar-close" aria-label="Đóng menu">✕</button>
-    <a class="qhm-sidebar-brand" href="{% url 'catalog:product_list' %}">
-      <span class="qhm-monogram">QH</span>
-      <span class="qhm-brand-text">
-        <b>QUỐC HÙNG MOBILE</b>
-        <small>ADMIN PORTAL</small>
-      </span>
-    </a>
-    <nav class="qhm-nav">
-      <p class="qhm-nav-group">TỔNG QUAN</p>
-      <span class="qhm-nav-item qhm-nav-placeholder">Dashboard thống kê</span>
-
-      <p class="qhm-nav-group">QUẢN LÝ HÀNG HÓA</p>
-      <a class="qhm-nav-item" href="{% url 'catalog:category_list' %}">Quản lý danh mục</a>
-      <a class="qhm-nav-item" href="{% url 'catalog:product_list' %}">Quản lý sản phẩm</a>
-      <a class="qhm-nav-item" href="{% url 'catalog:attribute_list' %}">Biến thể & Thuộc tính</a>
-      <a class="qhm-nav-item" href="{% url 'inventory:inventory_list' %}">Quản lý tồn kho</a>
-
-      <p class="qhm-nav-group">BÁN HÀNG & CSKH</p>
-      <a class="qhm-nav-item" href="{% url 'orders:pending_orders_list' %}">Quản lý đơn hàng</a>
-      <a class="qhm-nav-item active" href="{% url 'coupons:coupon_list' %}" aria-current="page">Mã giảm giá</a>
-      <a class="qhm-nav-item" href="{% url 'chat:staff_inbox' %}">Quản lý Chatbot & CSKH</a>
-
-      <p class="qhm-nav-group">HỆ THỐNG</p>
-      <a class="qhm-nav-item" href="{% url 'accounts:staff_list' %}">Tài khoản & Phân quyền</a>
-    </nav>
-
-    <div class="qhm-user-panel">
-      <i class="qhm-user-avatar">{{ request.user.username|slice:':2'|upper }}</i>
-      <div class="qhm-user-info">
-        <div class="qhm-user-name">{{ request.user.get_full_name|default:request.user.username }}</div>
-        <small class="qhm-user-role">Administrator</small>
-      </div>
-      <form method="post" action="{% url 'accounts:logout' %}">
-        {% csrf_token %}
-        <button type="submit" class="qhm-logout-btn" title="Đăng xuất" aria-label="Đăng xuất">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
-        </button>
-      </form>
-    </div>
-  </aside>
+  {% include 'catalog/includes/management_sidebar.html' with active_nav='coupons' %}
   <div class="qhm-overlay" id="qhm-overlay"></div>
 
   <section class="qhm-workspace">
