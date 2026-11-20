@@ -13,14 +13,12 @@ from coupons.forms import CouponForm
 from coupons.models import Coupon, DiscountType
 
 
-@role_required(ROLE_ADMIN)
-@require_http_methods(["GET"])
-def coupon_list_view(request):
+def _build_workspace_context(request, editing_coupon=None, form=None, is_edit=False):
     now = timezone.now()
 
     q_search = request.GET.get('q', '').strip()
     f_type = request.GET.get('type', 'all').strip()
-    f_status = request.GET.get('status', 'all').strip()
+    f_status = request.GET.get('status', 'all').strip().lower()
     f_scope = request.GET.get('scope', 'all').strip()
 
     qs = Coupon.objects.all().prefetch_related('coupon_products__product')
@@ -69,7 +67,8 @@ def coupon_list_view(request):
     total_used = all_coupons.aggregate(total=Sum('used_count'))['total'] or 0
     total_reserved = all_coupons.aggregate(total=Sum('reserved_count'))['total'] or 0
 
-    paginator = Paginator(qs, 10)
+    total_filtered = qs.count()
+    paginator = Paginator(qs, 8)
     page_number = request.GET.get('page', 1)
     page_obj = paginator.get_page(page_number)
     elided_pages = list(paginator.get_elided_page_range(page_obj.number, on_each_side=1, on_ends=1))
@@ -79,28 +78,46 @@ def coupon_list_view(request):
         del query_params['page']
     pagination_query = query_params.urlencode()
 
-    context = {
+    if form is None:
+        if is_edit and editing_coupon:
+            form = CouponForm(instance=editing_coupon)
+        else:
+            form = CouponForm()
+
+    return {
         'coupons': page_obj,
         'page_obj': page_obj,
         'elided_pages': elided_pages,
+        'total_filtered': total_filtered,
         'metrics': {
             'total_coupons': total_coupons,
             'active_count': active_count,
             'total_used': total_used,
             'total_reserved': total_reserved,
-            'estimated_budget': None,
         },
         'filters': {
             'q': q_search,
             'type': f_type,
-            'status': f_status,
+            'status': request.GET.get('status', 'all').strip(),
             'scope': f_scope,
         },
         'pagination_query': pagination_query,
         'active_nav': 'coupons',
         'module_badge': 'QUẢN LÝ VOUCHER',
+        'is_edit': is_edit,
+        'editing_coupon': editing_coupon,
+        'form': form,
     }
-    return render(request, 'coupons/coupon_list.html', context)
+
+
+@role_required(ROLE_ADMIN)
+@require_http_methods(["GET", "POST"])
+def coupon_list_view(request):
+    if request.method == 'POST':
+        return coupon_create_view(request)
+
+    context = _build_workspace_context(request, is_edit=False)
+    return render(request, 'coupons/voucher_workspace.html', context)
 
 
 @role_required(ROLE_ADMIN)
@@ -125,16 +142,12 @@ def coupon_create_view(request):
                 messages.error(request, "Vui lòng kiểm tra và sửa các lỗi bên dưới trước khi lưu.")
         else:
             messages.error(request, "Vui lòng kiểm tra và sửa các lỗi bên dưới trước khi lưu.")
-    else:
-        form = CouponForm()
 
-    context = {
-        'form': form,
-        'is_edit': False,
-        'active_nav': 'coupons',
-        'module_badge': 'THIẾT LẬP VOUCHER',
-    }
-    return render(request, 'coupons/coupon_form.html', context)
+        context = _build_workspace_context(request, form=form, is_edit=False)
+        return render(request, 'coupons/voucher_workspace.html', context)
+    else:
+        context = _build_workspace_context(request, is_edit=False)
+        return render(request, 'coupons/voucher_workspace.html', context)
 
 
 @role_required(ROLE_ADMIN)
@@ -162,15 +175,12 @@ def coupon_edit_view(request, pk):
                 messages.error(request, "Vui lòng kiểm tra và sửa các lỗi bên dưới trước khi lưu.")
         else:
             messages.error(request, "Vui lòng kiểm tra và sửa các lỗi bên dưới trước khi lưu.")
+
+        context = _build_workspace_context(request, editing_coupon=coupon, form=form, is_edit=True)
+        return render(request, 'coupons/voucher_workspace.html', context)
     else:
         form = CouponForm(instance=coupon)
+        context = _build_workspace_context(request, editing_coupon=coupon, form=form, is_edit=True)
+        return render(request, 'coupons/voucher_workspace.html', context)
 
-    context = {
-        'form': form,
-        'coupon': coupon,
-        'is_edit': True,
-        'active_nav': 'coupons',
-        'module_badge': 'THIẾT LẬP VOUCHER',
-    }
-    return render(request, 'coupons/coupon_form.html', context)
 

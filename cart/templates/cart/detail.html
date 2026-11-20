@@ -1,0 +1,68 @@
+{% extends 'cart/base.html' %}
+{% load static %}
+{% block content %}
+<main class="cart-main" id="cart-main">
+  <nav class="cart-breadcrumb" aria-label="Đường dẫn trang"><a href="{% url 'home' %}"><img src="{% static 'cart/assets/home.svg' %}" alt="" width="15" height="15">Trang chủ</a><span aria-hidden="true">/</span><span aria-current="page">Giỏ hàng của bạn</span></nav>
+  <div class="cart-heading"><h1>Giỏ hàng của bạn</h1><a href="{% url 'catalog:public_catalog' %}">← Tiếp tục mua sắm</a></div>
+  {% if messages %}<div class="cart-messages" aria-live="polite">{% for message in messages %}<p class="cart-message {{ message.tags }}" {% if message.tags == 'error' %}role="alert"{% else %}role="status"{% endif %}>{{ message }}</p>{% endfor %}</div>{% endif %}
+  {% if has_pending_guest_cart %}<form class="cart-sync" method="post" action="{% url 'cart:sync_guest_cart' %}">{% csrf_token %}<span>Giỏ hàng trước khi đăng nhập chưa được đồng bộ.</span><button class="cart-button" type="submit">Đồng bộ giỏ hàng</button></form>{% endif %}
+  {% if evaluation.lines %}
+  <div class="cart-layout">
+    <section class="cart-items" aria-label="Sản phẩm trong giỏ hàng">
+      <form id="cart-remove-selected" class="cart-selection-bar" method="post" action="{% url 'cart:cart_remove_selected' %}">
+        {% csrf_token %}
+        <label class="cart-select-all" data-select-all-control hidden><input id="cart-select-all" type="checkbox" checked><span>Chọn tất cả ({{ evaluation.line_count }} mục)</span></label>
+        <noscript><span>{{ evaluation.line_count }} mục trong giỏ hàng</span></noscript>
+        <button class="cart-remove-selected" type="submit"><img src="{% static 'cart/assets/remove-selected.svg' %}" alt="" width="15" height="15"><span>Xóa mục đã chọn</span></button>
+      </form>
+      {% for line in evaluation.lines %}
+      <article class="cart-item{% if not line.is_available %} cart-item-unavailable{% endif %}" data-cart-item="{{ line.item.pk }}">
+        <div class="cart-item-details">
+          <label class="cart-select-item"><input type="checkbox" name="item_ids" value="{{ line.item.pk }}" form="cart-remove-selected" checked aria-label="Chọn {{ line.product.name }} để xóa"></label>
+          <a class="cart-product-image" href="{% url 'catalog:public_product_detail' line.product.pk %}">{% if line.image %}<img src="{{ line.image.image.url }}" alt="{{ line.product.name }}" width="70" height="70">{% else %}<span>Chưa có ảnh</span>{% endif %}</a>
+          <div class="cart-product-info">
+            <h2><a href="{% url 'catalog:public_product_detail' line.product.pk %}">{{ line.product.name }}</a></h2>
+            {% if line.other_variants %}
+            <form class="cart-variant-form" method="post" action="{% url 'cart:cart_switch_variant' line.item.pk %}">
+              {% csrf_token %}
+              <label class="cart-sr-only" for="cart-variant-{{ line.item.pk }}">Phân loại {{ line.product.name }}</label>
+              <select id="cart-variant-{{ line.item.pk }}" name="new_variant_id" aria-label="Đổi phiên bản {{ line.product.name }}"><option value="{{ line.variant.pk }}" selected>Phân loại: {{ line.attributes_display }}</option>{% for variant in line.other_variants %}<option value="{{ variant.id }}" {% if variant.available < line.item.quantity %}disabled{% endif %}>{{ variant.label }} · {{ variant.price_formatted }}{% if variant.available < line.item.quantity %} · Không đủ hàng{% endif %}</option>{% endfor %}</select>
+              <button type="submit" class="cart-variant-submit">Đổi phiên bản</button>
+            </form>
+            {% else %}<p class="cart-variant-static">Phân loại: {{ line.attributes_display }}</p>{% endif %}
+            {% if line.is_available %}<p class="cart-stock">Còn {{ line.available_stock }} sản phẩm trong kho</p>{% else %}<p class="cart-stock cart-stock-error">{{ line.status_text }}</p>{% endif %}
+            {% if line.has_price_changed %}<p class="cart-price-notice">Giá đã thay đổi từ {{ line.old_price_formatted }}. Kiểm tra giá mới trước khi thanh toán.</p>{% endif %}
+          </div>
+        </div>
+        <div class="cart-item-actions">
+          <div class="cart-unit-price"><strong>{{ line.current_price_formatted }}</strong>{% if line.original_price_formatted %}<del>{{ line.original_price_formatted }}</del>{% endif %}</div>
+          <form class="cart-quantity-form" method="post" action="{% url 'cart:cart_update_quantity' line.item.pk %}">
+            {% csrf_token %}
+            <div class="cart-quantity-stepper">
+              <button type="button" data-step="-1" hidden aria-label="Giảm số lượng {{ line.product.name }}" {% if line.item.quantity <= 1 or line.available_stock <= 0 %}disabled{% endif %}>−</button>
+              <label class="cart-sr-only" for="cart-quantity-{{ line.item.pk }}">Số lượng {{ line.product.name }}</label>
+              <input id="cart-quantity-{{ line.item.pk }}" name="quantity" type="text" inputmode="numeric" pattern="[1-9][0-9]*" maxlength="10" value="{{ line.quantity_input }}" data-max="{{ line.available_stock }}" required {% if line.available_stock <= 0 %}disabled{% endif %}>
+              <button type="button" data-step="1" hidden aria-label="Tăng số lượng {{ line.product.name }}" {% if line.item.quantity >= line.available_stock %}disabled{% endif %}>+</button>
+            </div>
+            <button class="cart-quantity-submit" type="submit" {% if line.available_stock <= 0 %}disabled{% endif %}>Cập nhật</button>
+          </form>
+          <strong class="cart-line-total">{{ line.line_total_formatted }}</strong>
+          <form method="post" action="{% url 'cart:cart_remove_item' line.item.pk %}">{% csrf_token %}<button class="cart-remove-item" type="submit" aria-label="Xóa {{ line.product.name }}"><img src="{% static 'cart/assets/remove.svg' %}" alt="" width="18" height="18"></button></form>
+        </div>
+      </article>
+      {% endfor %}
+    </section>
+    <aside class="cart-summary" aria-label="Tóm tắt đơn hàng">
+      <h2>Tóm tắt đơn hàng</h2>
+      <dl><div class="cart-subtotal"><dt>Tạm tính ({{ evaluation.available_quantity }} sản phẩm{% if evaluation.has_unavailable_lines %} khả dụng{% endif %})</dt><dd>{{ evaluation.subtotal_available_formatted }}</dd></div><div class="cart-total"><dt>Tổng cộng</dt><dd>{{ evaluation.subtotal_available_formatted }}</dd></div></dl>
+      <p class="cart-summary-hint">Thanh toán toàn bộ giỏ hàng. Ô chọn dùng để xóa sản phẩm.</p>
+      {% if evaluation.can_checkout %}<a class="cart-checkout" href="{% url 'orders:checkout' %}">TIẾN HÀNH THANH TOÁN <span>({{ evaluation.total_quantity }})</span></a>{% else %}<p class="cart-checkout-warning" role="status">Có {{ evaluation.unavailable_count }} mục chưa thể mua. Vui lòng đổi phiên bản, giảm số lượng hoặc xóa mục không khả dụng trước khi thanh toán.</p><button class="cart-checkout" type="button" disabled>CHƯA THỂ THANH TOÁN</button>{% endif %}
+      <div class="cart-trust"><span>Thông tin thanh toán được bảo vệ</span><span>Hỗ trợ đổi trả theo chính sách</span></div>
+      <div class="cart-payment-row"><span>Chấp nhận thanh toán:</span><span class="cart-payment-tag">COD</span></div>
+    </aside>
+  </div>
+  {% else %}
+  <section class="cart-empty"><img src="{% static 'cart/assets/cart.svg' %}" alt="" width="22" height="22"><h2>Giỏ hàng đang trống</h2><p>Khám phá sản phẩm và chọn những món đồ phù hợp với bạn.</p><a class="cart-button cart-button-primary" href="{% url 'catalog:public_catalog' %}">Tiếp tục mua sắm</a></section>
+  {% endif %}
+</main>
+{% endblock %}

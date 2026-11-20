@@ -1,0 +1,58 @@
+{% load static %}
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Giỏ hàng — Quốc Hùng Mobile{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/tokens.css' %}">
+  <link rel="stylesheet" href="{% static 'cart/css/cart.css' %}">
+  <script src="{% static 'cart/js/cart.js' %}" defer></script>
+</head>
+<body class="qhm-cart-page">
+  <header class="cart-header">
+    <div class="cart-header-inner">
+      <a class="cart-brand" href="{% url 'home' %}" aria-label="Quốc Hùng Mobile — Trang chủ">
+        <span class="cart-logo-slot">{% if site_branding.logo %}<img class="cart-configured-logo" src="{{ site_branding.logo.url }}" alt="{{ site_branding.logo_alt }}">{% else %}<img class="cart-figma-logo" src="{% static 'cart/assets/logo.png' %}" alt="Quốc Hùng Mobile">{% endif %}</span>
+        <span>QUỐC HÙNG MOBILE</span>
+      </a>
+      <div class="cart-header-center">
+        <form class="cart-search" action="{% url 'catalog:public_catalog' %}" method="get" role="search">
+          <label class="cart-sr-only" for="cart-search">Tìm kiếm sản phẩm</label>
+          <input id="cart-search" name="q" type="search" placeholder="Tìm kiếm điện thoại, laptop, phụ kiện…">
+          <button type="submit" aria-label="Tìm kiếm"><img src="{% static 'cart/assets/search.svg' %}" alt="" width="18" height="18"></button>
+        </form>
+        <nav class="cart-category-nav" aria-label="Danh mục sản phẩm">
+          {% for category in categories %}<a href="{% url 'catalog:public_category' category.pk %}">{{ category.name }}</a>{% empty %}<a href="{% url 'catalog:public_catalog' %}">Tất cả sản phẩm</a>{% endfor %}
+        </nav>
+      </div>
+      <nav class="cart-header-actions" aria-label="Tài khoản và mua hàng">
+        <a class="cart-header-action cart-order-link" href="{% if user.is_authenticated %}{% url 'accounts:profile' %}{% else %}{% url 'accounts:login' %}{% endif %}"><img src="{% static 'cart/assets/orders.svg' %}" alt="" width="20" height="20"><span>Đơn hàng của tôi</span></a>
+        <a class="cart-header-action" href="{% url 'cart:cart_detail' %}" aria-current="page"><span class="cart-icon-badge"><img src="{% static 'cart/assets/cart.svg' %}" alt="" width="22" height="22"><b aria-label="{{ cart_item_count }} sản phẩm trong giỏ">{{ cart_item_count }}</b></span><span class="cart-action-label">Giỏ hàng</span></a>
+        {% if user.is_authenticated %}<a class="cart-account" href="{% url 'accounts:profile' %}"><span class="cart-avatar">{% if storefront_customer %}{{ storefront_customer.initials }}{% else %}{{ user.username|slice:':1'|upper }}{% endif %}</span><span>{% if storefront_customer %}{{ storefront_customer.name }}{% else %}{{ user.get_full_name|default:user.username }}{% endif %}</span></a>{% else %}<a class="cart-account cart-signin" href="{% url 'accounts:login' %}?next={% url 'cart:cart_detail' %}">Đăng nhập</a>{% endif %}
+      </nav>
+    </div>
+  </header>
+  {% block content %}{% endblock %}
+  <a class="cart-chat" href="{% url 'chat:chat' %}" aria-label="Mở trợ lý chăm sóc khách hàng"><img src="{% static 'cart/assets/chat.svg' %}" alt="" width="24" height="24"><span aria-hidden="true"></span></a>
+  <footer class="cart-footer">
+    <div class="cart-footer-inner">
+      <div class="cart-footer-grid">
+        <section>
+          <a class="cart-footer-brand" href="{% url 'home' %}"><span class="cart-logo-slot cart-footer-logo">{% if site_branding.logo %}<img class="cart-configured-logo" src="{{ site_branding.logo.url }}" alt="{{ site_branding.logo_alt }}">{% else %}<img class="cart-figma-logo" src="{% static 'cart/assets/logo.png' %}" alt="Quốc Hùng Mobile">{% endif %}</span><span><strong>QUỐC HÙNG MOBILE</strong><small>CHÍNH HÃNG • UY TÍN</small></span></a>
+          <p>Hệ thống bán lẻ điện thoại, máy tính bảng, phụ kiện công nghệ tại Đà Nẵng.</p>
+          <p class="cart-footer-contact"><img src="{% static 'cart/assets/phone.svg' %}" alt="" width="17.5" height="18"><span>Hotline CSKH: <a href="tel:18006868">1800 6868</a></span></p>
+          <p class="cart-footer-contact"><img src="{% static 'cart/assets/location.svg' %}" alt="" width="18" height="18"><span>Số 156 Nguyễn Văn Linh, P. Vĩnh Trung, Q. Thanh Khê, TP. Đà Nẵng, Việt Nam</span></p>
+        </section>
+        <section><h2>HỖ TRỢ KHÁCH HÀNG</h2><p>Hướng dẫn đặt hàng trực tuyến</p><p>Chính sách bảo hành & sửa chữa</p><p>Chính sách hủy đơn & đổi trả</p><a href="{% if user.is_authenticated %}{% url 'accounts:profile' %}{% else %}{% url 'accounts:login' %}{% endif %}">Tra cứu tiến độ đơn hàng</a><a href="{% url 'chat:chat' %}">Tư vấn và hỗ trợ mua hàng</a></section>
+        <section><h2>DANH MỤC & THÔNG TIN</h2>{% for category in categories|slice:':4' %}<a href="{% url 'catalog:public_category' category.pk %}">{{ category.name }}</a>{% endfor %}<a href="{% url 'catalog:public_catalog' %}">Khám phá sản phẩm</a><a href="{% url 'home' %}">Giới thiệu Quốc Hùng Mobile</a></section>
+        <section><h2>KẾT NỐI VỚI CHÚNG TÔI</h2><div class="cart-social" aria-label="Mạng xã hội"><span aria-label="Facebook"><img src="{% static 'cart/assets/facebook.svg' %}" alt="Facebook" width="20" height="20"></span><span aria-label="Instagram"><img src="{% static 'cart/assets/instagram.svg' %}" alt="Instagram" width="20" height="20"></span></div><h3>PHƯƠNG THỨC THANH TOÁN</h3><span class="cart-payment">Thanh toán khi nhận hàng</span></section>
+      </div>
+      <div class="cart-footer-bottom"><span>© {% now 'Y' %} Quốc Hùng Mobile. Tất cả các quyền được bảo lưu.</span><span>Điều khoản sử dụng <span aria-hidden="true">·</span> Chính sách bảo mật <span aria-hidden="true">·</span> Liên hệ đối tác</span></div>
+    </div>
+  </footer>
+</body>
+</html>

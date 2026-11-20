@@ -370,6 +370,23 @@ def remove_cart_item(cart, item_id):
     return _execute_with_sqlite_retry(_do_remove)
 
 
+def remove_selected_cart_items(cart, raw_ids):
+    from django.http import Http404
+
+    if not raw_ids:
+        raise ValidationError('Vui lòng chọn sản phẩm cần xóa.')
+    item_ids = {parse_strictly_positive_int(value) for value in raw_ids}
+
+    def _do_remove_selected():
+        items = CartItem.objects.filter(cart_id=cart.pk, pk__in=item_ids)
+        if set(items.values_list('pk', flat=True)) != item_ids:
+            raise Http404('Không tìm thấy sản phẩm trong giỏ hàng của bạn.')
+        items.delete()
+        return len(item_ids)
+
+    return _execute_with_sqlite_retry(_do_remove_selected)
+
+
 def merge_guest_cart_to_user(guest_session_key, user):
 
     session_key = getattr(guest_session_key, 'session_key', guest_session_key)

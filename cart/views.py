@@ -15,6 +15,7 @@ from cart.services import (
     update_cart_item_quantity,
     switch_cart_item_variant,
     remove_cart_item,
+    remove_selected_cart_items,
     get_cart_evaluation,
 )
 
@@ -58,7 +59,26 @@ def cart_detail_view(request):
         messages.error(request, e.message)
         cart = None
 
+    return _render_cart(request, cart, has_pending_guest_cart=has_pending_guest_cart)
+
+
+def _render_cart(request, cart, has_pending_guest_cart=None, quantity_inputs=None):
+    if has_pending_guest_cart is None:
+        has_pending_guest_cart = bool(request.user.is_authenticated and request.session.get('_pending_guest_cart_session_key'))
     evaluation = get_cart_evaluation(cart)
+    for key, value in evaluation.items():
+        if key.endswith('_formatted'):
+            evaluation[key] = value.replace(' đ', 'đ')
+    for line in evaluation['lines']:
+        line['quantity_input'] = (quantity_inputs or {}).get(line['item'].pk, line['item'].quantity)
+        for key, value in line.items():
+            if key.endswith('_formatted'):
+                line[key] = value.replace(' đ', 'đ')
+        for variant in line['other_variants']:
+            variant['price_formatted'] = variant['price_formatted'].replace(' đ', 'đ')
+    evaluation['line_count'] = len(evaluation['lines'])
+    evaluation['available_quantity'] = sum(line['item'].quantity for line in evaluation['lines'] if line['is_available'])
+    evaluation['can_checkout'] = bool(evaluation['lines']) and not evaluation['has_unavailable_lines']
     categories = Category.objects.filter(is_visible=True).order_by('name')
 
     context = {
@@ -189,12 +209,13 @@ def cart_update_quantity_view(request, item_id):
     if not cart:
         raise Http404("Không tìm thấy dòng sản phẩm trong giỏ hàng của bạn.")
 
+    get_object_or_404(cart.items, pk=item_id)
     form = UpdateCartItemQuantityForm(request.POST)
     if not form.is_valid():
         for field, err_list in form.errors.items():
             for err in err_list:
                 messages.error(request, f"Lỗi số lượng: {err}")
-        return redirect('cart:cart_detail')
+        return _render_cart(request, cart, quantity_inputs={item_id: request.POST.get('quantity', '')})
 
     quantity = form.cleaned_data['quantity']
 
@@ -203,6 +224,7 @@ def cart_update_quantity_view(request, item_id):
         messages.success(request, "Đã cập nhật số lượng sản phẩm thành công.")
     except ValidationError as e:
         messages.error(request, e.message)
+        return _render_cart(request, cart, quantity_inputs={item_id: request.POST.get('quantity', '')})
 
     return redirect('cart:cart_detail')
 
@@ -268,6 +290,23 @@ def cart_remove_item_view(request, item_id):
     return redirect('cart:cart_detail')
 
 
+def cart_remove_selected_view(request):
+    if request.method != 'POST':
+        return HttpResponseNotAllowed(['POST'])
+    is_allowed, error_msg = _check_cart_authorization(request)
+    if not is_allowed:
+        return HttpResponseForbidden(error_msg)
+    try:
+        cart = resolve_cart(request, create_if_empty=False)
+        if not cart:
+            raise Http404('Không tìm thấy giỏ hàng của bạn.')
+        count = remove_selected_cart_items(cart, request.POST.getlist('item_ids'))
+        messages.success(request, f'Đã xóa {count} dòng sản phẩm khỏi giỏ hàng.')
+    except ValidationError as exc:
+        messages.error(request, exc.message)
+    return redirect('cart:cart_detail')
+
+
 def cart_sync_guest_cart_view(request):
 
     if request.method != 'POST':
@@ -298,8 +337,6 @@ def cart_sync_guest_cart_view(request):
         )
 
     return redirect('cart:cart_detail')
-
-
 def cart_coupon_preview_view(request):
 
     if request.method != 'POST':
