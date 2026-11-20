@@ -1,178 +1,40 @@
 {% load static %}
-<!DOCTYPE html>
+<!doctype html>
 <html lang="vi">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Đăng nhập — Quốc Hùng Mobile</title>
-    <meta name="description" content="Đăng nhập tài khoản Quốc Hùng Mobile để theo dõi đơn hàng, quản lý thông tin và nhận ưu đãi độc quyền.">
-    <link rel="stylesheet" href="{% static 'css/auth.css' %}">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Đăng nhập | Quốc Hùng Mobile</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/tokens.css' %}">
+  <link rel="stylesheet" href="{% static 'css/auth_login.css' %}">
 </head>
-<body>
-
-
-    {% include 'includes/account_navigation.html' with active_nav='login' %}
-
-
-    <main class="main-content">
-        <div class="auth-card">
-
-            <div class="auth-badge">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <circle cx="12" cy="12" r="10" stroke="white" stroke-width="2.2"/>
-                    <path d="M8 7V17M16 7V17M8 12H16" stroke="white" stroke-width="2.2" stroke-linecap="round"/>
-                </svg>
-            </div>
-
-
-            <h1 class="auth-title">ĐĂNG NHẬP</h1>
-            <p class="auth-subtitle">Đăng nhập để theo dõi đơn hàng và nhận ưu đãi thành viên</p>
-
-
-            {% if messages %}
-                {% for message in messages %}
-                    <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %}" role="alert">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            {% if message.tags == 'error' %}
-                                <circle cx="12" cy="12" r="10"></circle>
-                                <line x1="15" y1="9" x2="9" y2="15"></line>
-                                <line x1="9" y1="9" x2="15" y2="15"></line>
-                            {% else %}
-                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                                <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                            {% endif %}
-                        </svg>
-                        <div>{{ message }}</div>
-                    </div>
-                {% endfor %}
-            {% endif %}
-
-
-            {% if form.non_field_errors %}
-                <div class="alert alert-danger" role="alert">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="12" cy="12" r="10"></circle>
-                        <line x1="12" y1="8" x2="12" y2="12"></line>
-                        <line x1="12" y1="16" x2="12.01" y2="16"></line>
-                    </svg>
-                    <div>
-                        {% for error in form.non_field_errors %}
-                            <p>{{ error }}</p>
-                        {% endfor %}
-                    </div>
-                </div>
-            {% endif %}
-
-
-            <form method="post" action="{% url 'accounts:login' %}" class="auth-form" novalidate id="login-form">
-                {% csrf_token %}
-                <input type="hidden" name="next" value="{{ next_url|default:'' }}">
-
-
-                <div class="form-group">
-                    <label for="{{ form.identifier.id_for_label }}" class="form-label">Tên đăng nhập / Email / SĐT:</label>
-                    {{ form.identifier }}
-                    {% if form.identifier.errors %}
-                        <div class="field-error">
-                            <span>⚠</span> {{ form.identifier.errors.0 }}
-                        </div>
-                    {% endif %}
-                </div>
-
-
-                <div class="form-group">
-                    <label for="{{ form.password.id_for_label }}" class="form-label">Mật khẩu:</label>
-                    {{ form.password }}
-                    {% if form.password.errors %}
-                        <div class="field-error">
-                            <span>⚠</span> {{ form.password.errors.0 }}
-                        </div>
-                    {% endif %}
-                </div>
-
-
-                <div class="remember-forgot-row">
-                    <div class="form-checkbox-row">
-                        {{ form.remember_me }}
-                        <label for="{{ form.remember_me.id_for_label }}" class="checkbox-label">
-                            Ghi nhớ đăng nhập trên thiết bị này
-                        </label>
-                    </div>
-                    <a href="javascript:void(0)" class="forgot-password-link disabled" title="Tính năng khôi phục mật khẩu đang được phát triển theo lộ trình">
-                        Quên mật khẩu?
-                    </a>
-                </div>
-
-
-                <button type="submit" class="btn-submit" id="btn-submit-login">ĐĂNG NHẬP</button>
-
-
-                <div class="auth-bottom">
-                    Chưa có tài khoản? <a href="{% url 'accounts:register' %}">Đăng ký tại đây</a>
-                </div>
-            </form>
-        </div>
-    </main>
-
-
-    <footer class="site-footer">
-        <div class="footer-inner">
-
-            <div class="footer-col">
-                <span class="footer-heading">VỀ QUỐC HÙNG MOBILE</span>
-                <p class="footer-about">
-                    Hệ thống bán lẻ điện thoại di động, máy tính bảng, laptop và phụ kiện công nghệ chính hãng hàng đầu. Cam kết chất lượng, bảo hành uy tín và giá cả cạnh tranh.
-                </p>
-                <div class="footer-hotline-box">
-                    <span class="hotline-label">TỔNG ĐÀI HỖ TRỢ (MIỄN PHÍ)</span>
-                    <span class="hotline-number">1800 6868</span>
-                </div>
-            </div>
-
-
-            <div class="footer-col">
-                <span class="footer-heading">CHÍNH SÁCH MUA HÀNG</span>
-                <ul class="footer-links">
-                    <li class="footer-links-item"><a href="#warranty" class="footer-link">Chính sách bảo hành</a></li>
-                    <li class="footer-links-item"><a href="#return" class="footer-link">Chính sách đổi trả hàng</a></li>
-                    <li class="footer-links-item"><a href="#shipping" class="footer-link">Phương thức vận chuyển</a></li>
-                    <li class="footer-links-item"><a href="#installment" class="footer-link">Hướng dẫn trả góp 0%</a></li>
-                    <li class="footer-links-item"><a href="#terms" class="footer-link">Điều khoản dịch vụ</a></li>
-                </ul>
-            </div>
-
-
-            <div class="footer-col">
-                <span class="footer-heading">HỖ TRỢ KHÁCH HÀNG</span>
-                <ul class="footer-links">
-                    <li class="footer-links-item"><a href="#faq" class="footer-link">Câu hỏi thường gặp (FAQ)</a></li>
-                    <li class="footer-links-item"><a href="#order-lookup" class="footer-link">Tra cứu đơn hàng</a></li>
-                    <li class="footer-links-item"><a href="#points" class="footer-link">Tích điểm thành viên</a></li>
-                    <li class="footer-links-item"><a href="#payment-methods" class="footer-link">Thanh toán COD & QR</a></li>
-                    <li class="footer-links-item"><a href="#privacy" class="footer-link">Chính sách bảo mật</a></li>
-                </ul>
-            </div>
-
-
-            <div class="footer-col">
-                <span class="footer-heading">KẾT NỐI VỚI CHÚNG TÔI</span>
-                <p class="footer-address">
-                    Trụ sở chính: 123 Đường Công Nghệ, Quận 1, TP. Hồ Chí Minh<br>
-                    Email: contact@quochungmobile.vn<br>
-                    Thời gian làm việc: 08:00 – 21:30 (Cả CN & ngày lễ)
-                </p>
-                <div class="footer-payment-badges">
-                    <span class="payment-badge">COD</span>
-                    <span class="payment-badge">VIETQR</span>
-                    <span class="payment-badge">NAPAS</span>
-                </div>
-            </div>
-        </div>
-
-        <div class="footer-bottom">
-            © 2026 QUỐC HÙNG MOBILE. TẤT CẢ CÁC QUYỀN ĐƯỢC BẢO LƯU. ĐỒ ÁN LẬP TRÌNH WEB.
-        </div>
-    </footer>
-
+<body class="auth-page">
+  <main class="auth-shell">
+    <section class="auth-intro" aria-labelledby="auth-intro-title">
+      <a class="auth-brand" href="{% url 'home' %}" aria-label="Về trang chủ Quốc Hùng Mobile">
+        <span class="auth-brand__mark">{% if site_branding and site_branding.logo %}<img src="{{ site_branding.logo.url }}" alt="{{ site_branding.logo_alt }}">{% else %}QH{% endif %}</span>
+        <span>QUỐC HÙNG MOBILE</span>
+      </a>
+      <p class="auth-eyebrow">Cổng tài khoản</p>
+      <h1 id="auth-intro-title">Công nghệ chính hãng, phục vụ tận tâm.</h1>
+      <p>Đăng nhập để quản lý đơn hàng, theo dõi ưu đãi và tiếp tục trải nghiệm mua sắm tại Quốc Hùng Mobile.</p>
+      <ul class="auth-benefits" aria-label="Lợi ích tài khoản"><li><strong>Đơn hàng rõ ràng</strong>Theo dõi trạng thái và lịch sử mua sắm.</li><li><strong>Ưu đãi riêng</strong>Nhận thông tin khuyến mãi phù hợp.</li><li><strong>Hỗ trợ nhanh</strong>Kết nối với đội ngũ tư vấn khi cần.</li></ul>
+    </section>
+    <section class="auth-card" aria-labelledby="login-title">
+      <header class="auth-card__header"><h2 id="login-title">Đăng nhập</h2><p>Nhập thông tin tài khoản để tiếp tục.</p></header>
+      {% if form.non_field_errors %}<div class="auth-alert" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+      <form method="post" novalidate>
+        {% csrf_token %}<input type="hidden" name="next" value="{{ next_url }}">
+        <div class="auth-field"><label class="auth-label" for="{{ form.identifier.id_for_label }}">{{ form.identifier.label }}</label><input class="auth-input{% if form.identifier.errors %} is-invalid{% endif %}" type="text" name="{{ form.identifier.html_name }}" id="{{ form.identifier.id_for_label }}" value="{{ form.identifier.value|default_if_none:'' }}" placeholder="Tên đăng nhập, email hoặc số điện thoại" autocomplete="username" required autofocus>{% for error in form.identifier.errors %}<p class="auth-field-error">{{ error }}</p>{% endfor %}</div>
+        <div class="auth-field"><label class="auth-label" for="{{ form.password.id_for_label }}">{{ form.password.label }}</label><input class="auth-input{% if form.password.errors %} is-invalid{% endif %}" type="password" name="{{ form.password.html_name }}" id="{{ form.password.id_for_label }}" placeholder="••••••••" autocomplete="current-password" required>{% for error in form.password.errors %}<p class="auth-field-error">{{ error }}</p>{% endfor %}</div>
+        <div class="auth-options auth-options--split"><label for="{{ form.remember_me.id_for_label }}"><input type="checkbox" name="{{ form.remember_me.html_name }}" id="{{ form.remember_me.id_for_label }}"{% if form.remember_me.value %} checked{% endif %}><span>{{ form.remember_me.label }}</span></label><a href="{% url 'accounts:password_reset' %}">Quên mật khẩu?</a></div>
+        <button class="auth-submit" type="submit">Đăng nhập</button>
+      </form>
+      <p class="auth-register">Chưa có tài khoản? <a href="{% url 'accounts:register' %}">Đăng ký ngay</a></p><a class="auth-back" href="{% url 'home' %}">← Quay về trang chủ</a>
+    </section>
+  </main>
 </body>
 </html>

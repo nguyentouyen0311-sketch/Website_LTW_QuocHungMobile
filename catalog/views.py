@@ -2,7 +2,7 @@ from decimal import Decimal
 from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
-from django.db.models import Q, Exists, OuterRef
+from django.db.models import Q, Exists, OuterRef, Avg, Count
 from django.http import HttpResponseForbidden, HttpResponseNotAllowed, HttpResponseBadRequest
 from django.shortcuts import render, redirect, get_object_or_404
 from django.core.paginator import Paginator
@@ -13,12 +13,13 @@ from urllib.parse import urlencode, quote
 from accounts.permissions import is_sales_staff, is_admin
 from catalog.models import (
     Category, Product, ProductImage, Attribute, AttributeValue,
-    ProductVariant, VariantAttributeValue,
+    ProductVariant, VariantAttributeValue, ProductReview, ProductPresentation,
 )
 from catalog.forms import (
     CategoryForm, ProductForm, ProductImageForm, ProductImageVariantAssignForm,
-    AttributeForm, AttributeValueForm, ProductVariantForm,
+    AttributeForm, AttributeValueForm, ProductVariantForm, ProductPresentationForm,
 )
+from coupons.models import Coupon
 
 
 def parse_positive_id(val, max_digits=12):
@@ -43,13 +44,41 @@ def category_list_view(request):
     if not is_sales_staff(request.user):
         return HttpResponseForbidden("Bạn không có quyền truy cập chức năng này.")
 
-    categories = Category.objects.all().order_by('id')
+    editing_category = None
+    edit_id = request.GET.get('edit', '').strip()
+    if edit_id.isdigit():
+        editing_category = get_object_or_404(Category, id=int(edit_id))
+
+    if request.method == 'POST':
+        category_id = request.POST.get('category_id', '').strip()
+        instance = get_object_or_404(Category, id=int(category_id)) if category_id.isdigit() else None
+        form = CategoryForm(request.POST, instance=instance)
+        if form.is_valid():
+            saved_category = form.save()
+            messages.success(request, f"Đã {'cập nhật' if instance else 'thêm'} danh mục '{saved_category.name}' thành công.")
+            return redirect('catalog:category_list')
+    else:
+        form = CategoryForm(instance=editing_category)
+
+    categories = Category.objects.annotate(product_count=Count('products')).order_by('id')
+    search_query = request.GET.get('q', '').strip()
+    selected_status = request.GET.get('status', '').strip()
+    if search_query:
+        categories = categories.filter(Q(name__icontains=search_query) | Q(description__icontains=search_query))
+    if selected_status == 'visible':
+        categories = categories.filter(is_visible=True)
+    elif selected_status == 'hidden':
+        categories = categories.filter(is_visible=False)
 
     context = {
         'categories': categories,
+        'form': form,
+        'editing_category': editing_category,
+        'search_query': search_query,
+        'selected_status': selected_status,
         'active_nav': 'catalog_categories',
     }
-    return render(request, 'catalog/category_list.html', context)
+    return render(request, 'admin/category_management.html', context)
 
 
 def category_create_view(request):
@@ -59,21 +88,7 @@ def category_create_view(request):
     if not is_sales_staff(request.user):
         return HttpResponseForbidden("Bạn không có quyền truy cập chức năng này.")
 
-    if request.method == 'POST':
-        form = CategoryForm(request.POST)
-        if form.is_valid():
-            category = form.save()
-            messages.success(request, f"Đã tạo mới danh mục '{category.name}' thành công.")
-            return redirect('catalog:category_list')
-    else:
-        form = CategoryForm()
-
-    context = {
-        'form': form,
-        'title': 'Thêm mới danh mục sản phẩm',
-        'active_nav': 'catalog_categories',
-    }
-    return render(request, 'catalog/category_form.html', context)
+    return redirect('catalog:category_list')
 
 
 def category_edit_view(request, category_id):
@@ -83,24 +98,8 @@ def category_edit_view(request, category_id):
     if not is_sales_staff(request.user):
         return HttpResponseForbidden("Bạn không có quyền truy cập chức năng này.")
 
-    category = get_object_or_404(Category, id=category_id)
-
-    if request.method == 'POST':
-        form = CategoryForm(request.POST, instance=category)
-        if form.is_valid():
-            form.save()
-            messages.success(request, f"Đã cập nhật danh mục '{category.name}' thành công.")
-            return redirect('catalog:category_list')
-    else:
-        form = CategoryForm(instance=category)
-
-    context = {
-        'form': form,
-        'category': category,
-        'title': f"Chỉnh sửa danh mục: {category.name}",
-        'active_nav': 'catalog_categories',
-    }
-    return render(request, 'catalog/category_form.html', context)
+    get_object_or_404(Category, id=category_id)
+    return redirect(f"{reverse('catalog:category_list')}?edit={category_id}")
 
 
 def category_toggle_visibility_view(request, category_id):
@@ -138,7 +137,11 @@ def product_list_view(request):
     if not is_sales_staff(request.user):
         return HttpResponseForbidden("Bạn không có quyền truy cập chức năng này.")
 
-    queryset = Product.objects.select_related('category').all()
+    queryset = Product.objects.select_related('category').prefetch_related(
+        'variants__inventory',
+        'variants__attribute_values__attribute',
+        'variants__attribute_values__attribute_value',
+    ).all()
 
     q = request.GET.get('q', '').strip()
     if q:
@@ -174,15 +177,36 @@ def product_list_view(request):
 
     categories = Category.objects.all().order_by('name')
 
+    products = list(queryset.order_by('id'))
+    for product in products:
+        variants = list(product.variants.all())
+        product.variant_count = len(variants)
+        product.available_stock = sum(max(0, getattr(getattr(variant, 'inventory', None), 'available', 0)) for variant in variants)
+        first_variant = next((variant for variant in variants if variant.is_active), None)
+        product.price_display = format_vnd(first_variant.price) if first_variant else 'Liên hệ'
+
+    selected_product_id = parse_positive_id(request.GET.get('product', ''))
+    selected_product = next((product for product in products if product.id == selected_product_id), products[0] if products else None)
+    selected_variants = []
+    if selected_product:
+        selected_variants = list(selected_product.variants.all())
+        for variant in selected_variants:
+            variant.attributes_display = ', '.join(link.attribute_value.value for link in variant.attribute_values.all()) or 'Phiên bản tiêu chuẩn'
+            variant.stock_available = max(0, getattr(getattr(variant, 'inventory', None), 'available', 0))
+            variant.price_display = format_vnd(variant.price)
+
     context = {
-        'products': queryset,
+        'products': products,
         'categories': categories,
         'selected_category': category_id,
         'selected_status': status,
         'search_query': q,
+        'selected_product': selected_product,
+        'selected_variants': selected_variants,
+        'is_admin_user': is_admin(request.user),
         'active_nav': 'catalog_products',
     }
-    return render(request, 'catalog/product_list.html', context)
+    return render(request, 'admin/product_list.html', context)
 
 
 def product_create_view(request):
@@ -194,25 +218,25 @@ def product_create_view(request):
 
     if request.method == 'POST':
         form = ProductForm(request.POST)
-        if form.is_valid():
+        presentation_form = ProductPresentationForm(request.POST)
+        if form.is_valid() and presentation_form.is_valid():
             product = form.save()
+            presentation = presentation_form.save(commit=False)
+            presentation.product = product
+            presentation.save()
             messages.success(request, f"Đã thêm mới sản phẩm '{product.name}' ({product.product_code}) thành công.")
-            submit_action = request.POST.get('submit_action')
-            if submit_action == 'save':
-                return redirect('catalog:product_list')
-            elif submit_action == 'save_and_upload':
-                return redirect(f"{reverse('catalog:product_detail', args=[product.id])}#gallery")
-            else:
-                return redirect('catalog:product_detail', product_id=product.id)
+            return redirect(f"{reverse('catalog:product_edit', args=[product.id])}#images")
     else:
         form = ProductForm()
+        presentation_form = ProductPresentationForm()
 
     context = {
         'form': form,
+        'presentation_form': presentation_form,
         'title': 'Thêm mới sản phẩm',
         'active_nav': 'catalog_products',
     }
-    return render(request, 'catalog/product_form.html', context)
+    return render(request, 'admin/product_editor.html', context)
 
 
 def product_edit_view(request, product_id):
@@ -230,25 +254,25 @@ def product_edit_view(request, product_id):
 
     if request.method == 'POST':
         form = ProductForm(request.POST, instance=product)
-        if form.is_valid():
+        presentation, _ = ProductPresentation.objects.get_or_create(product=product)
+        presentation_form = ProductPresentationForm(request.POST, instance=presentation)
+        if form.is_valid() and presentation_form.is_valid():
             form.save()
+            presentation_form.save()
             messages.success(request, f"Đã cập nhật thông tin sản phẩm '{product.name}' ({product.product_code}) thành công.")
-            submit_action = request.POST.get('submit_action')
-            if submit_action == 'save':
-                return redirect('catalog:product_list')
-            elif submit_action == 'save_and_upload':
-                return redirect(f"{reverse('catalog:product_detail', args=[product.id])}#gallery")
-            return redirect('catalog:product_detail', product_id=product.id)
+            return redirect(f"{reverse('catalog:product_edit', args=[product.id])}#images")
     else:
         form = ProductForm(instance=product)
+        presentation_form = ProductPresentationForm(instance=getattr(product, 'presentation', None))
 
     context = {
         'form': form,
+        'presentation_form': presentation_form,
         'product': product,
         'title': f"Chỉnh sửa sản phẩm: {product.name}",
         'active_nav': 'catalog_products',
     }
-    return render(request, 'catalog/product_form.html', context)
+    return render(request, 'admin/product_editor.html', context)
 
 
 def product_detail_view(request, product_id):
@@ -495,39 +519,102 @@ def product_images_reorder_view(request, product_id):
 from .utils import format_vnd
 
 
-def homepage_view(request):
-    visible_categories = Category.objects.filter(is_visible=True).order_by('name')
-
-    products_qs = (
-        Product.objects.filter(
-            category__is_visible=True,
-            is_active=True,
-            is_deleted=False,
-        )
-        .select_related('category')
-        .prefetch_related('images')
-        .annotate(
-            has_active_variants=Exists(
-                ProductVariant.objects.filter(product=OuterRef('pk'), is_active=True)
-            )
-        )
-        .order_by('category__name', 'name')
-    )
-
-    featured_products = list(products_qs[:12])
-
-    context = {
-        'categories': visible_categories,
-        'products': featured_products,
-        'total_featured_count': len(featured_products),
-        'active_nav': 'home',
-        'customer_notice': 'Thông tin phiên bản và giá bán đang được cập nhật',
+def storefront_category_view(request, category_slug):
+    category_definitions = {
+        'phones': ('Điện thoại chính hãng', ('điện thoại', 'smartphone', 'phone')),
+        'laptops': ('Laptop chính hãng', ('laptop', 'máy tính xách tay', 'notebook')),
+        'tablets': ('Tablet chính hãng', ('tablet', 'máy tính bảng', 'ipad')),
+        'audio': ('Thiết bị âm thanh', ('âm thanh', 'tai nghe', 'loa', 'audio')),
+        'accessories': ('Phụ kiện công nghệ', ('phụ kiện', 'accessory')),
     }
-    return render(request, 'catalog/homepage.html', context)
+    definition = category_definitions.get(category_slug)
+    if definition is None:
+        return HttpResponseBadRequest('Danh mục không hợp lệ.')
+
+    fallback_title, keywords = definition
+    visible_categories = list(Category.objects.filter(is_visible=True).order_by('name'))
+    selected_category = next((item for item in visible_categories if any(keyword in item.name.casefold() for keyword in keywords)), None)
+    products = []
+    if selected_category:
+        products = list(Product.objects.filter(category=selected_category, is_active=True, is_deleted=False).prefetch_related('images', 'variants').order_by('name'))
+
+    for item in products:
+        first_image = next(iter(item.images.all()), None)
+        first_variant = next((variant for variant in item.variants.all() if variant.is_active), None)
+        item.image_url = first_image.image.url if first_image else ''
+        item.price_display = format_vnd(first_variant.price) if first_variant else 'Liên hệ'
+        item.original_price_display = format_vnd(first_variant.original_price) if first_variant and first_variant.original_price else ''
+        item.product_url = reverse('catalog:public_product_detail', args=[item.id])
+
+    return render(request, 'storefront/category_live.html', {
+        'categories': visible_categories,
+        'selected_category': selected_category,
+        'products': products,
+        'page_key': category_slug,
+        'storefront_nav_category_id': selected_category.id if selected_category else None,
+        'category_title': selected_category.name if selected_category else fallback_title,
+        'category_description': selected_category.description if selected_category and selected_category.description else '',
+    })
+
+
+def homepage_view(request):
+    visible_categories = list(Category.objects.filter(is_visible=True).order_by('name'))
+    products = list(
+        Product.objects.filter(category__is_visible=True, is_active=True, is_deleted=False)
+        .select_related('category', 'presentation')
+        .prefetch_related('images', 'variants')
+        .annotate(
+            review_average=Avg('reviews__rating', filter=Q(reviews__is_visible=True)),
+            review_count=Count('reviews', filter=Q(reviews__is_visible=True)),
+        )
+        .order_by('-id')[:12]
+    )
+    for product in products:
+        product.card_image = next(iter(product.images.all()), None)
+        product.card_variant = next((variant for variant in product.variants.all() if variant.is_active), None)
+        product.price_display = format_vnd(product.card_variant.price) if product.card_variant else 'Liên hệ'
+        product.original_price_display = format_vnd(product.card_variant.original_price) if product.card_variant and product.card_variant.original_price else ''
+        product.discount_percent = int(((product.card_variant.original_price - product.card_variant.price) * 100 / product.card_variant.original_price)) if product.card_variant and product.card_variant.original_price and product.card_variant.original_price > product.card_variant.price else 0
+        product.rating_display = f'{float(product.review_average):.1f}' if product.review_average else '0.0'
+        presentation = getattr(product, 'presentation', None)
+        product.short_description = getattr(presentation, 'short_description', '') or product.description or ''
+    now = timezone.now()
+    active_coupon = Coupon.objects.filter(is_active=True, starts_at__lte=now, ends_at__gt=now).order_by('ends_at').first()
+    return render(request, 'storefront/homepage.html', {
+        'categories': visible_categories[:8],
+        'products': products,
+        'deal_products': products[:4],
+        'featured_products': products[4:],
+        'hero_product': products[0] if products else None,
+        'active_coupon': active_coupon,
+        'page_key': 'home',
+    })
 
 
 def public_catalog_view(request, category_id=None):
     visible_categories = Category.objects.filter(is_visible=True).order_by('name')
+
+    selected_category = get_object_or_404(visible_categories, id=category_id) if category_id else None
+    products = Product.objects.filter(category__is_visible=True, is_active=True, is_deleted=False).select_related('category').prefetch_related('images', 'variants')
+    if selected_category:
+        products = products.filter(category=selected_category)
+    products = list(products.order_by('name'))
+    for item in products:
+        first_image = next(iter(item.images.all()), None)
+        first_variant = next((variant for variant in item.variants.all() if variant.is_active), None)
+        item.image_url = first_image.image.url if first_image else ''
+        item.price_display = format_vnd(first_variant.price) if first_variant else 'Liên hệ'
+        item.original_price_display = format_vnd(first_variant.original_price) if first_variant and first_variant.original_price else ''
+        item.product_url = reverse('catalog:public_product_detail', args=[item.id])
+    return render(request, 'storefront/category_live.html', {
+        'categories': visible_categories,
+        'selected_category': selected_category,
+        'products': products,
+        'page_key': '',
+        'storefront_nav_category_id': selected_category.id if selected_category else None,
+        'category_title': selected_category.name if selected_category else 'Danh mục sản phẩm',
+        'category_description': selected_category.description if selected_category else '',
+    })
 
     selected_category = None
     invalid_category = False
@@ -615,6 +702,134 @@ def public_product_detail_view(request, product_id):
         is_active=True,
         is_deleted=False,
     )
+
+    if request.method == 'POST' and request.POST.get('action') == 'create_review':
+        rating = request.POST.get('rating', '').strip()
+        content = request.POST.get('content', '').strip()
+        if not rating.isdigit() or not 1 <= int(rating) <= 5 or not content:
+            messages.error(request, 'Vui lòng chọn số sao từ 1 đến 5 và nhập nội dung đánh giá.')
+        else:
+            reviewer_name = request.POST.get('reviewer_name', '').strip()
+            if request.user.is_authenticated:
+                reviewer_name = request.user.get_full_name().strip() or request.user.username
+            ProductReview.objects.create(
+                product=product,
+                user=request.user if request.user.is_authenticated else None,
+                reviewer_name=reviewer_name or 'Khách hàng Quốc Hùng Mobile',
+                rating=int(rating),
+                variant_text=request.POST.get('variant_text', '').strip(),
+                content=content,
+            )
+            messages.success(request, 'Cảm ơn bạn. Đánh giá đã được gửi và chờ kiểm duyệt.')
+        return redirect(f'{reverse("catalog:public_product_detail", args=[product.id])}#reviews')
+
+    gallery_images = list(product.images.all().order_by('sort_order', 'id'))
+    variants = list(
+        product.variants.filter(is_active=True).select_related('inventory').prefetch_related(
+            'attribute_values__attribute', 'attribute_values__attribute_value'
+        ).order_by('id')
+    )
+    selected_variant = variants[0] if variants else None
+    requested_variant = request.GET.get('variant')
+    if requested_variant and requested_variant.isdigit():
+        selected_variant = next((v for v in variants if v.id == int(requested_variant)), selected_variant)
+
+    attribute_options = {}
+    variant_matrix = []
+    for variant in variants:
+        links = list(variant.attribute_values.all())
+        variant.option_values = {link.attribute.name: link.attribute_value.value for link in links}
+        variant.attributes_display = ', '.join(link.attribute_value.value for link in links) or 'Phiên bản tiêu chuẩn'
+        variant.price_display = format_vnd(variant.price)
+        variant.original_price_display = format_vnd(variant.original_price) if variant.original_price else ''
+        variant.available_count = max(0, getattr(getattr(variant, 'inventory', None), 'available', 0))
+        variant.discount_percent = int(((variant.original_price - variant.price) * 100 / variant.original_price)) if variant.original_price and variant.original_price > variant.price else 0
+        for link in links:
+            name = link.attribute.name
+            attribute_options.setdefault(name, {})[link.attribute_value.value] = True
+        variant_matrix.append({
+            'id': variant.id,
+            'options': variant.option_values,
+            'price': variant.price_display,
+            'originalPrice': variant.original_price_display,
+            'stock': variant.available_count,
+            'discount': variant.discount_percent,
+        })
+
+    attribute_groups = []
+    default_palette = ['#C9B08D', '#D6D5D1', '#FAFAFA', '#252525', '#BFD0C9', '#A7B2C4']
+    for attr_name, values in attribute_options.items():
+        is_color = 'màu' in attr_name.casefold() or 'color' in attr_name.casefold()
+        options = []
+        for idx, value in enumerate(values):
+            option = {
+                'name': value,
+                'selected': bool(selected_variant and selected_variant.option_values.get(attr_name) == value),
+            }
+            if is_color:
+                option['hex'] = default_palette[idx % len(default_palette)]
+            options.append(option)
+        attribute_groups.append({
+            'name': attr_name,
+            'options': options,
+            'is_color': is_color,
+        })
+
+    now = timezone.now()
+    coupons = Coupon.objects.filter(is_active=True, starts_at__lte=now, ends_at__gt=now).filter(
+        Q(applies_to_all=True) | Q(coupon_products__product=product)
+    ).distinct()
+    for coupon in coupons:
+        coupon.description = f'Giảm {coupon.value_display} cho đơn từ {coupon.min_order_amount_display}'
+
+    review_filter = request.GET.get('review_filter', 'all')
+    reviews_qs = ProductReview.objects.filter(product=product, is_visible=True).select_related('user').prefetch_related('media')
+    all_review_stats = reviews_qs.aggregate(avg=Avg('rating'), total=Count('id'))
+    total_reviews = all_review_stats['total'] or 0
+    avg_rating = round(float(all_review_stats['avg'] or 0), 1)
+    counts = {row['rating']: row['count'] for row in reviews_qs.values('rating').annotate(count=Count('id'))}
+    star_breakdown = []
+    for star in range(5, 0, -1):
+        count = counts.get(star, 0)
+        star_breakdown.append({'value': star, 'count': count, 'percent': round((count / total_reviews * 100) if total_reviews else 0)})
+    media_reviews_count = reviews_qs.filter(media__isnull=False).distinct().count()
+    if review_filter in {'1', '2', '3', '4', '5'}:
+        reviews_qs = reviews_qs.filter(rating=int(review_filter))
+    elif review_filter == 'media':
+        reviews_qs = reviews_qs.filter(media__isnull=False).distinct()
+    elif review_filter == 'verified':
+        reviews_qs = reviews_qs.filter(is_verified_purchase=True)
+    reviews_page = Paginator(reviews_qs, 5).get_page(request.GET.get('review_page', 1))
+    for review in reviews_page:
+        review.initials = ''.join(part[0] for part in review.reviewer_name.split()[:2]).upper() or 'KH'
+        review.stars = range(review.rating)
+        review.empty_stars = range(5 - review.rating)
+
+    presentation = getattr(product, 'presentation', None)
+    technical_specs = list(presentation.technical_specs.items()) if presentation else []
+    highlights = presentation.highlights if presentation else []
+    related_products = list(
+        Product.objects.filter(category=product.category, is_active=True, is_deleted=False).exclude(pk=product.pk)
+        .prefetch_related('images', 'variants').order_by('-id')[:4]
+    )
+    for item in related_products:
+        item.card_image = next(iter(item.images.all()), None)
+        card_variant = next((v for v in item.variants.all() if v.is_active), None)
+        item.card_variant = card_variant
+        item.price_display = format_vnd(card_variant.price) if card_variant else 'Liên hệ'
+        item.original_price_display = format_vnd(card_variant.original_price) if card_variant and card_variant.original_price else ''
+        item.discount_percent = int(((card_variant.original_price - card_variant.price) * 100 / card_variant.original_price)) if card_variant and card_variant.original_price and card_variant.original_price > card_variant.price else 0
+
+    return render(request, 'storefront/product_detail.html', {
+        'product': product, 'gallery_images': gallery_images, 'variants': variants,
+        'selected_variant': selected_variant, 'attribute_groups': attribute_groups, 'variant_matrix': variant_matrix,
+        'coupons': coupons, 'presentation': presentation, 'technical_specs': technical_specs,
+        'highlights': highlights, 'avg_rating': avg_rating, 'total_reviews': total_reviews,
+        'star_breakdown': star_breakdown, 'star_counts': counts, 'media_reviews_count': media_reviews_count,
+        'reviews_page': reviews_page, 'review_filter': review_filter, 'related_products': related_products,
+        'page_key': 'phones',
+        'storefront_nav_category_id': product.category_id,
+    })
 
     all_images = list(product.images.all().order_by('sort_order', 'id'))
     visible_categories = Category.objects.filter(is_visible=True).order_by('name')
@@ -743,12 +958,22 @@ def attribute_list_view(request):
         return HttpResponseForbidden("Bạn không có quyền truy cập chức năng này.")
 
     attributes = Attribute.objects.prefetch_related('values').all().order_by('name')
+    products = Product.objects.filter(is_deleted=False).order_by('name')
+    variants = ProductVariant.objects.select_related('product').prefetch_related(
+        'attribute_values__attribute', 'attribute_values__attribute_value'
+    ).order_by('product__name', 'id')
+    for variant in variants:
+        variant.attributes_display = ', '.join(
+            f'{link.attribute.name}: {link.attribute_value.value}' for link in variant.attribute_values.all()
+        ) or 'Phiên bản tiêu chuẩn'
 
     context = {
         'attributes': attributes,
+        'products': products,
+        'variants': variants,
         'active_nav': 'catalog_attributes',
     }
-    return render(request, 'catalog/attribute_list.html', context)
+    return render(request, 'admin/variant_attribute_center_v3.html', context)
 
 
 def attribute_create_view(request):
@@ -773,7 +998,7 @@ def attribute_create_view(request):
         'is_edit': False,
         'active_nav': 'catalog_attributes',
     }
-    return render(request, 'catalog/attribute_form.html', context)
+    return render(request, 'admin/standard_form_v2.html', context)
 
 
 def attribute_edit_view(request, attribute_id):
@@ -801,7 +1026,7 @@ def attribute_edit_view(request, attribute_id):
         'is_edit': True,
         'active_nav': 'catalog_attributes',
     }
-    return render(request, 'catalog/attribute_form.html', context)
+    return render(request, 'admin/standard_form_v2.html', context)
 
 
 def attribute_value_create_view(request, attribute_id):
@@ -829,7 +1054,7 @@ def attribute_value_create_view(request, attribute_id):
         'is_edit': False,
         'active_nav': 'catalog_attributes',
     }
-    return render(request, 'catalog/attribute_value_form.html', context)
+    return render(request, 'admin/standard_form_v2.html', context)
 
 
 def attribute_value_edit_view(request, attribute_id, value_id):
@@ -859,7 +1084,7 @@ def attribute_value_edit_view(request, attribute_id, value_id):
         'is_edit': True,
         'active_nav': 'catalog_attributes',
     }
-    return render(request, 'catalog/attribute_value_form.html', context)
+    return render(request, 'admin/standard_form_v2.html', context)
 
 
 def product_variant_list_view(request, product_id):
@@ -931,9 +1156,10 @@ def product_variant_create_view(request, product_id):
         'form': form,
         'title': f"Thêm biến thể mới — {product.name}",
         'is_edit': False,
-        'active_nav': 'catalog_products',
+        'sku_is_automatic': True,
+        'active_nav': 'catalog_attributes',
     }
-    return render(request, 'catalog/variant_form.html', context)
+    return render(request, 'admin/standard_form_v3.html', context)
 
 
 def product_variant_edit_view(request, product_id, variant_id):
@@ -965,6 +1191,6 @@ def product_variant_edit_view(request, product_id, variant_id):
         'form': form,
         'title': f"Chỉnh sửa biến thể: {variant.sku}",
         'is_edit': True,
-        'active_nav': 'catalog_products',
+        'active_nav': 'catalog_attributes',
     }
-    return render(request, 'catalog/variant_form.html', context)
+    return render(request, 'admin/standard_form_v3.html', context)

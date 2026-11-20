@@ -18,6 +18,7 @@ urlpatterns = [
     path('payments/', include('payments.urls', namespace='payments')),
     path('management/payments/', include('payments.urls', namespace='payments_mgmt')),
     path('management/coupons/', include('coupons.urls')),
+    path('management/dashboard/', include('dashboard.urls', namespace='dashboard')),    
     path('chat/', include('chat.urls')),
 ]
 

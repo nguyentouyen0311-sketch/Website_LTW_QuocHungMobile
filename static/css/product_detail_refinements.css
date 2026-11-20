@@ -1,0 +1,15 @@
+.pdp-assurances span:last-child{display:none}
+.pdp-assurances{grid-template-columns:repeat(3,1fr)}
+.similar-grid article{display:flex;min-height:346px;flex-direction:column}
+.similar-image{flex:none;height:190px}
+.similar-image.is-device{position:relative;display:grid;place-items:center;overflow:hidden}
+.similar-image.is-device:after{position:absolute;width:40%;height:62%;margin:0;transform:rotate(-22deg)}
+.similar-grid p{min-height:14px;margin-bottom:5px}
+.similar-grid h3{min-height:18px}
+.similar-grid strong{min-height:24px;margin-bottom:10px}
+.similar-grid button{margin-top:auto}
+.read-more{display:flex;align-items:center;justify-content:center;gap:5px}
+.read-more{font-size:0}
+.read-more::before{content:'Xem thêm nội dung bài viết';font:600 12px var(--font-sans)}
+.read-more::after{content:'⌄';font:700 14px/1 var(--font-sans);transform:translateY(-1px)}
+@media(max-width:600px){.similar-grid article{min-height:290px}.similar-image{height:135px}.pdp-assurances{grid-template-columns:1fr}}

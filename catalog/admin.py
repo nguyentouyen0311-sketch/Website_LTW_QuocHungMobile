@@ -5,7 +5,40 @@ from django.core.exceptions import PermissionDenied
 from catalog.models import (
     Category, Product, ProductImage, Attribute, AttributeValue,
     ProductVariant, VariantAttributeValue,
+    SiteBranding,
+    ProductPresentation,
+    ProductReview,
+    ProductReviewMedia,
 )
+
+
+class ProductReviewMediaInline(admin.TabularInline):
+    model = ProductReviewMedia
+    extra = 0
+    fields = ('file', 'sort_order')
+
+
+@admin.register(ProductReview)
+class ProductReviewAdmin(admin.ModelAdmin):
+    list_display = ('product', 'reviewer_name', 'rating', 'is_verified_purchase', 'is_visible', 'created_at')
+    list_filter = ('rating', 'is_verified_purchase', 'is_visible', 'product__category')
+    search_fields = ('product__name', 'reviewer_name', 'content')
+    readonly_fields = ('created_at',)
+    inlines = [ProductReviewMediaInline]
+
+@admin.register(ProductPresentation)
+class ProductPresentationAdmin(admin.ModelAdmin):
+    list_display = ('product', 'warranty_text')
+    search_fields = ('product__name',)
+
+
+@admin.register(SiteBranding)
+class SiteBrandingAdmin(admin.ModelAdmin):
+    list_display = ('__str__', 'logo', 'updated_at')
+    fields = ('logo', 'logo_alt')
+
+    def has_add_permission(self, request):
+        return not SiteBranding.objects.exists()
 from catalog.forms import (
     ProductImageAdminForm, AttributeValueAdminForm,
     AttributeValueInlineForm, AttributeValueInlineFormSet,

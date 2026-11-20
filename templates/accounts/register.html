@@ -1,202 +1,54 @@
 {% load static %}
-<!DOCTYPE html>
+<!doctype html>
 <html lang="vi">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Đăng ký tài khoản — Quốc Hùng Mobile</title>
-    <meta name="description" content="Tạo tài khoản Quốc Hùng Mobile để nhận voucher 500k và tích điểm đổi quà khi mua điện thoại, laptop, phụ kiện chính hãng.">
-    <link rel="stylesheet" href="{% static 'css/auth.css' %}">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Đăng ký | Quốc Hùng Mobile</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/tokens.css' %}">
+  <link rel="stylesheet" href="{% static 'css/auth_login.css' %}">
 </head>
-<body>
-
-
-    {% include 'includes/account_navigation.html' with active_nav='register' %}
-
-
-    <main class="main-content">
-        <div class="auth-card">
-
-            <div class="auth-badge">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <circle cx="12" cy="12" r="10" stroke="white" stroke-width="2.2"/>
-                    <path d="M8 7V17M16 7V17M8 12H16" stroke="white" stroke-width="2.2" stroke-linecap="round"/>
-                </svg>
-            </div>
-
-
-            <h1 class="auth-title">ĐĂNG KÝ TÀI KHOẢN</h1>
-            <p class="auth-subtitle">Tạo tài khoản để nhận voucher 500k và tích điểm đổi quà</p>
-
-
-            {% if messages %}
-                {% for message in messages %}
-                    <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %}" role="alert">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            {% if message.tags == 'error' %}
-                                <circle cx="12" cy="12" r="10"></circle>
-                                <line x1="15" y1="9" x2="9" y2="15"></line>
-                                <line x1="9" y1="9" x2="15" y2="15"></line>
-                            {% else %}
-                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                                <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                            {% endif %}
-                        </svg>
-                        <div>{{ message }}</div>
-                    </div>
-                {% endfor %}
-            {% endif %}
-
-
-            {% if form.non_field_errors %}
-                <div class="alert alert-danger" role="alert">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="12" cy="12" r="10"></circle>
-                        <line x1="12" y1="8" x2="12" y2="12"></line>
-                        <line x1="12" y1="16" x2="12.01" y2="16"></line>
-                    </svg>
-                    <div>
-                        {% for error in form.non_field_errors %}
-                            <p>{{ error }}</p>
-                        {% endfor %}
-                    </div>
-                </div>
-            {% endif %}
-
-
-            <form method="post" action="{% url 'accounts:register' %}" class="auth-form" novalidate id="registration-form">
-                {% csrf_token %}
-
-
-                <div class="form-group">
-                    <label for="{{ form.username.id_for_label }}" class="form-label">Tên đăng nhập:</label>
-                    {{ form.username }}
-                    {% if form.username.errors %}
-                        <div class="field-error">
-                            <span>⚠</span> {{ form.username.errors.0 }}
-                        </div>
-                    {% endif %}
-                </div>
-
-
-                <div class="form-group">
-                    <label for="{{ form.email.id_for_label }}" class="form-label">Email:</label>
-                    {{ form.email }}
-                    {% if form.email.errors %}
-                        <div class="field-error" id="error-email">
-                            <span>⚠</span> {{ form.email.errors.0 }}
-                        </div>
-                    {% endif %}
-                </div>
-
-
-                <div class="form-group">
-                    <label for="{{ form.phone.id_for_label }}" class="form-label">Số điện thoại:</label>
-                    {{ form.phone }}
-                    {% if form.phone.errors %}
-                        <div class="field-error" id="error-phone">
-                            <span>⚠</span> {{ form.phone.errors.0 }}
-                        </div>
-                    {% endif %}
-                </div>
-
-
-                <div class="form-group">
-                    <label for="{{ form.password.id_for_label }}" class="form-label">Mật khẩu:</label>
-                    {{ form.password }}
-                    {% if form.password.errors %}
-                        <div class="field-error">
-                            <span>⚠</span> {{ form.password.errors.0 }}
-                        </div>
-                    {% endif %}
-                </div>
-
-
-                <div class="form-group">
-                    <label for="{{ form.password_confirm.id_for_label }}" class="form-label">Nhập lại mật khẩu:</label>
-                    {{ form.password_confirm }}
-                    {% if form.password_confirm.errors %}
-                        <div class="field-error">
-                            <span>⚠</span> {{ form.password_confirm.errors.0 }}
-                        </div>
-                    {% endif %}
-                </div>
-
-
-                <div class="form-checkbox-row">
-                    {{ form.terms_agreed }}
-                    <label for="{{ form.terms_agreed.id_for_label }}" class="checkbox-label">
-                        Tôi đồng ý với <a href="#terms" target="_blank">Điều khoản dịch vụ</a> và <a href="#privacy" target="_blank">Chính sách bảo mật</a>
-                    </label>
-                </div>
-                {% if form.terms_agreed.errors %}
-                    <div class="field-error" style="margin-top: -14px; margin-bottom: 16px;">
-                        <span>⚠</span> {{ form.terms_agreed.errors.0 }}
-                    </div>
-                {% endif %}
-
-
-                <button type="submit" class="btn-submit" id="btn-submit-register">ĐĂNG KÝ</button>
-
-
-                <div class="auth-bottom">
-                    Đã có tài khoản? <a href="{% url 'accounts:login' %}">Đăng nhập tại đây</a>
-                </div>
-            </form>
-        </div>
-    </main>
-
-
-    <footer class="site-footer">
-        <div class="footer-inner">
-
-            <div class="footer-col-logo">
-                <div class="footer-logo-card">
-                    <div class="brand-icon-box">
-                        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <circle cx="12" cy="12" r="10" stroke="white" stroke-width="2.2"/>
-                            <path d="M8 7V17M16 7V17M8 12H16" stroke="white" stroke-width="2.2" stroke-linecap="round"/>
-                        </svg>
-                    </div>
-                    <span class="brand-name">QUỐC HÙNG</span>
-                    <span class="brand-sub">MOBILE</span>
-                </div>
-            </div>
-
-
-            <div class="footer-col-info">
-                <h2 class="footer-col-title">Quốc Hùng Mobile</h2>
-                <ul class="footer-info-list">
-                    <li class="footer-info-item"><strong>Địa chỉ:</strong> 200-201 Nguyễn Văn Linh, Hải Châu, Đà Nẵng</li>
-                    <li class="footer-info-item"><strong>Hotline:</strong> 0982 805 704</li>
-                    <li class="footer-info-item"><strong>Email:</strong> quochungmobile@gmail.com</li>
-                    <li class="footer-info-item"><strong>Giờ hoạt động:</strong> 9h - 22h (Hàng ngày)</li>
-                </ul>
-            </div>
-
-
-            <div class="footer-col-policy">
-                <h2 class="footer-col-title">Chính sách</h2>
-                <ul class="footer-links-list">
-                    <li class="footer-links-item"><a href="#warranty" class="footer-link">Chính sách bảo hành chính hãng</a></li>
-                    <li class="footer-links-item"><a href="#shipping" class="footer-link">Chính sách vận chuyển & giao hàng</a></li>
-                    <li class="footer-links-item"><a href="#returns" class="footer-link">Chính sách đổi trả 1 - 1 trong 30 ngày</a></li>
-                    <li class="footer-links-item"><a href="#installment" class="footer-link">Chính sách thanh toán & trả góp</a></li>
-                </ul>
-            </div>
-
-
-            <div class="footer-col-support">
-                <h2 class="footer-col-title">Hỗ trợ</h2>
-                <ul class="footer-links-list">
-                    <li class="footer-links-item"><a href="#guide-order" class="footer-link">Hướng dẫn mua hàng online</a></li>
-                    <li class="footer-links-item"><a href="#guide-qr" class="footer-link">Hướng dẫn thanh toán quét mã QR</a></li>
-                    <li class="footer-links-item"><a href="#order-lookup" class="footer-link">Tra cứu tình trạng đơn hàng</a></li>
-                    <li class="footer-links-item"><a href="#faq" class="footer-link">Câu hỏi thường gặp (FAQ)</a></li>
-                </ul>
-            </div>
-        </div>
-    </footer>
-
+<body class="auth-page">
+  <main class="auth-shell">
+    <section class="auth-intro" aria-labelledby="auth-intro-title">
+      <a class="auth-brand" href="{% url 'home' %}" aria-label="Về trang chủ Quốc Hùng Mobile">
+        <span class="auth-brand__mark">{% if site_branding and site_branding.logo %}<img src="{{ site_branding.logo.url }}" alt="{{ site_branding.logo_alt }}">{% else %}QH{% endif %}</span>
+        <span>QUỐC HÙNG MOBILE</span>
+      </a>
+      <p class="auth-eyebrow">Tài khoản khách hàng</p>
+      <h1 id="auth-intro-title">Bắt đầu hành trình mua sắm của bạn.</h1>
+      <p>Tạo tài khoản để theo dõi đơn hàng, lưu thông tin tiện lợi và nhận các ưu đãi dành riêng cho thành viên.</p>
+      <ul class="auth-benefits" aria-label="Lợi ích tài khoản"><li><strong>Theo dõi đơn hàng</strong>Tra cứu tiến trình mua sắm thuận tiện.</li><li><strong>Lưu thông tin</strong>Đặt hàng nhanh hơn trong những lần sau.</li><li><strong>Nhận ưu đãi</strong>Cập nhật khuyến mãi dành cho thành viên.</li></ul>
+    </section>
+    <section class="auth-card" aria-labelledby="register-title">
+      <header class="auth-card__header"><h2 id="register-title">Tạo tài khoản</h2><p>Điền thông tin bên dưới để trở thành thành viên của Quốc Hùng Mobile.</p></header>
+      {% if registered_success %}
+        <div class="auth-success" role="status"><span class="auth-success__icon">✓</span><h3>Đăng ký thành công</h3><p>Tài khoản của bạn đã sẵn sàng. Hãy đăng nhập để bắt đầu mua sắm.</p><a class="auth-submit" href="{% url 'accounts:login' %}">Đến trang đăng nhập</a></div>
+      {% else %}
+        {% if form.non_field_errors %}<div class="auth-alert" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+        <form method="post" novalidate>
+          {% csrf_token %}
+          <div class="auth-field"><label class="auth-label" for="{{ form.username.id_for_label }}">{{ form.username.label }} *</label><input class="auth-input{% if form.username.errors %} is-invalid{% endif %}" type="text" name="{{ form.username.html_name }}" id="{{ form.username.id_for_label }}" value="{{ form.username.value|default_if_none:'' }}" placeholder="nguyenvana_qh" autocomplete="username" required autofocus><p class="auth-field-hint">Dùng chữ, số, dấu gạch dưới, gạch ngang hoặc dấu chấm.</p>{% for error in form.username.errors %}<p class="auth-field-error">{{ error }}</p>{% endfor %}</div>
+          <div class="auth-form-grid">
+            <div class="auth-field"><label class="auth-label" for="{{ form.email.id_for_label }}">{{ form.email.label }}</label><input class="auth-input{% if form.email.errors %} is-invalid{% endif %}" type="email" name="{{ form.email.html_name }}" id="{{ form.email.id_for_label }}" value="{{ form.email.value|default_if_none:'' }}" placeholder="example@gmail.com" autocomplete="email">{% for error in form.email.errors %}<p class="auth-field-error">{{ error }}</p>{% endfor %}</div>
+            <div class="auth-field"><label class="auth-label" for="{{ form.phone.id_for_label }}">{{ form.phone.label }}</label><input class="auth-input{% if form.phone.errors %} is-invalid{% endif %}" type="tel" name="{{ form.phone.html_name }}" id="{{ form.phone.id_for_label }}" value="{{ form.phone.value|default_if_none:'' }}" placeholder="0982 805 704" autocomplete="tel">{% for error in form.phone.errors %}<p class="auth-field-error">{{ error }}</p>{% endfor %}</div>
+          </div>
+          <p class="auth-field-hint auth-contact-hint">Vui lòng cung cấp email hoặc số điện thoại để chúng tôi có thể hỗ trợ bạn.</p>
+          <div class="auth-form-grid">
+            <div class="auth-field"><label class="auth-label" for="{{ form.password.id_for_label }}">{{ form.password.label }} *</label><input class="auth-input{% if form.password.errors %} is-invalid{% endif %}" type="password" name="{{ form.password.html_name }}" id="{{ form.password.id_for_label }}" placeholder="••••••••" autocomplete="new-password" required>{% for error in form.password.errors %}<p class="auth-field-error">{{ error }}</p>{% endfor %}</div>
+            <div class="auth-field"><label class="auth-label" for="{{ form.password_confirm.id_for_label }}">{{ form.password_confirm.label }} *</label><input class="auth-input{% if form.password_confirm.errors %} is-invalid{% endif %}" type="password" name="{{ form.password_confirm.html_name }}" id="{{ form.password_confirm.id_for_label }}" placeholder="••••••••" autocomplete="new-password" required>{% for error in form.password_confirm.errors %}<p class="auth-field-error">{{ error }}</p>{% endfor %}</div>
+          </div>
+          <label class="auth-options auth-options--terms" for="{{ form.terms_agreed.id_for_label }}"><input type="checkbox" name="{{ form.terms_agreed.html_name }}" id="{{ form.terms_agreed.id_for_label }}"{% if form.terms_agreed.value %} checked{% endif %}><span>Tôi đồng ý với <a href="#terms">Điều khoản dịch vụ</a> và <a href="#privacy">Chính sách bảo mật</a>.</span></label>
+          {% for error in form.terms_agreed.errors %}<p class="auth-field-error auth-terms-error">{{ error }}</p>{% endfor %}
+          <button class="auth-submit" type="submit">Tạo tài khoản</button>
+        </form>
+        <p class="auth-register">Đã có tài khoản? <a href="{% url 'accounts:login' %}">Đăng nhập</a></p>
+      {% endif %}
+      <a class="auth-back" href="{% url 'home' %}">← Quay về trang chủ</a>
+    </section>
+  </main>
 </body>
 </html>
