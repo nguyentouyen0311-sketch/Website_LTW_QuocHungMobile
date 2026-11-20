@@ -1,0 +1,808 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quản lý tồn kho &amp; Cảnh báo nhập hàng — Quốc Hùng Mobile</title>
+    <meta name="description" content="Quản lý tồn kho thực tế, tồn đã giữ, tồn có thể bán và ngăn ngừa bán vượt tồn tại Quốc Hùng Mobile Admin Portal.">
+
+    <!-- Google Fonts: Inter & Plus Jakarta Sans -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Project-wide Admin Portal Shell & Inventory Design Tokens -->
+    <link rel="stylesheet" href="{% static 'css/dashboard.css' %}?v=20261119">
+    <link rel="stylesheet" href="{% static 'css/inventory.css' %}?v=20261119">
+</head>
+
+<body class="qhm-dashboard-page qhm-inv-portal">
+
+    <div class="qhm-dashboard-shell">
+        <!-- 1. Fixed Left Sidebar (260px, #1F2A24) -->
+        {% include 'catalog/includes/management_sidebar.html' with active_nav='inventory_list' %}
+
+        <!-- 2. Main Workspace -->
+        <main class="dashboard-main" role="main">
+            <!-- Top Header (Height 64px, White, Breadcrumbs & Search & Admin Badge) -->
+            <header class="dashboard-topbar" role="banner">
+                <div class="dashboard-topbar-left">
+                    <button type="button" class="dashboard-menu-toggle" id="qhm-sidebar-toggle" aria-label="Mở menu quản trị" onclick="toggleQhmSidebar()">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <line x1="3" y1="12" x2="21" y2="12"></line>
+                            <line x1="3" y1="6" x2="21" y2="6"></line>
+                            <line x1="3" y1="18" x2="21" y2="18"></line>
+                        </svg>
+                    </button>
+                    <nav class="dashboard-breadcrumb" aria-label="Đường dẫn trang">
+                        <a href="{% url 'dashboard:index' %}">Tổng quan</a>
+                        <span class="sep">&gt;</span>
+                        <span>Quản lý hàng hóa</span>
+                        <span class="sep">&gt;</span>
+                        <span class="current">Quản lý tồn kho</span>
+                    </nav>
+                </div>
+
+                <div class="dashboard-topbar-right">
+                    <!-- Quick Search in Topbar -->
+                    <form method="get" action="{% url 'inventory:inventory_list' %}" class="dashboard-search-box" style="margin: 0;">
+                        {% if alert_filter and alert_filter != 'all' %}<input type="hidden" name="alert" value="{{ alert_filter }}">{% endif %}
+                        <span class="dashboard-search-icon" aria-hidden="true">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="11" cy="11" r="8"></circle>
+                                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                            </svg>
+                        </span>
+                        <input type="text" name="q" class="dashboard-search-input" placeholder="Tìm kiếm SKU, sản phẩm, mã kho..." value="{{ q }}" aria-label="Tìm kiếm nhanh">
+                    </form>
+
+                    <!-- Administrator Badge -->
+                    <span class="dashboard-admin-badge" title="Tài khoản Quản trị viên">
+                        <span class="dashboard-admin-badge-dot" aria-hidden="true"></span>
+                        ADMINISTRATOR
+                    </span>
+
+                    <!-- View Storefront Website Link -->
+                    <a href="{% url 'catalog:public_catalog' %}" class="dashboard-btn-site" target="_blank" rel="noopener" id="btn-top-view-website" title="Mở trang bán hàng công khai">
+                        <span>Xem Website</span>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                            <polyline points="15 3 21 3 21 9"></polyline>
+                            <line x1="10" y1="14" x2="21" y2="3"></line>
+                        </svg>
+                    </a>
+                </div>
+            </header>
+
+            <!-- Main Content Container (padding 24px–32px) -->
+            <div class="dashboard-content" style="padding: 28px 32px; max-width: 1600px; margin: 0 auto; width: 100%;">
+
+                <!-- Messages Framework -->
+                {% if messages %}
+                <div style="margin-bottom: 20px;">
+                    {% for message in messages %}
+                    <div style="padding: 12px 18px; border-radius: 8px; margin-bottom: 8px; font-size: 13.5px; display: flex; align-items: center; justify-content: space-between; gap: 12px; background: {% if message.tags == 'error' %}var(--inv-danger-bg); color: var(--inv-danger-dark); border: 1px solid var(--inv-danger-border);{% elif message.tags == 'info' %}var(--inv-info-bg); color: var(--inv-info); border: 1px solid var(--inv-info-border);{% else %}var(--inv-success-bg); color: var(--inv-success); border: 1px solid var(--inv-success-border);{% endif %}">
+                        <div>{{ message }}</div>
+                        <button type="button" onclick="this.parentElement.style.display='none'" style="background: none; border: none; font-size: 16px; cursor: pointer; color: inherit; line-height: 1;" aria-label="Đóng thông báo">&times;</button>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                <!-- 3. Inventory Page Header -->
+                <div class="qhm-inv-header">
+                    <div class="qhm-inv-header-left">
+                        <h1 class="qhm-inv-title">Quản lý tồn kho &amp; Cảnh báo nhập hàng</h1>
+                        <p class="qhm-inv-desc">Theo dõi tồn kho thực tế, số lượng đã giữ và ngăn ngừa bán vượt tồn</p>
+                    </div>
+                    <div class="qhm-inv-header-actions">
+                        <a href="{% url 'inventory:inventory_history' %}" class="qhm-btn-secondary" id="btn-inv-history" title="Xem nhật ký biến động kho">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <polyline points="12 6 12 12 16 14"></polyline>
+                            </svg>
+                            <span>Lịch sử biến động kho</span>
+                        </a>
+                        <a href="{% url 'inventory:returned_stock_list' %}" class="qhm-btn-secondary" id="btn-inv-returns" title="Quản lý hàng đổi trả trong kho">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <polyline points="1 4 1 10 7 10"></polyline>
+                                <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+                            </svg>
+                            <span>Hàng đổi trả trong kho</span>
+                        </a>
+                        <button type="button" class="qhm-btn-primary" id="btn-quick-receive" onclick="focusQuickAction('receive')" title="Chuyển sang biểu mẫu nhập kho">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <line x1="12" y1="5" x2="12" y2="19"></line>
+                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                            </svg>
+                            <span>+ Nhập kho / Cập nhật tồn</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 4. Warning Banner (Dynamic Inventory Data) -->
+                {% if total_low_stock_count > 0 or total_out_of_stock_count > 0 %}
+                <div class="qhm-inv-warning-banner" role="alert" id="inventory-warning-banner">
+                    <div class="qhm-inv-warning-icon" aria-hidden="true">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                            <line x1="12" y1="9" x2="12" y2="13"></line>
+                            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                        </svg>
+                    </div>
+                    <div class="qhm-inv-warning-body">
+                        <strong>Cảnh báo tồn kho:</strong> Có <strong>{{ total_low_stock_count }} biến thể sản phẩm</strong> đang chạm ngưỡng hoặc dưới mức tồn tối thiểu{% if total_out_of_stock_count > 0 %} (trong đó có <strong>{{ total_out_of_stock_count }} SKU hết hàng</strong>){% endif %}. Hệ thống tự động kích hoạt cảnh báo tồn kho để nhân viên kho chủ động nhập hàng.
+                    </div>
+                    <a href="?alert=low_stock{% if q %}&q={{ q|urlencode }}{% endif %}" class="qhm-inv-warning-link">Xem biến thể cần nhập &rarr;</a>
+                </div>
+                {% else %}
+                <div class="qhm-inv-info-banner" role="status" id="inventory-safe-banner">
+                    <div class="qhm-inv-info-icon" aria-hidden="true">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                            <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                        </svg>
+                    </div>
+                    <div class="qhm-inv-warning-body" style="color: #065F46;">
+                        <strong>Tình trạng tồn kho an toàn:</strong> Toàn bộ <strong>{{ total_variants_count }} biến thể sản phẩm</strong> đều đang ở mức trên ngưỡng tồn tối thiểu. Không có SKU nào gặp nguy cơ thiếu hụt hàng.
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- 5. KPI Summary Cards (5 White Cards Responsive Grid) -->
+                <div class="qhm-kpi-grid">
+                    <!-- Card 1: Tổng biến thể quản lý -->
+                    <div class="qhm-kpi-card" id="kpi-card-variants">
+                        <div class="qhm-kpi-top">
+                            <span class="qhm-kpi-label">Tổng biến thể quản lý</span>
+                            <div class="qhm-kpi-icon" style="background: #F3F4F6; color: #4B5563;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                                    <line x1="8" y1="21" x2="16" y2="21"></line>
+                                    <line x1="12" y1="17" x2="12" y2="21"></line>
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="qhm-kpi-middle">
+                            <span class="qhm-kpi-value kpi-text-general">{{ total_variants_count }}</span>
+                            <span class="qhm-kpi-unit">biến thể</span>
+                        </div>
+                        <p class="qhm-kpi-desc">Tất cả SKU đang theo dõi trong hệ thống</p>
+                    </div>
+
+                    <!-- Card 2: Tổng tồn thực tế -->
+                    <div class="qhm-kpi-card" id="kpi-card-physical">
+                        <div class="qhm-kpi-top">
+                            <span class="qhm-kpi-label">Tổng tồn thực tế</span>
+                            <div class="qhm-kpi-icon" style="background: #F3F4F6; color: #4B5563;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                                    <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                                    <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="qhm-kpi-middle">
+                            <span class="qhm-kpi-value kpi-text-general">{{ total_physical_count }}</span>
+                            <span class="qhm-kpi-unit">SP</span>
+                        </div>
+                        <p class="qhm-kpi-desc">Hàng đủ điều kiện bán đang có trong kho</p>
+                    </div>
+
+                    <!-- Card 3: Đang giữ cho đơn -->
+                    <div class="qhm-kpi-card" id="kpi-card-reserved">
+                        <div class="qhm-kpi-top">
+                            <span class="qhm-kpi-label">Đang giữ cho đơn</span>
+                            <div class="qhm-kpi-icon" style="background: #FEF3C7; color: #B45309;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="qhm-kpi-middle">
+                            <span class="qhm-kpi-value kpi-text-holding">{{ total_reserved_count }}</span>
+                            <span class="qhm-kpi-unit">SP</span>
+                        </div>
+                        <p class="qhm-kpi-desc">Đang dành cho đơn hàng hoặc đổi trả</p>
+                    </div>
+
+                    <!-- Card 4: Tồn có thể bán -->
+                    <div class="qhm-kpi-card" id="kpi-card-available">
+                        <div class="qhm-kpi-top">
+                            <span class="qhm-kpi-label">Tồn có thể bán</span>
+                            <div class="qhm-kpi-icon" style="background: #ECFDF5; color: #059669;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="20 6 9 17 4 12"></polyline>
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="qhm-kpi-middle">
+                            <span class="qhm-kpi-value kpi-text-available">{{ total_available_count }}</span>
+                            <span class="qhm-kpi-unit">SP</span>
+                        </div>
+                        <p class="qhm-kpi-desc">Số lượng sẵn sàng bán cho khách mới</p>
+                    </div>
+
+                    <!-- Card 5: Sắp hết / Hết hàng -->
+                    <div class="qhm-kpi-card" id="kpi-card-alerts">
+                        <div class="qhm-kpi-top">
+                            <span class="qhm-kpi-label">Sắp hết / Hết hàng</span>
+                            <div class="qhm-kpi-icon" style="background: #FEE2E2; color: #E62E2D;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                                    <line x1="12" y1="9" x2="12" y2="13"></line>
+                                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="qhm-kpi-middle">
+                            <span class="qhm-kpi-value kpi-text-danger">{{ total_low_stock_count }}</span>
+                            <span class="qhm-kpi-unit">SKU</span>
+                        </div>
+                        <p class="qhm-kpi-desc">Biến thể chạm ngưỡng hoặc hết tồn</p>
+                    </div>
+                </div>
+
+                <!-- 6. Filter Pills and Search Controls -->
+                <div class="qhm-filter-bar">
+                    <!-- Filter Pills with Counts -->
+                    <div class="qhm-filter-pills" role="tablist" aria-label="Bộ lọc trạng thái tồn kho">
+                        <a href="?alert=all{% if q %}&q={{ q|urlencode }}{% endif %}" class="qhm-filter-pill {% if alert_filter == 'all' %}active{% endif %}" id="filter-pill-all">
+                            <span>Tất cả</span>
+                            <span class="qhm-filter-count">{{ total_variants_count }}</span>
+                        </a>
+                        <a href="?alert=low_stock{% if q %}&q={{ q|urlencode }}{% endif %}" class="qhm-filter-pill {% if alert_filter == 'low_stock' %}active{% endif %}" id="filter-pill-need-restock">
+                            <span>Cần nhập thêm</span>
+                            <span class="qhm-filter-count">{{ total_low_stock_count }}</span>
+                        </a>
+                        <a href="?alert=holding{% if q %}&q={{ q|urlencode }}{% endif %}" class="qhm-filter-pill {% if alert_filter == 'holding' %}active{% endif %}" id="filter-pill-holding">
+                            <span>Đang giữ hàng</span>
+                            <span class="qhm-filter-count">{{ total_holding_count }}</span>
+                        </a>
+                        {% if total_out_of_stock_count > 0 %}
+                        <a href="?alert=out_of_stock{% if q %}&q={{ q|urlencode }}{% endif %}" class="qhm-filter-pill {% if alert_filter == 'out_of_stock' %}active{% endif %}" id="filter-pill-out-of-stock">
+                            <span>Hết hàng</span>
+                            <span class="qhm-filter-count">{{ total_out_of_stock_count }}</span>
+                        </a>
+                        {% endif %}
+                    </div>
+
+                    <!-- Search Input -->
+                    <div class="qhm-search-container">
+                        <form method="get" action="{% url 'inventory:inventory_list' %}" id="inventory-search-form">
+                            {% if alert_filter != 'all' %}<input type="hidden" name="alert" value="{{ alert_filter }}">{% endif %}
+                            <span class="qhm-search-icon-pos" aria-hidden="true">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <circle cx="11" cy="11" r="8"></circle>
+                                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                                </svg>
+                            </span>
+                            <input type="text" name="q" value="{{ q }}" placeholder="Tìm mã tồn kho, SKU, tên sản phẩm..." class="qhm-search-input" id="search-input" autocomplete="off" aria-label="Tìm kiếm tồn kho">
+                        </form>
+                    </div>
+                </div>
+
+                <!-- 7. Main Split-View Layout (Master: ~68% / Detail: ~32%) -->
+                <div class="qhm-split-view">
+                    
+                    <!-- Left Column: Inventory Table Card -->
+                    <section class="qhm-master-col" aria-label="Bảng danh sách tồn kho">
+                        <div class="qhm-table-card">
+                            <div class="qhm-table-wrap">
+                                <table class="qhm-inv-table" id="inventory-table">
+                                    <thead>
+                                        <tr>
+                                            <th scope="col" style="width: 85px;">MÃ TK</th>
+                                            <th scope="col">SẢN PHẨM &amp; BIẾN THỂ</th>
+                                            <th scope="col" style="text-align: right; width: 100px;">TỒN THỰC</th>
+                                            <th scope="col" style="text-align: right; width: 95px;">MỨC MIN</th>
+                                            <th scope="col" style="text-align: center; width: 115px;">TRẠNG THÁI</th>
+                                            <th scope="col" style="text-align: center; width: 85px;">THAO TÁC</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="inventory-table-body">
+                                        {% for inv in inventory_list %}
+                                        <tr id="inv-row-{{ inv.id }}"
+                                            class="{% if selected_inventory and selected_inventory.id == inv.id %}is-selected{% endif %} {% if inv.available <= 0 %}row-status-critical{% elif inv.available <= inv.min_threshold %}row-status-warning{% else %}row-status-normal{% endif %}"
+                                            onclick="selectInventoryRow('{{ inv.id }}')"
+                                            data-id="{{ inv.id }}"
+                                            data-code="TK{{ inv.id|stringformat:'03d' }}"
+                                            data-product="{{ inv.variant.product.name|escape }}"
+                                            data-sku="{{ inv.variant.sku|escape }}"
+                                            data-variant="{% for link in inv.variant.attribute_values.all %}{{ link.attribute_value.value }}{% if not forloop.last %} • {% endif %}{% empty %}Bản tiêu chuẩn{% endfor %}"
+                                            data-physical="{{ inv.physical_sellable }}"
+                                            data-reserved="{{ inv.reserved }}"
+                                            data-available="{{ inv.available }}"
+                                            data-min="{{ inv.min_threshold }}"
+                                            data-status-label="{% if inv.available <= 0 %}Hết hàng{% elif inv.available <= inv.min_threshold %}Sắp hết{% else %}Còn hàng{% endif %}"
+                                            data-receive-token="{{ inv.recv_token }}"
+                                            data-adjust-token="{{ inv.adj_token }}"
+                                            data-receive-url="{% url 'inventory:inventory_receive' inv.id %}"
+                                            data-adjust-url="{% url 'inventory:inventory_adjust' inv.id %}"
+                                            data-detail-url="{% url 'inventory:inventory_detail' inv.id %}">
+                                            
+                                            <!-- MÃ TK -->
+                                            <td>
+                                                <span class="inv-code-badge">TK{{ inv.id|stringformat:"03d" }}</span>
+                                            </td>
+
+                                            <!-- SẢN PHẨM & BIẾN THỂ -->
+                                            <td>
+                                                <div class="inv-prod-cell">
+                                                    <div class="inv-prod-thumb" aria-hidden="true">
+                                                        {% if inv.variant.image %}
+                                                            <img src="{{ inv.variant.image.url }}" alt="{{ inv.variant.product.name }}">
+                                                        {% elif inv.variant.product.image %}
+                                                            <img src="{{ inv.variant.product.image.url }}" alt="{{ inv.variant.product.name }}">
+                                                        {% else %}
+                                                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                                                <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
+                                                                <line x1="12" y1="18" x2="12.01" y2="18"></line>
+                                                            </svg>
+                                                        {% endif %}
+                                                    </div>
+                                                    <div class="inv-prod-info">
+                                                        <div class="inv-prod-name">{{ inv.variant.product.name }}</div>
+                                                        <div class="inv-prod-variant">
+                                                            {% for link in inv.variant.attribute_values.all %}
+                                                                {{ link.attribute_value.value }}{% if not forloop.last %} • {% endif %}
+                                                            {% empty %}
+                                                                Phiên bản tiêu chuẩn
+                                                            {% endfor %}
+                                                        </div>
+                                                        <div class="inv-prod-sku">{{ inv.variant.sku }}</div>
+                                                    </div>
+                                                </div>
+                                            </td>
+
+                                            <!-- TỒN THỰC -->
+                                            <td style="text-align: right;">
+                                                <span class="inv-num-cell">{{ inv.physical_sellable }}</span>
+                                            </td>
+
+                                            <!-- MỨC MIN -->
+                                            <td style="text-align: right;">
+                                                <span class="inv-min-cell">{{ inv.min_threshold }}</span>
+                                            </td>
+
+                                            <!-- TRẠNG THÁI -->
+                                            <td style="text-align: center;">
+                                                {% if inv.available <= 0 %}
+                                                    <span class="qhm-status-pill pill-danger" title="Tồn có thể bán: {{ inv.available }} SP">
+                                                        <span class="qhm-status-dot" aria-hidden="true"></span>
+                                                        Hết hàng
+                                                    </span>
+                                                {% elif inv.available <= inv.min_threshold %}
+                                                    <span class="qhm-status-pill pill-warning" title="Tồn có thể bán: {{ inv.available }} SP (≤ Ngưỡng {{ inv.min_threshold }})">
+                                                        <span class="qhm-status-dot" aria-hidden="true"></span>
+                                                        Sắp hết
+                                                    </span>
+                                                {% else %}
+                                                    <span class="qhm-status-pill pill-success" title="Tồn có thể bán: {{ inv.available }} SP">
+                                                        <span class="qhm-status-dot" aria-hidden="true"></span>
+                                                        Còn hàng
+                                                    </span>
+                                                {% endif %}
+                                            </td>
+
+                                            <!-- THAO TÁC -->
+                                            <td style="text-align: center;">
+                                                <div class="inv-action-btns">
+                                                    <!-- Nút chỉnh sửa / mở Action Panel -->
+                                                    <button type="button" class="inv-btn-icon" title="Cập nhật / Điều chỉnh tồn kho cho {{ inv.variant.sku }}" aria-label="Cập nhật tồn cho {{ inv.variant.sku }}" onclick="event.stopPropagation(); editInventoryRow('{{ inv.id }}')">
+                                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                                        </svg>
+                                                    </button>
+                                                    <!-- Nút xem chi tiết -->
+                                                    <a href="{% url 'inventory:inventory_detail' inv.id %}" class="inv-btn-icon" title="Xem sổ cái chi tiết biến thể" aria-label="Xem chi tiết {{ inv.variant.sku }}" onclick="event.stopPropagation();">
+                                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8z"></path>
+                                                            <circle cx="12" cy="12" r="3"></circle>
+                                                        </svg>
+                                                    </a>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% empty %}
+                                        <tr>
+                                            <td colspan="6" class="inv-table-empty">
+                                                <div class="inv-table-empty-icon" aria-hidden="true">
+                                                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                                        <circle cx="11" cy="11" r="8"></circle>
+                                                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                                                    </svg>
+                                                </div>
+                                                <div class="inv-table-empty-title">Không tìm thấy biến thể tồn kho nào phù hợp</div>
+                                                <p style="margin: 0; font-size: 13.5px;">Thử thay đổi từ khóa tìm kiếm hoặc chọn bộ lọc trạng thái khác.</p>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <!-- Table Pagination -->
+                            {% if page_obj.has_other_pages %}
+                            <div class="inv-pagination">
+                                <div class="inv-pagination-info">
+                                    Hiển thị trang {{ page_obj.number }} / {{ page_obj.paginator.num_pages }} (Tổng số {{ filtered_count }} biến thể)
+                                </div>
+                                <div class="inv-pagination-nav">
+                                    {% if page_obj.has_previous %}
+                                    <a href="?page={{ page_obj.previous_page_number }}{% if q %}&q={{ q|urlencode }}{% endif %}{% if alert_filter != 'all' %}&alert={{ alert_filter|urlencode }}{% endif %}" class="inv-page-link" aria-label="Trang trước">
+                                        &larr; Trang trước
+                                    </a>
+                                    {% endif %}
+                                    <span class="inv-page-link current" aria-current="page">{{ page_obj.number }}</span>
+                                    {% if page_obj.has_next %}
+                                    <a href="?page={{ page_obj.next_page_number }}{% if q %}&q={{ q|urlencode }}{% endif %}{% if alert_filter != 'all' %}&alert={{ alert_filter|urlencode }}{% endif %}" class="inv-page-link" aria-label="Trang sau">
+                                        Trang sau &rarr;
+                                    </a>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </section>
+
+                    <!-- Right Column: Inventory Action Panel Card -->
+                    <aside class="qhm-detail-col" id="inventory-action-panel-card" aria-label="Bảng thao tác cập nhật tồn kho">
+                        <div class="qhm-action-panel">
+                            <!-- Card Header & Selected Code Badge -->
+                            <div class="qhm-action-panel-header">
+                                <h2 class="qhm-action-panel-title">Cập nhật / Điều chỉnh tồn kho</h2>
+                                <span class="qhm-mode-badge" id="panel-mode-badge">
+                                    {% if selected_inventory %}TK{{ selected_inventory.id|stringformat:"03d" }}{% else %}TK---{% endif %}
+                                </span>
+                            </div>
+
+                            <!-- Selected Variant Information Box -->
+                            <div class="inv-variant-summary" id="panel-variant-summary">
+                                <div class="inv-var-title" id="panel-product-name">
+                                    {{ selected_inventory.variant.product.name|default:"Chưa chọn biến thể" }}
+                                </div>
+                                <div class="inv-var-sku" id="panel-product-sku">
+                                    SKU: {{ selected_inventory.variant.sku|default:"—" }}
+                                </div>
+                                <div class="inv-var-attrs" id="panel-variant-attrs">
+                                    {% if selected_inventory %}
+                                        {% for link in selected_inventory.variant.attribute_values.all %}
+                                            <span class="inv-var-attr-tag">{{ link.attribute.name }}: {{ link.attribute_value.value }}</span>
+                                        {% empty %}
+                                            <span class="inv-var-attr-tag">Bản tiêu chuẩn</span>
+                                        {% endfor %}
+                                    {% else %}
+                                        <span class="inv-var-attr-tag">—</span>
+                                    {% endif %}
+                                </div>
+
+                                <!-- Compact 4-Metric Grid -->
+                                <div class="inv-metrics-mini">
+                                    <div class="inv-metric-mini-item">
+                                        <div class="inv-mini-label">Tồn thực</div>
+                                        <div class="inv-mini-val" id="panel-metric-physical">{{ selected_inventory.physical_sellable|default:0 }}</div>
+                                    </div>
+                                    <div class="inv-metric-mini-item">
+                                        <div class="inv-mini-label">Đang giữ</div>
+                                        <div class="inv-mini-val val-reserved" id="panel-metric-reserved">{{ selected_inventory.reserved|default:0 }}</div>
+                                    </div>
+                                    <div class="inv-metric-mini-item">
+                                        <div class="inv-mini-label">Có thể bán</div>
+                                        <div class="inv-mini-val val-available" id="panel-metric-available">{{ selected_inventory.available|default:0 }}</div>
+                                    </div>
+                                    <div class="inv-metric-mini-item">
+                                        <div class="inv-mini-label">Mức Min</div>
+                                        <div class="inv-mini-val" id="panel-metric-min">{{ selected_inventory.min_threshold|default:0 }}</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Action Tabs: Nhập thêm & Điều chỉnh kiểm kê -->
+                            <div class="inv-action-tabs" role="tablist">
+                                <button type="button" class="inv-tab-btn active" id="tab-action-receive" onclick="switchActionTab('receive')" role="tab" aria-selected="true" aria-controls="panel-form-receive">
+                                    Nhập thêm
+                                </button>
+                                <button type="button" class="inv-tab-btn" id="tab-action-adjust" onclick="switchActionTab('adjust')" role="tab" aria-selected="false" aria-controls="panel-form-adjust">
+                                    Điều chỉnh kiểm kê
+                                </button>
+                            </div>
+
+                            <!-- TAB 1: Receive Stock Form -->
+                            <form method="post" action="{% if selected_inventory %}{% url 'inventory:inventory_receive' selected_inventory.id %}{% else %}#{% endif %}" id="panel-form-receive" role="tabpanel" aria-labelledby="tab-action-receive">
+                                {% csrf_token %}
+                                <input type="hidden" name="request_token" id="receive-request-token" value="{{ receive_form.request_token.value|default:'' }}">
+                                <input type="hidden" name="next" id="receive-next-url" value="{{ request.get_full_path }}">
+
+                                <div class="inv-form-group">
+                                    <label for="id_quantity" class="inv-form-label">
+                                        Số lượng nhập thêm <span class="inv-req-star" aria-hidden="true">*</span>
+                                    </label>
+                                    <input type="number" name="quantity" id="id_quantity" class="inv-form-control" min="1" max="2147483647" step="1" placeholder="Nhập số lượng hàng thực tế cần thêm..." required autocomplete="off">
+                                    <div class="inv-form-hint">Hàng nhập từ nhà cung cấp sẽ làm tăng tồn thực tế ngay lập tức.</div>
+                                </div>
+
+                                <div class="inv-form-group">
+                                    <label for="id_notes" class="inv-form-label">
+                                        Nguồn nhập / Ghi chú <span style="font-weight: 400; color: var(--inv-text-muted); font-size: 12px;">(tùy chọn)</span>
+                                    </label>
+                                    <input type="text" name="notes" id="id_notes" class="inv-form-control" placeholder="Mã phiếu nhập, nhà phân phối hoặc số serial..." autocomplete="off">
+                                </div>
+
+                                <button type="submit" class="qhm-btn-primary inv-btn-submit" id="btn-submit-receive">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                        <polyline points="20 6 9 17 4 12"></polyline>
+                                    </svg>
+                                    <span>Xác nhận nhập kho</span>
+                                </button>
+                            </form>
+
+                            <!-- TAB 2: Stocktake Adjustment Form -->
+                            <form method="post" action="{% if selected_inventory %}{% url 'inventory:inventory_adjust' selected_inventory.id %}{% else %}#{% endif %}" id="panel-form-adjust" role="tabpanel" aria-labelledby="tab-action-adjust" style="display: none;">
+                                {% csrf_token %}
+                                <input type="hidden" name="request_token" id="adjust-request-token" value="{{ adjust_form.request_token.value|default:'' }}">
+                                <input type="hidden" name="next" id="adjust-next-url" value="{{ request.get_full_path }}">
+
+                                <div class="inv-form-group">
+                                    <label for="id_counted_quantity" class="inv-form-label">
+                                        Số lượng kiểm kê thực tế <span class="inv-req-star" aria-hidden="true">*</span>
+                                    </label>
+                                    <input type="number" name="counted_quantity" id="id_counted_quantity" class="inv-form-control" min="0" max="2147483647" step="1" value="{{ selected_inventory.physical_sellable|default:0 }}" required autocomplete="off" oninput="updateAdjustmentPreview()">
+                                    <div class="inv-form-hint">Số lượng hàng thực tế đếm được trong kho sau kiểm kê.</div>
+                                </div>
+
+                                <div class="inv-form-group">
+                                    <label for="id_reason" class="inv-form-label">
+                                        Lý do điều chỉnh <span class="inv-req-star" aria-hidden="true">*</span>
+                                    </label>
+                                    <textarea name="reason" id="id_reason" class="inv-form-control" rows="3" placeholder="Ghi rõ lý do (ví dụ: phát hiện hư hỏng, kiểm đếm thực tế định kỳ, thất thoát sau kiểm kho)..." required></textarea>
+                                </div>
+
+                                <!-- Live Stock Calculation Preview Box -->
+                                <div class="inv-preview-box" id="adj-preview-box">
+                                    <div class="inv-preview-title">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                                        </svg>
+                                        Dự toán thay đổi tồn kho
+                                    </div>
+                                    <div class="inv-preview-row">
+                                        <span class="lbl">Tồn thực tế hiện tại:</span>
+                                        <span class="val" id="prev-curr-physical">{{ selected_inventory.physical_sellable|default:0 }} SP</span>
+                                    </div>
+                                    <div class="inv-preview-row">
+                                        <span class="lbl">Đang giữ cho đơn hàng:</span>
+                                        <span class="val" id="prev-curr-reserved">{{ selected_inventory.reserved|default:0 }} SP</span>
+                                    </div>
+                                    <div class="inv-preview-row highlight">
+                                        <span class="lbl">Tồn có thể bán mới:</span>
+                                        <span class="val" id="prev-new-available">{{ selected_inventory.available|default:0 }} SP</span>
+                                    </div>
+                                </div>
+
+                                <!-- Dynamic Warning if Counted Stock < Reserved -->
+                                <div class="inv-warning-alert" id="adj-warning-alert" style="display: none;" role="alert">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                        <circle cx="12" cy="12" r="10"></circle>
+                                        <line x1="12" y1="8" x2="12" y2="12"></line>
+                                        <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                                    </svg>
+                                    <div id="adj-warning-text">
+                                        <strong>Cảnh báo:</strong> Số lượng kiểm kê nhỏ hơn số tồn đang giữ cho đơn hàng. Hệ thống sẽ từ chối giao dịch để bảo toàn hàng đã cam kết giao!
+                                    </div>
+                                </div>
+
+                                <button type="submit" class="qhm-btn-primary inv-btn-submit" id="btn-submit-adjust">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                        <polyline points="20 6 9 17 4 12"></polyline>
+                                    </svg>
+                                    <span>Xác nhận điều chỉnh tồn kho</span>
+                                </button>
+                            </form>
+
+                        </div>
+                    </aside>
+
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- Interactive Client Scripts for Selection, Tab Switching, and Dynamic Previews -->
+    <script>
+        let currentSelectedId = '{{ selected_inventory.id|default:"" }}';
+        let currentReserved = parseInt('{{ selected_inventory.reserved|default:0 }}', 10);
+        let currentPhysical = parseInt('{{ selected_inventory.physical_sellable|default:0 }}', 10);
+
+        function selectInventoryRow(invId) {
+            const row = document.getElementById('inv-row-' + invId);
+            if (!row) return;
+
+            // Highlight selected row in table
+            document.querySelectorAll('#inventory-table tbody tr').forEach(r => r.classList.remove('is-selected'));
+            row.classList.add('is-selected');
+
+            currentSelectedId = invId;
+            const code = row.getAttribute('data-code');
+            const product = row.getAttribute('data-product');
+            const sku = row.getAttribute('data-sku');
+            const variant = row.getAttribute('data-variant');
+            const physical = parseInt(row.getAttribute('data-physical'), 10) || 0;
+            const reserved = parseInt(row.getAttribute('data-reserved'), 10) || 0;
+            const available = parseInt(row.getAttribute('data-available'), 10) || 0;
+            const minThreshold = row.getAttribute('data-min');
+            const receiveToken = row.getAttribute('data-receive-token');
+            const adjustToken = row.getAttribute('data-adjust-token');
+            const receiveUrl = row.getAttribute('data-receive-url');
+            const adjustUrl = row.getAttribute('data-adjust-url');
+
+            currentReserved = reserved;
+            currentPhysical = physical;
+
+            // Update Panel Header & Variant Summary
+            const badgeEl = document.getElementById('panel-mode-badge');
+            if (badgeEl) badgeEl.textContent = code;
+
+            const nameEl = document.getElementById('panel-product-name');
+            if (nameEl) nameEl.textContent = product;
+
+            const skuEl = document.getElementById('panel-product-sku');
+            if (skuEl) skuEl.textContent = 'SKU: ' + sku;
+
+            const attrsEl = document.getElementById('panel-variant-attrs');
+            if (attrsEl) {
+                const parts = variant.split('•').map(p => p.trim()).filter(Boolean);
+                if (parts.length > 0) {
+                    attrsEl.innerHTML = parts.map(p => `<span class="inv-var-attr-tag">${escapeHtml(p)}</span>`).join(' ');
+                } else {
+                    attrsEl.innerHTML = `<span class="inv-var-attr-tag">Bản tiêu chuẩn</span>`;
+                }
+            }
+
+            // Update Metrics in Panel
+            const elPhys = document.getElementById('panel-metric-physical');
+            if (elPhys) elPhys.textContent = physical;
+
+            const elRes = document.getElementById('panel-metric-reserved');
+            if (elRes) elRes.textContent = reserved;
+
+            const elAvail = document.getElementById('panel-metric-available');
+            if (elAvail) elAvail.textContent = available;
+
+            const elMin = document.getElementById('panel-metric-min');
+            if (elMin) elMin.textContent = minThreshold;
+
+            // Update Forms Action & Tokens
+            const formRecv = document.getElementById('panel-form-receive');
+            if (formRecv && receiveUrl) formRecv.action = receiveUrl;
+
+            const tokenRecv = document.getElementById('receive-request-token');
+            if (tokenRecv && receiveToken) tokenRecv.value = receiveToken;
+
+            const formAdj = document.getElementById('panel-form-adjust');
+            if (formAdj && adjustUrl) formAdj.action = adjustUrl;
+
+            const tokenAdj = document.getElementById('adjust-request-token');
+            if (tokenAdj && adjustToken) tokenAdj.value = adjustToken;
+
+            const inputCounted = document.getElementById('id_counted_quantity');
+            if (inputCounted) inputCounted.value = physical;
+
+            updateAdjustmentPreview();
+        }
+
+        function editInventoryRow(invId) {
+            selectInventoryRow(invId);
+            switchActionTab('adjust');
+            const inputCounted = document.getElementById('id_counted_quantity');
+            if (inputCounted) {
+                inputCounted.focus();
+                inputCounted.select();
+            }
+        }
+
+        function focusQuickAction(tab) {
+            switchActionTab(tab);
+            const panel = document.getElementById('inventory-action-panel-card');
+            if (panel) {
+                panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+            if (tab === 'receive') {
+                const qtyInput = document.getElementById('id_quantity');
+                if (qtyInput) setTimeout(() => qtyInput.focus(), 300);
+            }
+        }
+
+        function switchActionTab(tab) {
+            const btnRecv = document.getElementById('tab-action-receive');
+            const btnAdj = document.getElementById('tab-action-adjust');
+            const formRecv = document.getElementById('panel-form-receive');
+            const formAdj = document.getElementById('panel-form-adjust');
+
+            if (tab === 'receive') {
+                btnRecv.classList.add('active');
+                btnRecv.setAttribute('aria-selected', 'true');
+                btnAdj.classList.remove('active');
+                btnAdj.setAttribute('aria-selected', 'false');
+                formRecv.style.display = 'block';
+                formAdj.style.display = 'none';
+            } else {
+                btnAdj.classList.add('active');
+                btnAdj.setAttribute('aria-selected', 'true');
+                btnRecv.classList.remove('active');
+                btnRecv.setAttribute('aria-selected', 'false');
+                formAdj.style.display = 'block';
+                formRecv.style.display = 'none';
+                updateAdjustmentPreview();
+            }
+        }
+
+        function updateAdjustmentPreview() {
+            const inputCounted = document.getElementById('id_counted_quantity');
+            const prevPhysical = document.getElementById('prev-curr-physical');
+            const prevReserved = document.getElementById('prev-curr-reserved');
+            const prevAvailable = document.getElementById('prev-new-available');
+            const warnAlert = document.getElementById('adj-warning-alert');
+            const warnText = document.getElementById('adj-warning-text');
+            const submitBtn = document.getElementById('btn-submit-adjust');
+
+            if (!inputCounted) return;
+
+            const counted = parseInt(inputCounted.value, 10);
+            if (prevPhysical) prevPhysical.textContent = currentPhysical + ' SP';
+            if (prevReserved) prevReserved.textContent = currentReserved + ' SP';
+
+            if (isNaN(counted) || counted < 0) {
+                if (prevAvailable) prevAvailable.textContent = '—';
+                if (warnAlert) warnAlert.style.display = 'none';
+                return;
+            }
+
+            const newAvail = counted - currentReserved;
+            if (prevAvailable) {
+                prevAvailable.textContent = newAvail + ' SP';
+                if (newAvail <= 0) {
+                    prevAvailable.style.color = 'var(--inv-primary)';
+                } else {
+                    prevAvailable.style.color = 'var(--inv-success)';
+                }
+            }
+
+            if (counted < currentReserved) {
+                if (warnAlert) warnAlert.style.display = 'flex';
+                if (warnText) {
+                    warnText.innerHTML = `<strong>Cảnh báo vi phạm ràng buộc:</strong> Số lượng kiểm kê (${counted}) nhỏ hơn số lượng đang giữ cho đơn hàng (${currentReserved} SP). Hệ thống sẽ chặn điều chỉnh này!`;
+                }
+                if (submitBtn) {
+                    submitBtn.disabled = true;
+                    submitBtn.style.opacity = '0.6';
+                    submitBtn.style.cursor = 'not-allowed';
+                }
+            } else {
+                if (warnAlert) warnAlert.style.display = 'none';
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.style.opacity = '1';
+                    submitBtn.style.cursor = 'pointer';
+                }
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Initialize preview on page load
+        document.addEventListener('DOMContentLoaded', function () {
+            updateAdjustmentPreview();
+        });
+    </script>
+
+</body>
+</html>

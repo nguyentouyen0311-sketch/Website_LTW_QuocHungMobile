@@ -1,0 +1,219 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nhập hàng vào kho: {{ variant.sku }} — Quốc Hùng Mobile</title>
+    <meta name="description" content="Biểu mẫu nhập hàng thực tế vào kho cho biến thể {{ variant.sku }} - Quốc Hùng Mobile.">
+
+    <!-- Google Fonts: Inter & Plus Jakarta Sans -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Design Tokens & CSS -->
+    <link rel="stylesheet" href="{% static 'css/dashboard.css' %}?v=20261119">
+    <link rel="stylesheet" href="{% static 'css/inventory.css' %}?v=20261119">
+</head>
+
+<body class="qhm-dashboard-page qhm-inv-portal">
+
+    <div class="qhm-dashboard-shell">
+        <!-- 1. Fixed Left Sidebar -->
+        {% include 'catalog/includes/management_sidebar.html' with active_nav='inventory_list' %}
+
+        <!-- 2. Main Workspace -->
+        <main class="dashboard-main" role="main">
+            <!-- Top Header -->
+            <header class="dashboard-topbar" role="banner">
+                <div class="dashboard-topbar-left">
+                    <button type="button" class="dashboard-menu-toggle" id="qhm-sidebar-toggle" aria-label="Mở menu quản trị" onclick="toggleQhmSidebar()">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <line x1="3" y1="12" x2="21" y2="12"></line>
+                            <line x1="3" y1="6" x2="21" y2="6"></line>
+                            <line x1="3" y1="18" x2="21" y2="18"></line>
+                        </svg>
+                    </button>
+                    <nav class="dashboard-breadcrumb" aria-label="Đường dẫn trang">
+                        <a href="{% url 'dashboard:index' %}">Tổng quan</a>
+                        <span class="sep">&gt;</span>
+                        <a href="{% url 'inventory:inventory_list' %}">Quản lý tồn kho</a>
+                        <span class="sep">&gt;</span>
+                        <a href="{% url 'inventory:inventory_detail' inventory.id %}">{{ variant.sku }}</a>
+                        <span class="sep">&gt;</span>
+                        <span class="current">Nhập hàng</span>
+                    </nav>
+                </div>
+
+                <div class="dashboard-topbar-right">
+                    <span class="dashboard-admin-badge" title="Tài khoản Quản trị viên">
+                        <span class="dashboard-admin-badge-dot" aria-hidden="true"></span>
+                        ADMINISTRATOR
+                    </span>
+                    <a href="{% url 'catalog:public_catalog' %}" class="dashboard-btn-site" target="_blank" rel="noopener" id="btn-top-view-website">
+                        <span>Xem Website</span>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                            <polyline points="15 3 21 3 21 9"></polyline>
+                            <line x1="10" y1="14" x2="21" y2="3"></line>
+                        </svg>
+                    </a>
+                </div>
+            </header>
+
+            <!-- Main Content Container -->
+            <div class="dashboard-content" style="padding: 28px 32px; max-width: 900px; margin: 0 auto; width: 100%;">
+
+                <!-- Messages Framework -->
+                {% if messages %}
+                <div style="margin-bottom: 20px;">
+                    {% for message in messages %}
+                    <div style="padding: 12px 18px; border-radius: 8px; margin-bottom: 8px; font-size: 13.5px; background: {% if message.tags == 'error' %}var(--inv-danger-bg); color: var(--inv-danger-dark); border: 1px solid var(--inv-danger-border);{% else %}var(--inv-success-bg); color: var(--inv-success); border: 1px solid var(--inv-success-border);{% endif %}">
+                        {{ message }}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                <!-- Page Header -->
+                <div class="qhm-inv-header">
+                    <div class="qhm-inv-header-left">
+                        <h1 class="qhm-inv-title">Nhập hàng vào kho</h1>
+                        <p class="qhm-inv-desc">
+                            Ghi nhận số lượng hàng thực tế nhập thêm từ nhà cung cấp cho biến thể <strong>{{ variant.sku }}</strong>.
+                        </p>
+                    </div>
+                    <div class="qhm-inv-header-actions">
+                        <a href="{% url 'inventory:inventory_detail' inventory.id %}" class="qhm-btn-secondary">
+                            <span>← Về chi tiết SKU</span>
+                        </a>
+                        <a href="{% url 'inventory:inventory_list' %}" class="qhm-btn-secondary">
+                            <span>Danh sách kho</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Form Card -->
+                <div class="qhm-table-card" style="padding: 28px;">
+                    <!-- Variant Summary -->
+                    <div class="inv-variant-summary" style="margin-bottom: 24px;">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+                            <div>
+                                <div class="inv-var-title" style="font-size: 16px;">{{ product.name }}</div>
+                                <div class="inv-var-sku">SKU: {{ variant.sku }}</div>
+                                <div class="inv-var-attrs">
+                                    {% for link in variant.attribute_values.all %}
+                                        <span class="inv-var-attr-tag">{{ link.attribute.name }}: {{ link.attribute_value.value }}</span>
+                                    {% empty %}
+                                        <span class="inv-var-attr-tag">Bản tiêu chuẩn</span>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            <span class="inv-code-badge">TK{{ inventory.id|stringformat:"03d" }}</span>
+                        </div>
+
+                        <div class="inv-metrics-mini">
+                            <div class="inv-metric-mini-item">
+                                <div class="inv-mini-label">Tồn thực tế</div>
+                                <div class="inv-mini-val" id="disp-curr-physical">{{ inventory.physical_sellable }}</div>
+                            </div>
+                            <div class="inv-metric-mini-item">
+                                <div class="inv-mini-label">Đang giữ</div>
+                                <div class="inv-mini-val val-reserved">{{ inventory.reserved }}</div>
+                            </div>
+                            <div class="inv-metric-mini-item">
+                                <div class="inv-mini-label">Có thể bán</div>
+                                <div class="inv-mini-val val-available">{{ inventory.available }}</div>
+                            </div>
+                            <div class="inv-metric-mini-item">
+                                <div class="inv-mini-label">Mức Min</div>
+                                <div class="inv-mini-val">{{ inventory.min_threshold }}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Receive Form -->
+                    <form method="post" action="{% url 'inventory:inventory_receive' inventory.id %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="request_token" value="{{ form.request_token.value|default:request_token }}">
+
+                        <div class="inv-form-group">
+                            <label for="id_quantity" class="inv-form-label">
+                                Số lượng nhập thêm <span class="inv-req-star" aria-hidden="true">*</span>
+                            </label>
+                            <input type="number" name="quantity" id="id_quantity" class="inv-form-control" min="1" max="2147483647" step="1" placeholder="Nhập số lượng hàng thực tế cần thêm..." required autocomplete="off" oninput="updateReceivePreview()">
+                            {% if form.quantity.errors %}
+                                <div class="inv-field-error">{{ form.quantity.errors.0 }}</div>
+                            {% endif %}
+                            <div class="inv-form-hint">Số lượng phải là số nguyên dương lớn hơn 0.</div>
+                        </div>
+
+                        <div class="inv-form-group">
+                            <label for="id_notes" class="inv-form-label">
+                                Nguồn nhập / Ghi chú <span style="font-weight: 400; color: var(--inv-text-muted); font-size: 12px;">(tùy chọn)</span>
+                            </label>
+                            <input type="text" name="notes" id="id_notes" class="inv-form-control" placeholder="Mã phiếu nhập, nhà phân phối hoặc số serial..." autocomplete="off">
+                        </div>
+
+                        <!-- Live Projection Box -->
+                        <div class="inv-preview-box" id="recv-preview-box" style="margin: 20px 0;">
+                            <div class="inv-preview-title">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <polyline points="20 6 9 17 4 12"></polyline>
+                                </svg>
+                                Dự toán sau khi nhập
+                            </div>
+                            <div class="inv-preview-row">
+                                <span class="lbl">Tồn thực tế mới dự kiến:</span>
+                                <span class="val" id="recv-new-physical">{{ inventory.physical_sellable }} SP</span>
+                            </div>
+                            <div class="inv-preview-row highlight">
+                                <span class="lbl">Khả dụng bán mới dự kiến:</span>
+                                <span class="val" id="recv-new-available">{{ inventory.available }} SP</span>
+                            </div>
+                        </div>
+
+                        <div style="display: flex; gap: 12px; margin-top: 24px;">
+                            <button type="submit" class="qhm-btn-primary" style="padding: 12px 24px; font-size: 14px;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <polyline points="20 6 9 17 4 12"></polyline>
+                                </svg>
+                                <span>Xác nhận nhập kho</span>
+                            </button>
+                            <a href="{% url 'inventory:inventory_detail' inventory.id %}" class="qhm-btn-secondary" style="padding: 12px 20px;">
+                                <span>Hủy bỏ</span>
+                            </a>
+                        </div>
+                    </form>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const basePhysical = parseInt('{{ inventory.physical_sellable }}', 10);
+        const baseReserved = parseInt('{{ inventory.reserved }}', 10);
+
+        function updateReceivePreview() {
+            const input = document.getElementById('id_quantity');
+            const newPhysEl = document.getElementById('recv-new-physical');
+            const newAvailEl = document.getElementById('recv-new-available');
+            if (!input) return;
+
+            const qty = parseInt(input.value, 10);
+            if (!isNaN(qty) && qty > 0) {
+                const newPhys = basePhysical + qty;
+                const newAvail = newPhys - baseReserved;
+                if (newPhysEl) newPhysEl.textContent = newPhys + ' SP';
+                if (newAvailEl) newAvailEl.textContent = newAvail + ' SP';
+            } else {
+                if (newPhysEl) newPhysEl.textContent = basePhysical + ' SP';
+                if (newAvailEl) newAvailEl.textContent = (basePhysical - baseReserved) + ' SP';
+            }
+        }
+    </script>
+
+</body>
+</html>

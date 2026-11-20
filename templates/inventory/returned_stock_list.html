@@ -1,0 +1,395 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quản lý Hàng đổi trả trong kho — Quốc Hùng Mobile</title>
+    <meta name="description" content="Tiếp nhận, kiểm định phân loại và tái nhập kho cho hàng đổi trả tại Quốc Hùng Mobile Admin Portal.">
+
+    <!-- Google Fonts: Inter & Plus Jakarta Sans -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Design Tokens & CSS -->
+    <link rel="stylesheet" href="{% static 'css/dashboard.css' %}?v=20261119">
+    <link rel="stylesheet" href="{% static 'css/inventory.css' %}?v=20261119">
+</head>
+
+<body class="qhm-dashboard-page qhm-inv-portal">
+
+    <div class="qhm-dashboard-shell">
+        <!-- 1. Fixed Left Sidebar -->
+        {% include 'catalog/includes/management_sidebar.html' with active_nav='returned_stock' %}
+
+        <!-- 2. Main Workspace -->
+        <main class="dashboard-main" role="main">
+            <!-- Top Header -->
+            <header class="dashboard-topbar" role="banner">
+                <div class="dashboard-topbar-left">
+                    <button type="button" class="dashboard-menu-toggle" id="qhm-sidebar-toggle" aria-label="Mở menu quản trị" onclick="toggleQhmSidebar()">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <line x1="3" y1="12" x2="21" y2="12"></line>
+                            <line x1="3" y1="6" x2="21" y2="6"></line>
+                            <line x1="3" y1="18" x2="21" y2="18"></line>
+                        </svg>
+                    </button>
+                    <nav class="dashboard-breadcrumb" aria-label="Đường dẫn trang">
+                        <a href="{% url 'dashboard:index' %}">Tổng quan</a>
+                        <span class="sep">&gt;</span>
+                        <a href="{% url 'inventory:inventory_list' %}">Quản lý tồn kho</a>
+                        <span class="sep">&gt;</span>
+                        <span class="current">Hàng đổi trả trong kho</span>
+                    </nav>
+                </div>
+
+                <div class="dashboard-topbar-right">
+                    <span class="dashboard-admin-badge" title="Tài khoản Quản trị viên">
+                        <span class="dashboard-admin-badge-dot" aria-hidden="true"></span>
+                        ADMINISTRATOR
+                    </span>
+                    <a href="{% url 'catalog:public_catalog' %}" class="dashboard-btn-site" target="_blank" rel="noopener" id="btn-top-view-website">
+                        <span>Xem Website</span>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                            <polyline points="15 3 21 3 21 9"></polyline>
+                            <line x1="10" y1="14" x2="21" y2="3"></line>
+                        </svg>
+                    </a>
+                </div>
+            </header>
+
+            <!-- Main Content Container -->
+            <div class="dashboard-content" style="padding: 28px 32px; max-width: 1600px; margin: 0 auto; width: 100%;">
+
+                <!-- Messages Framework -->
+                {% if messages %}
+                <div style="margin-bottom: 20px;">
+                    {% for message in messages %}
+                    <div style="padding: 12px 18px; border-radius: 8px; margin-bottom: 8px; font-size: 13.5px; background: {% if message.tags == 'error' %}var(--inv-danger-bg); color: var(--inv-danger-dark); border: 1px solid var(--inv-danger-border);{% else %}var(--inv-success-bg); color: var(--inv-success); border: 1px solid var(--inv-success-border);{% endif %}">
+                        {{ message }}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                <!-- Page Header -->
+                <div class="qhm-inv-header">
+                    <div class="qhm-inv-header-left">
+                        <h1 class="qhm-inv-title">Quản lý Hàng đổi trả trong kho</h1>
+                        <p class="qhm-inv-desc">
+                            Tiếp nhận sản phẩm đổi trả, kiểm định phân loại chất lượng và tái nhập kho bán cho các sản phẩm đủ điều kiện.
+                        </p>
+                    </div>
+                    <div class="qhm-inv-header-actions">
+                        <a href="{% url 'inventory:inventory_list' %}" class="qhm-btn-secondary" id="btn-back-to-inv">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <line x1="19" y1="12" x2="5" y2="12"></line>
+                                <polyline points="12 19 5 12 12 5"></polyline>
+                            </svg>
+                            <span>← Về Quản lý tồn kho</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Explanatory Rules Notice Banner (Requirement 10) -->
+                <div class="qhm-returns-notice-card" role="region" aria-label="Quy tắc quản lý hàng đổi trả">
+                    <div class="qhm-returns-notice-title">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="12" y1="8" x2="12" y2="12"></line>
+                            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                        </svg>
+                        <span>Quy tắc vận hành hàng đổi trả &amp; kiểm soát tồn kho (Bảo toàn dữ liệu):</span>
+                    </div>
+                    <ul class="qhm-returns-notice-list">
+                        <li><strong>Chờ kiểm định (WAITING_INSPECTION):</strong> Hàng khi vừa nhận về kho được cách ly kiểm tra, <em>tuyệt đối CHƯA làm tăng tồn có thể bán (available stock)</em>.</li>
+                        <li><strong>Không đủ điều kiện bán lại (NOT_ELIGIBLE_FOR_RESALE):</strong> Hàng bị trầy xước, lỗi chức năng nặng hoặc thiếu phụ kiện sẽ được lưu trữ và thanh lý riêng, <em>không bao giờ được nhập lại vào kho bán</em>.</li>
+                        <li><strong>Đủ điều kiện bán lại (ELIGIBLE_FOR_RESALE):</strong> Chỉ những sản phẩm nguyên seal/đạt chuẩn kiểm định mới được phép tái nhập vào tồn thực tế (physical_sellable) <em>sau khi nhân viên kho bấm nút xác nhận</em>. Hệ thống sẽ ghi nhận 1 giao dịch RETURN_RESTOCK bất biến.</li>
+                    </ul>
+                </div>
+
+                <!-- Tab Filter Pills -->
+                <div class="qhm-filter-bar">
+                    <div class="qhm-filter-pills" role="tablist">
+                        <a href="?tab=all" class="qhm-filter-pill {% if tab == 'all' %}active{% endif %}" id="pill-ret-all">
+                            <span>Tất cả hàng đổi trả</span>
+                            <span class="qhm-filter-count">{{ count_waiting|add:count_eligible|add:count_not_eligible }}</span>
+                        </a>
+                        <a href="?tab=waiting" class="qhm-filter-pill {% if tab == 'waiting' %}active{% endif %}" id="pill-ret-waiting">
+                            <span>Chờ kiểm định</span>
+                            <span class="qhm-filter-count">{{ count_waiting }}</span>
+                        </a>
+                        <a href="?tab=eligible" class="qhm-filter-pill {% if tab == 'eligible' %}active{% endif %}" id="pill-ret-eligible">
+                            <span>Đủ điều kiện bán lại</span>
+                            <span class="qhm-filter-count">{{ count_eligible }}</span>
+                        </a>
+                        <a href="?tab=not_eligible" class="qhm-filter-pill {% if tab == 'not_eligible' %}active{% endif %}" id="pill-ret-not-eligible">
+                            <span>Không đủ điều kiện bán lại</span>
+                            <span class="qhm-filter-count">{{ count_not_eligible }}</span>
+                        </a>
+                        <a href="?tab=pending_receipt" class="qhm-filter-pill {% if tab == 'pending_receipt' %}active{% endif %}" id="pill-ret-pending">
+                            <span>Yêu cầu chờ tiếp nhận</span>
+                            <span class="qhm-filter-count">{{ count_pending_receipt }}</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Section: Pending Receipt Requests (Yêu cầu APPROVED chờ kho nhận hàng) -->
+                {% if tab == 'all' or tab == 'pending_receipt' %}
+                {% if pending_receipt_requests %}
+                <div class="qhm-table-card" style="margin-bottom: 28px; border: 1px solid #FCD34D;">
+                    <div style="padding: 16px 20px; background-color: #FFFBEB; border-bottom: 1px solid #FDE68A; display: flex; align-items: center; justify-content: space-between;">
+                        <div style="font-weight: 700; font-size: 14px; color: #92400E; display: flex; align-items: center; gap: 8px;">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <polyline points="12 6 12 12 16 14"></polyline>
+                            </svg>
+                            Yêu cầu đổi/trả đã duyệt chờ kho xác nhận tiếp nhận ({{ pending_receipt_requests.count }})
+                        </div>
+                        <span style="font-size: 12px; color: #B45309; font-weight: 500;">
+                            Cần nhân viên kho xác nhận nhận hàng thực tế
+                        </span>
+                    </div>
+                    <div class="qhm-table-wrap">
+                        <table class="qhm-inv-table">
+                            <thead>
+                                <tr>
+                                    <th scope="col" style="width: 80px;">MÃ YC</th>
+                                    <th scope="col">LOẠI YÊU CẦU &amp; ĐƠN HÀNG</th>
+                                    <th scope="col">KHÁCH HÀNG</th>
+                                    <th scope="col">SẢN PHẨM HOÀN TRẢ</th>
+                                    <th scope="col" style="text-align: right; width: 90px;">SỐ LƯỢNG</th>
+                                    <th scope="col">LÝ DO</th>
+                                    <th scope="col" style="text-align: center; width: 180px;">THAO TÁC</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for req in pending_receipt_requests %}
+                                <tr id="pending-req-{{ req.id }}">
+                                    <td>
+                                        <span class="inv-code-badge">#{{ req.id }}</span>
+                                    </td>
+                                    <td>
+                                        <div style="font-weight: 600; color: var(--inv-text);">
+                                            {% if req.request_type == 'EXCHANGE' %}Đổi hàng sang biến thể khác{% else %}Trả hàng &amp; Hoàn tiền{% endif %}
+                                        </div>
+                                        <div style="font-size: 12px; color: var(--inv-text-secondary); margin-top: 2px;">
+                                            Đơn hàng: <strong>#{{ req.order.id }}</strong>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div style="font-weight: 500; color: var(--inv-text);">{{ req.customer.get_full_name|default:req.customer.username }}</div>
+                                        <div style="font-size: 12px; color: var(--inv-text-muted);">{{ req.customer.email|default:"—" }}</div>
+                                    </td>
+                                    <td>
+                                        <div style="font-weight: 600; color: var(--inv-text);">{{ req.order_item.product_name }}</div>
+                                        <div style="font-family: ui-monospace, monospace; font-size: 11.5px; color: var(--inv-text-muted);">{{ req.order_item.variant.sku|default:"—" }}</div>
+                                    </td>
+                                    <td style="text-align: right;">
+                                        <span class="inv-num-cell">{{ req.quantity }} SP</span>
+                                    </td>
+                                    <td style="font-size: 13px; color: var(--inv-text-secondary);">
+                                        {{ req.reason|truncatechars:40 }}
+                                    </td>
+                                    <td style="text-align: center;">
+                                        <form method="post" action="{% url 'inventory:confirm_receipt' req.id %}" style="margin: 0; display: inline;">
+                                            {% csrf_token %}
+                                            <button type="submit" class="qhm-btn-primary" style="padding: 7px 12px; font-size: 12.5px;" onclick="return confirm('Xác nhận đã nhận sản phẩm đổi trả #{{ req.id }} vào kho?')">
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                                    <polyline points="20 6 9 17 4 12"></polyline>
+                                                </svg>
+                                                <span>Tiếp nhận vào kho</span>
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% endif %}
+                {% endif %}
+
+                <!-- Main Section: ReturnedStock Table -->
+                {% if tab != 'pending_receipt' %}
+                <div class="qhm-table-card">
+                    <div class="qhm-table-wrap">
+                        <table class="qhm-inv-table" id="returned-stock-table">
+                            <thead>
+                                <tr>
+                                    <th scope="col" style="width: 85px;">MÃ HT</th>
+                                    <th scope="col">SẢN PHẨM &amp; BIẾN THỂ</th>
+                                    <th scope="col" style="text-align: right; width: 95px;">SỐ LƯỢNG</th>
+                                    <th scope="col" style="width: 140px;">YÊU CẦU NGUỒN</th>
+                                    <th scope="col" style="text-align: center; width: 170px;">TÌNH TRẠNG KIỂM ĐỊNH</th>
+                                    <th scope="col" style="width: 140px;">TIẾP NHẬN BỞI</th>
+                                    <th scope="col" style="width: 140px;">NGÀY TIẾP NHẬN</th>
+                                    <th scope="col" style="text-align: center; width: 190px;">THAO TÁC XỬ LÝ</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for rs in page_obj.object_list %}
+                                <tr id="rs-row-{{ rs.id }}">
+                                    <!-- MÃ HT -->
+                                    <td>
+                                        <span class="inv-code-badge">HT{{ rs.id|stringformat:"03d" }}</span>
+                                    </td>
+
+                                    <!-- SẢN PHẨM & BIẾN THỂ -->
+                                    <td>
+                                        <div style="font-weight: 600; color: var(--inv-text);">
+                                            {{ rs.variant.product.name }}
+                                        </div>
+                                        <div style="font-size: 12.5px; color: var(--inv-text-secondary); margin-top: 2px;">
+                                            {% for link in rs.variant.attribute_values.all %}
+                                                {{ link.attribute_value.value }}{% if not forloop.last %} • {% endif %}
+                                            {% empty %}
+                                                Tiêu chuẩn
+                                            {% endfor %}
+                                        </div>
+                                        <div style="font-family: ui-monospace, monospace; font-size: 11.5px; color: var(--inv-text-muted); margin-top: 2px;">
+                                            {{ rs.variant.sku }}
+                                        </div>
+                                    </td>
+
+                                    <!-- SỐ LƯỢNG -->
+                                    <td style="text-align: right;">
+                                        <span class="inv-num-cell">{{ rs.quantity }} SP</span>
+                                    </td>
+
+                                    <!-- YÊU CẦU NGUỒN -->
+                                    <td>
+                                        <span style="font-weight: 600; color: var(--inv-text);">
+                                            Yêu cầu #{{ rs.return_request.id }}
+                                        </span>
+                                        <div style="font-size: 12px; color: var(--inv-text-secondary); margin-top: 2px;">
+                                            Đơn #{{ rs.return_request.order.id }}
+                                        </div>
+                                    </td>
+
+                                    <!-- TÌNH TRẠNG KIỂM ĐỊNH -->
+                                    <td style="text-align: center;">
+                                        {% if rs.condition == 'WAITING_INSPECTION' %}
+                                            <span class="qhm-status-pill cond-badge-waiting">
+                                                <span class="qhm-status-dot" aria-hidden="true"></span>
+                                                Chờ kiểm định
+                                            </span>
+                                        {% elif rs.condition == 'ELIGIBLE_FOR_RESALE' %}
+                                            <span class="qhm-status-pill cond-badge-eligible">
+                                                <span class="qhm-status-dot" aria-hidden="true"></span>
+                                                Đủ điều kiện bán lại
+                                            </span>
+                                        {% elif rs.condition == 'NOT_ELIGIBLE_FOR_RESALE' %}
+                                            <span class="qhm-status-pill cond-badge-not-eligible">
+                                                <span class="qhm-status-dot" aria-hidden="true"></span>
+                                                Không đủ điều kiện bán
+                                            </span>
+                                        {% else %}
+                                            <span class="qhm-status-pill">{{ rs.get_condition_display }}</span>
+                                        {% endif %}
+                                    </td>
+
+                                    <!-- TIẾP NHẬN BỞI -->
+                                    <td>
+                                        <div class="qhm-user-micro">
+                                            <div class="qhm-user-avatar-micro" aria-hidden="true">
+                                                {{ rs.received_by.username|slice:":2"|upper }}
+                                            </div>
+                                            <span style="font-size: 13px;">{{ rs.received_by.username|default:"Kho" }}</span>
+                                        </div>
+                                    </td>
+
+                                    <!-- NGÀY TIẾP NHẬN -->
+                                    <td style="font-size: 13px; color: var(--inv-text-secondary); white-space: nowrap;">
+                                        {{ rs.received_at|date:"H:i d/m/Y" }}
+                                    </td>
+
+                                    <!-- THAO TÁC XỬ LÝ -->
+                                    <td style="text-align: center;">
+                                        {% if rs.condition == 'WAITING_INSPECTION' %}
+                                            <a href="{% url 'inventory:inspect_condition' rs.pk %}" class="qhm-btn-secondary" style="padding: 6px 12px; font-size: 12.5px; border-color: #F59E0B; color: #92400E !important;" title="Kiểm tra chất lượng và phân loại">
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                                    <circle cx="12" cy="12" r="10"></circle>
+                                                    <line x1="12" y1="8" x2="12" y2="12"></line>
+                                                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                                                </svg>
+                                                <span>Kiểm định ngay</span>
+                                            </a>
+                                        {% elif rs.condition == 'ELIGIBLE_FOR_RESALE' %}
+                                            {% if rs.is_restocked %}
+                                                <span class="qhm-status-pill pill-success" style="font-size: 11px;">
+                                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                                        <polyline points="20 6 9 17 4 12"></polyline>
+                                                    </svg>
+                                                    Đã nhập kho bán
+                                                </span>
+                                            {% else %}
+                                                <form method="post" action="{% url 'inventory:restock_returned_product' rs.pk %}" style="margin: 0; display: inline;">
+                                                    {% csrf_token %}
+                                                    <button type="submit" class="qhm-btn-primary" style="padding: 6px 12px; font-size: 12.5px; background: #059669;" onclick="return confirm('Xác nhận cộng {{ rs.quantity }} sản phẩm vào tồn thực tế bán được?')">
+                                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                                                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                                                        </svg>
+                                                        <span>+ Nhập kho bán</span>
+                                                    </button>
+                                                </form>
+                                            {% endif %}
+                                        {% else %}
+                                            <span style="font-size: 12px; color: var(--inv-text-muted);">
+                                                Đã cách ly / Thanh lý
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="8" class="inv-table-empty">
+                                        <div class="inv-table-empty-icon" aria-hidden="true">
+                                            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                                <polyline points="1 4 1 10 7 10"></polyline>
+                                                <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+                                            </svg>
+                                        </div>
+                                        <div class="inv-table-empty-title">Không có hàng đổi trả nào trong mục này</div>
+                                        <p style="margin: 0; font-size: 13.5px;">Tất cả hàng hoàn trả đã được tiếp nhận và xử lý đầy đủ.</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination -->
+                    {% if page_obj.has_other_pages %}
+                    <div class="inv-pagination">
+                        <div class="inv-pagination-info">
+                            Hiển thị trang {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}
+                        </div>
+                        <div class="inv-pagination-nav">
+                            {% if page_obj.has_previous %}
+                            <a href="?page={{ page_obj.previous_page_number }}&tab={{ tab }}" class="inv-page-link" aria-label="Trang trước">
+                                &larr; Trang trước
+                            </a>
+                            {% endif %}
+                            <span class="inv-page-link current" aria-current="page">{{ page_obj.number }}</span>
+                            {% if page_obj.has_next %}
+                            <a href="?page={{ page_obj.next_page_number }}&tab={{ tab }}" class="inv-page-link" aria-label="Trang sau">
+                                Trang sau &rarr;
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+
+            </div>
+        </main>
+    </div>
+
+</body>
+</html>
