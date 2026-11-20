@@ -2,6 +2,7 @@ from decimal import Decimal
 from django import forms
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 
 from catalog.models import Product
@@ -38,11 +39,15 @@ class CouponForm(forms.ModelForm):
                 'placeholder': 'VD: IPHONE16VIP',
                 'maxlength': '40',
                 'autocomplete': 'off',
-                'style': 'text-transform: uppercase;',
+                'style': 'text-transform: uppercase; font-family: ui-monospace, Consolas, monospace;',
             }),
-            'discount_type': forms.RadioSelect(attrs={
-                'class': 'qhm-radio-group',
-            }),
+            'discount_type': forms.Select(
+                choices=[
+                    (DiscountType.PERCENT, 'Phần trăm (%)'),
+                    (DiscountType.FIXED, 'Số tiền cố định (đ)'),
+                ],
+                attrs={'class': 'qhm-form-select'}
+            ),
             'value': forms.NumberInput(attrs={
                 'class': 'qhm-form-input',
                 'placeholder': 'VD: 10 hoặc 500000',
@@ -51,7 +56,7 @@ class CouponForm(forms.ModelForm):
             }),
             'max_discount': forms.NumberInput(attrs={
                 'class': 'qhm-form-input',
-                'placeholder': 'Bỏ trống nếu không giới hạn trần giảm tối đa',
+                'placeholder': 'Không giới hạn',
                 'step': 'any',
                 'min': '0',
             }),
@@ -112,6 +117,9 @@ class CouponForm(forms.ModelForm):
         if self.instance and self.instance.pk:
             selected_ids = list(self.instance.coupon_products.values_list('product_id', flat=True))
             self.fields['products'].initial = selected_ids
+            self.fields['products'].queryset = Product.objects.filter(
+                Q(is_deleted=False) | Q(pk__in=selected_ids)
+            ).select_related('category').order_by('category__name', 'name')
             if self.instance.starts_at:
                 local_start = timezone.localtime(self.instance.starts_at)
                 self.initial['starts_at'] = local_start.strftime('%Y-%m-%dT%H:%M')
@@ -122,21 +130,19 @@ class CouponForm(forms.ModelForm):
             self.fields['min_order_amount'].initial = Decimal('0.00')
             self.fields['is_active'].initial = True
             self.fields['applies_to_all'].initial = True
+            self.fields['discount_type'].initial = DiscountType.PERCENT
+            now = timezone.localtime(timezone.now())
+            self.fields['starts_at'].initial = now.strftime('%Y-%m-%dT%H:%M')
+            self.fields['ends_at'].initial = (now + timezone.timedelta(days=30)).strftime('%Y-%m-%dT%H:%M')
 
     def clean_code(self):
         code = self.cleaned_data.get('code', '')
         if code:
             code = code.strip().upper()
         if not code:
-            raise ValidationError("Mã Voucher Code không được để trống hoặc chỉ chứa khoảng trắng.")
+            raise ValidationError("Mã voucher không được để trống hoặc chỉ chứa khoảng trắng.")
         if len(code) > 40:
-            raise ValidationError("Mã Voucher Code không được vượt quá 40 ký tự.")
-
-        qs = Coupon.objects.filter(code=code)
-        if self.instance and self.instance.pk:
-            qs = qs.exclude(pk=self.instance.pk)
-        if qs.exists():
-            raise ValidationError(f"Mã voucher '{code}' đã tồn tại trong hệ thống.")
+            raise ValidationError("Mã voucher không được vượt quá 40 ký tự.")
         return code
 
     def clean_value(self):
@@ -148,6 +154,8 @@ class CouponForm(forms.ModelForm):
         return val
 
     def clean_max_discount(self):
+        if 'max_discount' not in self.data and self.instance and self.instance.pk:
+            return self.instance.max_discount
         val = self.cleaned_data.get('max_discount')
         if val is not None and val < Decimal('0'):
             raise ValidationError("Trần giảm tối đa không được âm (>= 0 đ hoặc để trống nếu không giới hạn).")
@@ -196,6 +204,9 @@ class CouponForm(forms.ModelForm):
         if discount_type == DiscountType.PERCENT and value is not None:
             if value <= Decimal('0') or value > Decimal('100'):
                 self.add_error('value', "Giá trị giảm theo phần trăm phải lớn hơn 0% và không vượt quá 100%.")
+        elif discount_type == DiscountType.FIXED and value is not None:
+            if value <= Decimal('0'):
+                self.add_error('value', "Số tiền giảm cố định phải lớn hơn 0 đ.")
 
         if starts_at and ends_at:
             if timezone.is_naive(starts_at):
@@ -255,3 +266,4 @@ class CouponForm(forms.ModelForm):
                 return coupon
 
         return execute_sqlite_safe_save(_do_save)
+

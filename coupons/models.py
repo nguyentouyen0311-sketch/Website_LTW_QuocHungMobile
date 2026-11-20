@@ -101,6 +101,11 @@ class Coupon(models.Model):
         verbose_name="Kích hoạt hoạt động",
         help_text="Mặc định True. Nếu False, voucher bị tạm ngưng áp dụng."
     )
+    is_public = models.BooleanField(
+        default=False,
+        verbose_name="Công bố mã giảm giá",
+        help_text="Cho phép giới thiệu mã công khai; độc lập với trạng thái kích hoạt."
+    )
     applies_to_all = models.BooleanField(
         default=True,
         verbose_name="Áp dụng toàn bộ sản phẩm",
