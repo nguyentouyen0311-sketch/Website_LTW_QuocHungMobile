@@ -1,0 +1,21 @@
+{% load static %}
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}ADMIN PORTAL{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+  <link rel="stylesheet" href="{% static 'css/management_backend.css' %}">
+  {% block extra_css %}{% endblock %}
+</head>
+<body class="management-body">
+  <div class="management-shell">
+    {% include 'catalog/includes/management_sidebar.html' with active_nav=active_nav %}
+    <section class="management-workspace">
+      <header class="management-topbar"><button type="button" id="qhm-sidebar-toggle" class="management-menu" aria-label="Mở menu" aria-expanded="false" onclick="toggleQhmSidebar()">☰</button><span>ADMIN PORTAL</span></header>
+      <main class="management-main">{% block content %}{% endblock %}</main>
+    </section>
+  </div>
+</body>
+</html>
