@@ -11,4 +11,5 @@ urlpatterns = [
     path('item/<int:item_id>/remove/', views.cart_remove_item_view, name='cart_remove_item'),
     path('items/remove/', views.cart_remove_selected_view, name='cart_remove_selected'),
     path('sync/', views.cart_sync_guest_cart_view, name='sync_guest_cart'),
+    path('coupon/preview/', views.cart_coupon_preview_view, name='cart_coupon_preview'),
 ]
