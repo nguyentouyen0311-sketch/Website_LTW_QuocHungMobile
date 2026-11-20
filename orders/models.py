@@ -482,14 +482,16 @@ class ReturnRequestStatus(models.TextChoices):
 
 class ReturnRequestType(models.TextChoices):
     EXCHANGE = 'EXCHANGE', 'Đổi sản phẩm'
-    REFUND = 'REFUND', 'Trả hàng và hoàn tiền'
+    RETURN = 'RETURN', 'Trả hàng và hoàn tiền'
 
 
 class ReturnReasonCode(models.TextChoices):
-    DEFECTIVE = 'DEFECTIVE', 'Sản phẩm lỗi kỹ thuật'
-    DAMAGED = 'DAMAGED', 'Sản phẩm hư hỏng khi giao nhận'
+    TECHNICAL_DEFECT = 'TECHNICAL_DEFECT', 'Sản phẩm lỗi kỹ thuật'
+    DAMAGED_ON_ARRIVAL = 'DAMAGED_ON_ARRIVAL', 'Sản phẩm hư hỏng khi giao nhận'
     WRONG_ITEM = 'WRONG_ITEM', 'Giao sai sản phẩm'
     NOT_AS_DESCRIBED = 'NOT_AS_DESCRIBED', 'Sản phẩm không đúng mô tả'
+    NOT_SUITABLE = 'NOT_SUITABLE', 'Sản phẩm không phù hợp nhu cầu'
+    CHANGE_COLOR_CAPACITY = 'CHANGE_COLOR_CAPACITY', 'Muốn đổi màu hoặc dung lượng'
     OTHER = 'OTHER', 'Lý do khác'
 
 
@@ -584,7 +586,7 @@ class ReturnRequest(models.Model):
             errors['quantity'] = 'Số lượng đổi trả không được vượt quá số lượng đã mua.'
         if self.request_type == ReturnRequestType.EXCHANGE and not self.replacement_variant_id:
             errors['replacement_variant'] = 'Yêu cầu đổi sản phẩm phải chọn biến thể thay thế.'
-        if self.request_type == ReturnRequestType.REFUND and self.replacement_variant_id:
+        if self.request_type == ReturnRequestType.RETURN and self.replacement_variant_id:
             errors['replacement_variant'] = 'Yêu cầu hoàn tiền không được chọn biến thể thay thế.'
         if self.reason_code == ReturnReasonCode.OTHER and not self.description.strip():
             errors['description'] = 'Vui lòng mô tả chi tiết khi chọn lý do "Lý do khác".'
