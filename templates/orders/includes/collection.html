@@ -1,0 +1,13 @@
+{% load order_ui %}
+
+{% if order.payment.cod_collection %}
+  <div class="collection-receipt">
+    <strong>Chứng từ thu COD: {{ order.payment.cod_collection.reference }}</strong>
+    <small>
+      Đã thu {{ order.payment.cod_collection.amount|money }} · {{ order.payment.cod_collection.collected_at|date:'H:i d/m/Y' }}
+    </small>
+    <small>
+      Nhân viên: {{ order.payment.cod_collection.collected_by.get_full_name|default:order.payment.cod_collection.collected_by.username }}
+    </small>
+  </div>
+{% endif %}

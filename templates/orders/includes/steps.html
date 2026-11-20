@@ -1,0 +1,26 @@
+<ol class="delivery-steps">
+  {% for step in order.ui_steps %}
+    <li
+      class="{% if step.done %}done{% endif %} {% if step.current %}current{% endif %}"
+    >
+      <span class="step-dot">
+        {% if step.done and not step.current %}
+          ✓
+        {% else %}
+          {{ step.number }}
+        {% endif %}
+      </span>
+      <strong>{{ step.title }}</strong>
+      <small>
+        {% if step.time %}
+          {{ step.time|date:'H:i • d/m/Y' }}
+        {% elif step.number == 4 %}
+          Chờ xác nhận nhận hàng
+        {% endif %}
+      </small>
+      {% if step.current and order.estimated_delivery_at %}
+        <small class="red">Dự kiến giao: {{ order.estimated_delivery_at|date:'H:i d/m' }}</small>
+      {% endif %}
+    </li>
+  {% endfor %}
+</ol>

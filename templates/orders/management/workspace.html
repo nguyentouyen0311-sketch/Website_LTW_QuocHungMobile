@@ -1,0 +1,373 @@
+{% extends 'orders/base.html' %}
+
+{% load order_ui static %}
+
+{% block body_class %}
+  order-admin
+{% endblock %}
+{% block header %}
+  <aside class="admin-sidebar">
+    <div class="admin-brand">{% include 'orders/includes/brand.html' with admin_brand=True %}</div>
+    <nav aria-label="Menu quản trị">
+      <p>TỔNG QUAN</p>
+      <a href="{% url 'catalog:product_list' %}">Dashboard thống kê</a>
+      <p>QUẢN LÝ HÀNG HÓA</p>
+      <a href="{% url 'catalog:category_list' %}">Quản lý danh mục</a>
+      <a href="{% url 'catalog:attribute_list' %}">Biến thể & Thuộc tính</a>
+      <a href="{% url 'catalog:product_list' %}">Quản lý sản phẩm</a>
+      <a href="{% url 'inventory:inventory_list' %}">Quản lý tồn kho</a>
+      <p>BÁN HÀNG & CSKH</p>
+      <a class="active" href="{% url 'orders:management_orders_list' %}">Quản lý đơn hàng</a>
+      <a href="{% url 'coupons:coupon_list' %}">Mã giảm giá</a>
+      <a href="{% url 'chat:staff_inbox' %}">Quản lý Chatbot & CSKH</a>
+      <p>HỆ THỐNG</p>
+      <a href="{% url 'accounts:staff_list' %}">Tài khoản & Phân quyền</a>
+    </nav>
+    <div class="admin-user">
+      <i class="avatar">
+        {{ request.user.username|slice:':2'|upper }}
+      </i>
+      <div>
+        <strong>{{ request.user.get_full_name|default:request.user.username }}</strong>
+        <small>
+          {% if is_admin %}
+            Administrator
+          {% else %}
+            Sales Staff
+          {% endif %}
+        </small>
+      </div>
+      <form method="post" action="{% url 'accounts:logout' %}">
+        {% csrf_token %}
+        <button type="submit" class="text-button" aria-label="Đăng xuất">
+          {% icon 'logout' %}
+        </button>
+      </form>
+    </div>
+  </aside>
+  <header class="admin-header">
+    <span>
+      Bán hàng & CSKH /
+      <strong>Quản lý đơn hàng</strong>
+    </span>
+    <div>
+      <form
+        class="compact-search"
+        method="get"
+        action="{% url 'orders:management_orders_list' %}"
+      >
+        <input
+          name="q"
+          type="search"
+          placeholder="Tìm kiếm SKU, đơn hàng, khách hàng..."
+          aria-label="Tìm nhanh"
+        >
+        <button type="submit" aria-label="Tìm kiếm">{% icon 'search' %}</button>
+      </form>
+      <a class="button" href="{% url 'home' %}">
+        {% icon 'external' %}
+        Xem Website
+      </a>
+      <button
+        class="button mobile-menu"
+        type="button"
+        data-toggle-menu
+        aria-label="Mở menu quản trị"
+      >
+        ☰
+      </button>
+    </div>
+  </header>
+{% endblock %}
+{% block footer %}{% endblock %}
+{% block content %}
+  <main class="admin-main">
+    <h1>Quản lý đơn hàng & Xử lý vận đơn</h1>
+    <nav class="status-tabs admin-tabs" aria-label="Lọc trạng thái">
+      {% for tab in tabs %}
+        <a
+          class="{% if tab.active %}active{% endif %}"
+          href="?status={{ tab.key }}&q={{ search_q|urlencode }}&month={{ month }}"
+        >
+          {% if tab.key == 'all' %}
+            Tất cả ({{ tab.count }})
+          {% else %}
+            {{ tab.label }}
+            <span class="count {{ tab.key }}">{{ tab.count }}</span>
+          {% endif %}
+        </a>
+      {% endfor %}
+    </nav>
+    <section class="panel admin-filters">
+      <form method="get">
+        <input type="hidden" name="status" value="{{ status }}">
+        <label class="compact-search">
+          {% icon 'search' %}
+          <input
+            type="search"
+            name="q"
+            value="{{ search_q }}"
+            placeholder="Mã đơn, SĐT, khách hàng, SKU"
+            aria-label="Tìm đơn hàng"
+          >
+        </label>
+        <label class="month-filter">
+          {% icon 'calendar' %}
+          <span>Thời gian:</span>
+          <input type="month" name="month" value="{{ month }}" aria-label="Tháng đặt hàng">
+        </label>
+        <button class="button" type="submit">Lọc</button>
+        {% if search_q or month %}
+          <a class="muted" href="?status={{ status }}">Xóa bộ lọc</a>
+        {% endif %}
+      </form>
+      <small>
+        Hiển thị {{ page_obj.object_list|length }} / {{ page_obj.paginator.count }} đơn hàng phù hợp
+      </small>
+    </section>
+    <div class="admin-columns">
+      <section class="panel admin-list">
+        <div class="panel-title">
+          <h2>Danh sách đơn đặt hàng</h2>
+          <span class="muted">Nhấp vào dòng để xem chi tiết & xử lý</span>
+        </div>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>MÃ ĐƠN</th>
+                <th>KHÁCH HÀNG</th>
+                <th>NGÀY ĐẶT</th>
+                <th>TỔNG TIỀN & THANH TOÁN</th>
+                <th>TRẠNG THÁI</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for order in page_obj %}
+                <tr
+                  class="{% if order.pk == selected_order.pk %}selected{% endif %}"
+                  data-row-link="?{{ query_string }}&page={{ page_obj.number }}&selected={{ order.pk }}"
+                >
+                  <td>
+                    <a href="?{{ query_string }}&page={{ page_obj.number }}&selected={{ order.pk }}">
+                      #{{ order.order_code }}
+                    </a>
+                  </td>
+                  <td>
+                    <strong>{{ order.recipient_name }}</strong>
+                    <small>{{ order.recipient_phone }}</small>
+                  </td>
+                  <td>
+                    {{ order.created_at|date:'d/m/Y' }}
+                    <small>{{ order.created_at|date:'H:i' }}</small>
+                  </td>
+                  <td>
+                    <strong class="table-amount">{{ order.grand_total|money }}</strong>
+                    <small>COD · {{ order.payment.get_status_display }}</small>
+                  </td>
+                  <td>
+                    <span class="badge {{ order.ui_status_class }}">{{ order.ui_status }}</span>
+                  </td>
+                </tr>
+              {% empty %}
+                <tr>
+                  <td colspan="5" class="empty">Chưa có đơn hàng phù hợp.</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% include 'orders/includes/pagination.html' %}
+      </section>
+      <aside>
+        {% if selected_order %}
+          {% with order=selected_order %}
+            <section class="panel admin-detail">
+              <header>
+                <h2>
+                  Chi tiết đơn hàng
+                  <br>
+                  <span>#{{ order.order_code }}</span>
+                </h2>
+                <span class="badge {{ order.ui_status_class }}">{{ order.ui_status }}</span>
+                <small>Tạo lúc: {{ order.created_at|date:'d/m/Y - H:i:s' }}</small>
+              </header>
+              <div class="admin-contact">
+                <p>
+                  {% icon 'user' %}
+                  <span>
+                    <strong>{{ order.recipient_name }}</strong>
+                    — {{ order.recipient_phone }}
+                  </span>
+                </p>
+                <p>
+                  {% icon 'map' %}
+                  <span>{{ order.shipping_address }}</span>
+                </p>
+                <p>
+                  {% icon 'truck' %}
+                  <span>
+                    <strong>{{ order.get_shipping_method_display }}</strong>
+                    {% if order.shipping_note %}
+                      | Ghi chú:
+                      <em>{{ order.shipping_note }}</em>
+                    {% endif %}
+                  </span>
+                </p>
+                {% if order.tracking_number %}
+                  <p>
+                    Mã vận đơn:
+                    <strong>{{ order.tracking_number }}</strong>
+                    · {{ order.carrier_name }}
+                  </p>
+                {% endif %}
+              </div>
+              <p class="muted">Danh sách sản phẩm đặt mua ({{ order.ui_items|length }}):</p>
+              {% include 'orders/includes/items.html' with admin_items=True %}
+              {% include 'orders/includes/totals.html' with admin_items=True %}
+              {% include 'orders/includes/collection.html' %}
+              <div class="admin-actions">
+                {% if order.order_status == 'PENDING_CONFIRMATION' %}
+                  <form
+                    method="post"
+                    action="{% url 'orders:management_action' order.pk 'confirm' %}"
+                  >
+                    {% csrf_token %}
+                    {{ action_forms.confirm.non_field_errors }}
+                    <button
+                      class="button primary wide"
+                      type="submit"
+                      {% if not order.can_confirm %}disabled{% endif %}
+                    >
+                      {% icon 'check' %}
+                      Xác nhận đơn & Chuyển kho đóng gói
+                    </button>
+                    {% if not order.can_confirm %}
+                      <p class="error-message">
+                        Đơn chưa đủ điều kiện thanh toán hoặc giữ tồn để xác nhận.
+                      </p>
+                    {% endif %}
+                  </form>
+                {% endif %}
+                {% if order.order_status == 'CONFIRMED' %}
+                  <details {% if action_name == 'ship' %}open{% endif %}>
+                    <summary class="button primary wide">Bàn giao đơn vị vận chuyển</summary>
+                    <form
+                      method="post"
+                      action="{% url 'orders:management_action' order.pk 'ship' %}"
+                    >
+                      {% csrf_token %}
+                      {{ action_forms.ship.as_p }}
+                      <button class="button primary wide" type="submit">Xác nhận bàn giao</button>
+                    </form>
+                  </details>
+                {% endif %}
+                {% if order.order_status == 'SHIPPING' %}
+                  <form
+                    method="post"
+                    action="{% url 'orders:management_action' order.pk 'deliver' %}"
+                  >
+                    {% csrf_token %}
+                    {{ action_forms.deliver.as_p }}
+                    <button class="button primary wide" type="submit">
+                      ✓ Xác nhận giao hàng thành công
+                    </button>
+                  </form>
+                {% endif %}
+                {% if order.order_status == 'SHIPPING' or order.order_status == 'DELIVERED' %}
+                  {% if order.payment.status == 'UNPAID' %}
+                    <details {% if action_name == 'collect' %}open{% endif %}>
+                      <summary class="button primary wide">Ghi nhận đã thu tiền COD</summary>
+                      <form
+                        method="post"
+                        action="{% url 'orders:management_action' order.pk 'collect' %}"
+                      >
+                        {% csrf_token %}
+                        {{ action_forms.collect.as_p }}
+                        <button class="button primary wide" type="submit">
+                          Xác nhận tiền đã thu thực tế
+                        </button>
+                      </form>
+                    </details>
+                  {% else %}
+                    <p class="notice success">COD · {{ order.payment.get_status_display }}</p>
+                  {% endif %}
+                {% endif %}
+                <div class="button-row">
+                  <a
+                    target="_blank"
+                    rel="noopener"
+                    class="button"
+                    href="{% url 'orders:print_order' order.pk %}?type=delivery"
+                  >
+                    {% icon 'print' %}
+                    In phiếu giao hàng
+                  </a>
+                  {% if order.can_cancel %}
+                    <button class="button danger" type="button" data-toggle-cancel>
+                      {% icon 'close' %}
+                      Từ chối / Hủy đơn
+                    </button>
+                  {% endif %}
+                </div>
+                {% if order.can_cancel %}
+                  <details id="staff-cancel" {% if action_name == 'cancel' %}open{% endif %}>
+                    <summary>Nhập lý do hủy đơn</summary>
+                    <form
+                      method="post"
+                      action="{% url 'orders:management_action' order.pk 'cancel' %}"
+                    >
+                      {% csrf_token %}
+                      {{ action_forms.cancel.as_p }}
+                      <button class="button danger wide" type="submit">
+                        Xác nhận hủy đơn & giải phóng tồn
+                      </button>
+                    </form>
+                  </details>
+                {% endif %}
+              </div>
+              {% for record in order.ui_requests %}
+                <section class="return-review">
+                  <h3>Yêu cầu #YC{{ record.pk }} — {{ record.get_status_display }}</h3>
+                  <p>
+                    <strong>{{ record.get_request_type_display }}</strong>
+                    · {{ record.expected_amount|money }}
+                  </p>
+                  <p>{{ record.get_reason_display }}</p>
+                  <p>{{ record.description }}</p>
+                  <small>Hạn phản hồi: {{ record.response_due_at|date:'H:i d/m/Y' }}</small>
+                  {% for file in record.attachments.all %}
+                    <a class="attachment-link" href="{% url 'orders:return_attachment' file.pk %}">
+                      {{ file.original_name }}
+                    </a>
+                  {% endfor %}
+                  {% if record.review_note %}
+                    <p>Phản hồi: {{ record.review_note }}</p>
+                  {% endif %}
+                  {% if record.status == 'PENDING' or record.status == 'APPROVED' %}
+                    <details {% if action_name == 'review' %}open{% endif %}>
+                      <summary>Xử lý yêu cầu</summary>
+                      <form
+                        method="post"
+                        action="{% url 'orders:management_action' order.pk 'review' %}"
+                      >
+                        {% csrf_token %}
+                        <input type="hidden" name="request_id" value="{{ record.pk }}">
+                        {{ action_forms.review.as_p }}
+                        <button class="button primary wide" type="submit">
+                          Lưu kết quả xử lý
+                        </button>
+                      </form>
+                    </details>
+                  {% endif %}
+                </section>
+              {% endfor %}
+            </section>
+          {% endwith %}
+        {% else %}
+          <div class="panel empty">Chọn một đơn hàng để xem chi tiết & xử lý.</div>
+        {% endif %}
+      </aside>
+    </div>
+  </main>
+{% endblock %}

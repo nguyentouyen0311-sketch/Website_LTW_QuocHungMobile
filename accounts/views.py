@@ -3,11 +3,16 @@ from django.contrib.auth import login, logout
 from django.contrib.auth.models import User, Group
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db.models import Q
+from django.core.paginator import Paginator
 
 from django.http import HttpResponseNotAllowed, HttpResponseForbidden, HttpResponseBadRequest
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
+
+from django.contrib.messages.views import SuccessMessageMixin
+from django.contrib.auth import views as auth_views
+from django.urls import reverse_lazy
 
 from accounts.forms import (
     CustomerRegistrationForm,
@@ -213,8 +218,7 @@ def landing_view(request):
     return render(request, 'accounts/landing.html', context)
 
 
-def profile_view(request):
-
+def _handle_profile_request(request, template_name):
     if not request.user.is_authenticated:
         return redirect(f"{reverse('accounts:login')}?next={request.path}")
 
@@ -223,25 +227,12 @@ def profile_view(request):
 
     profile = getattr(request.user, 'customer_profile', None)
     if profile is None:
-        profile = CustomerProfile.objects.filter(user=request.user).first()
+        profile, _ = CustomerProfile.objects.get_or_create(user=request.user)
 
-    context = {
-        'user': request.user,
-        'profile': profile,
-    }
-    return render(request, 'accounts/profile.html', context)
-
-
-def profile_edit_view(request):
-
-    if not request.user.is_authenticated:
-        return redirect(f"{reverse('accounts:login')}?next={request.path}")
-
-    if not is_customer(request.user):
-        return HttpResponseForbidden("Bạn không có quyền truy cập chức năng này.")
+    from orders.models import Order
 
     if request.method == 'POST':
-        form = CustomerProfileForm(request.POST, user=request.user)
+        form = CustomerProfileForm(request.POST, request.FILES, user=request.user)
         if form.is_valid():
             form.save()
             messages.success(request, 'Cập nhật thông tin cá nhân thành công!')
@@ -249,11 +240,38 @@ def profile_edit_view(request):
     else:
         form = CustomerProfileForm(user=request.user)
 
+    total_orders_count = Order.objects.filter(customer=request.user).count()
+    display_name = request.user.get_full_name().strip() or request.user.username
+    parts = display_name.split()
+    initials = ''.join([p[0] for p in parts[:2]]).upper() if parts else 'KH'
+    customer_code = request.user.username
+
     context = {
         'form': form,
         'user': request.user,
+        'profile': profile,
+        'total_orders_count': total_orders_count,
+        'customer_display_name': display_name,
+        'initials': initials,
+        'customer_code': customer_code,
+        'join_date_formatted': request.user.date_joined.strftime('%d/%m/%Y'),
+        'account_nav': True,
     }
-    return render(request, 'accounts/profile_edit.html', context)
+    return render(request, template_name, context)
+
+
+def profile_view(request):
+    return _handle_profile_request(request, 'accounts/profile.html')
+
+
+def profile_edit_view(request):
+    return _handle_profile_request(request, 'accounts/profile_edit.html')
+
+
+class CustomerPasswordChangeView(SuccessMessageMixin, auth_views.PasswordChangeView):
+    template_name = 'accounts/password_change.html'
+    success_url = reverse_lazy('accounts:password_change')
+    success_message = 'Đổi mật khẩu thành công! Mật khẩu mới của bạn đã được cập nhật.'
 
 
 def get_target_staff_user(user_id, current_user):

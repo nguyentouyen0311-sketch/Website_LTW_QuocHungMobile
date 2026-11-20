@@ -1,0 +1,88 @@
+{% load static order_ui %}
+
+<footer class="order-footer">
+  <div class="footer-grid">
+    <section>
+      {% include 'orders/includes/brand.html' %}
+      <small>CHÍNH HÃNG • UY TÍN</small>
+      <p>Hệ thống bán lẻ điện thoại, máy tính bảng, phụ kiện công nghệ tại Đà Nẵng.</p>
+      <p>
+        Hotline CSKH:
+        <a href="tel:18006868">
+          <strong>1800 6868</strong>
+        </a>
+        (Miễn phí)
+      </p>
+      <p>Số 156 Nguyễn Văn Linh, P. Vĩnh Trung, Q. Thanh Khê, TP. Đà Nẵng, Việt Nam</p>
+    </section>
+    <section>
+      <h2>HỖ TRỢ KHÁCH HÀNG</h2>
+      <a href="{% url 'cart:cart_detail' %}">Hướng dẫn đặt hàng trực tuyến</a>
+      <a href="#order-policy" data-open-policy>Chính sách bảo hành & sửa chữa</a>
+      <a href="#order-policy" data-open-policy>Chính sách hủy đơn & đổi trả 30 ngày</a>
+      <a href="{% url 'orders:my_orders' %}">Tra cứu tiến độ đơn hàng</a>
+      <a href="#order-policy" data-open-policy>Phương thức vận chuyển & giao nhận</a>
+    </section>
+    <section>
+      <h2>DANH MỤC & THÔNG TIN</h2>
+      {% for category in storefront_nav_categories %}
+        <a href="{% url 'catalog:public_category' category.pk %}">{{ category.name }}</a>
+      {% empty %}
+        <a href="{% url 'catalog:public_catalog' %}">Điện thoại</a>
+        <a href="{% url 'catalog:public_catalog' %}?q=laptop">Laptop & Máy tính bảng cao cấp</a>
+        <a href="{% url 'catalog:public_catalog' %}?q=phụ+kiện">Phụ kiện</a>
+      {% endfor %}
+      <a href="{% url 'catalog:public_catalog' %}">Khuyến mãi & Mã giảm giá hôm nay</a>
+      <a href="tel:18006868">Giới thiệu Quốc Hùng Mobile</a>
+      <a href="tel:18006868">Cơ hội việc làm & tuyển dụng</a>
+    </section>
+    <section>
+      <h2>KẾT NỐI VỚI CHÚNG TÔI</h2>
+      <div class="social-links">
+        <button type="button" data-open-support aria-label="Liên hệ cửa hàng">
+          {% icon 'facebook' %}
+        </button>
+        <button type="button" data-open-support aria-label="Kết nối cửa hàng">
+          {% icon 'instagram' %}
+        </button>
+      </div>
+      <p>
+        PHƯƠNG THỨC THANH TOÁN
+        <br>
+        <span class="payment-chip">Thanh toán khi nhận hàng</span>
+      </p>
+    </section>
+  </div>
+  <div class="footer-bottom">
+    <span>
+      ©
+      {% now 'Y' %}
+      Quốc Hùng Mobile. Tất cả các quyền được bảo lưu.
+    </span>
+    <span>
+      <a href="#order-policy" data-open-policy>Điều khoản sử dụng</a>
+      <a href="#order-policy" data-open-policy>Chính sách bảo mật</a>
+      <a href="tel:18006868">Liên hệ đối tác</a>
+    </span>
+  </div>
+</footer>
+<dialog id="order-policy">
+  <button type="button" data-close-dialog class="dialog-close" aria-label="Đóng">×</button>
+  <h2>Chính sách giao nhận, hủy và đổi trả</h2>
+  <p>
+    Thanh toán tiền mặt khi nhận hàng (COD). Miễn phí giao hàng tiêu chuẩn và nhận hàng tại
+    cửa hàng.
+  </p>
+  <p>
+    Bạn có thể hủy đơn chưa thanh toán trước khi bàn giao vận chuyển. Miễn phí 1 đổi 1 trong
+    30 ngày từ ngày nhận hàng nếu sản phẩm lỗi phần cứng từ nhà sản xuất.
+  </p>
+  <p>
+    Yêu cầu trả hàng được cửa hàng kiểm tra trước khi hoàn tiền 100% giá trị sản phẩm đã thanh
+    toán. Miễn phí thu hồi tận nơi. CSKH phản hồi yêu cầu trong 30 phút.
+  </p>
+  <p>
+    Thông tin nhận hàng và tệp minh chứng chỉ dùng để xử lý đơn, được giới hạn cho chủ đơn và
+    nhân viên phụ trách.
+  </p>
+</dialog>

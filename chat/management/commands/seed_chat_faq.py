@@ -17,19 +17,19 @@ SAMPLE_FAQS = [
     {
         'question': 'Có những hình thức thanh toán nào?',
         'answer': (
-            'Cửa hàng hỗ trợ 2 hình thức thanh toán: thanh toán khi nhận hàng (COD) '
-            'và chuyển khoản ngân hàng qua mã VietQR.'
+            'Cửa hàng hỗ trợ thanh toán khi nhận hàng (COD). '
+            'Bạn kiểm tra sản phẩm và thanh toán tiền mặt khi nhận hàng.'
         ),
-        'keywords': 'hình thức thanh toán, phương thức thanh toán, cách thức thanh toán, thanh toán như thế nào, thanh toán cod, thanh toán chuyển khoản',
+        'keywords': 'hình thức thanh toán, phương thức thanh toán, cách thức thanh toán, thanh toán như thế nào, thanh toán cod',
     },
     {
-        'question': 'Chuyển khoản VietQR được xác nhận như thế nào?',
+        'question': 'Thanh toán COD được ghi nhận như thế nào?',
         'answer': (
-            'Sau khi hoàn tất quét mã và chuyển khoản đúng số tiền, bạn bấm nút "Tôi đã chuyển khoản" '
-            'trên trang chi tiết đơn hàng. Nhân viên bán hàng sẽ kiểm tra đối soát sao kê và xác nhận đơn '
-            'trong giờ làm việc. Lưu ý: việc bấm nút chưa có nghĩa là cửa hàng đã nhận được tiền.'
+            'Bạn thanh toán tiền mặt khi nhận hàng. Nhân viên ghi nhận chứng từ thu tiền thực tế '
+            'đúng tổng thanh toán của đơn hàng. Trạng thái giao hàng và thanh toán được theo dõi riêng '
+            'tại mục Đơn hàng của tôi.'
         ),
-        'keywords': 'chuyển khoản vietqr, xác nhận vietqr, xác nhận qr, đối soát qr, đối soát sao kê, xác nhận chuyển khoản, xác minh chuyển khoản',
+        'keywords': 'xác nhận cod, xác nhận thanh toán, chứng từ thu tiền, thanh toán khi nhận hàng',
     },
     {
         'question': 'Tôi có thể hủy đơn hàng không?',

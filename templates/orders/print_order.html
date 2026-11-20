@@ -1,0 +1,115 @@
+{% load order_ui %}
+
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8">
+    <title>
+      {% if delivery_slip %}
+        Phiếu giao hàng
+      {% else %}
+        Thông tin đơn hàng
+      {% endif %}
+      #{{ order.order_code }}
+    </title>
+    <style>
+      body {
+        font: 14px Arial, sans-serif;
+        color: #283630;
+        max-width: 800px;
+        margin: 40px auto;
+        padding: 24px
+      }
+
+      h1 {
+        font-size: 24px
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse
+      }
+
+      th,
+      td {
+        padding: 12px;
+        border-bottom: 1px solid #ddd;
+        text-align: left
+      }
+
+      dl div {
+        display: flex;
+        justify-content: space-between;
+        margin: 12px 0
+      }
+
+      .grand-total {
+        font-size: 20px;
+        font-weight: bold
+      }
+
+      button {
+        padding: 12px;
+        cursor: pointer
+      }
+
+      @media print {
+        button {
+          display: none
+        }
+
+        body {
+          margin: 0
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <button type="button" onclick="window.print()">In / Lưu PDF</button>
+    <h1>QUỐC HÙNG MOBILE</h1>
+    <p>156 Nguyễn Văn Linh, Đà Nẵng • CSKH 1800 6868</p>
+    <h2>
+      {% if delivery_slip %}
+        Phiếu giao hàng
+      {% else %}
+        Thông tin thanh toán đơn hàng
+      {% endif %}
+      #{{ order.order_code }}
+    </h2>
+    <p>Ngày đặt: {{ order.created_at|date:'H:i d/m/Y' }}</p>
+    <p>
+      {{ order.recipient_name }} • {{ order.recipient_phone }}
+      <br>
+      {{ order.shipping_address }}
+    </p>
+    <p>Ghi chú: {{ order.shipping_note|default:'Không có' }}</p>
+    {% if order.tracking_number %}
+      <p>{{ order.carrier_name }} • Vận đơn {{ order.tracking_number }}</p>
+    {% endif %}
+    <table>
+      <thead>
+        <tr>
+          <th>Sản phẩm</th>
+          <th>SL</th>
+          <th>Thành tiền</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in order.ui_items %}
+          <tr>
+            <td>
+              {{ item.product_name_snapshot }}
+              <br>
+              {{ item.variant_snapshot }}
+            </td>
+            <td>{{ item.quantity }}</td>
+            <td>{{ item.ui_line_gross|money }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% include 'orders/includes/totals.html' %}
+    <p>Thanh toán khi nhận hàng (COD) • {{ order.payment.get_status_display }}</p>
+    <small>Phiếu xác nhận thông tin đơn hàng, không thay thế hóa đơn thuế.</small>
+  </body>
+</html>

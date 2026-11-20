@@ -1,0 +1,117 @@
+{% extends 'orders/base.html' %}
+
+{% load static order_ui %}
+
+{% block body_class %}
+  my-orders-page
+{% endblock %}
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/customer_profile.css' %}">
+{% endblock %}
+{% block content %}
+  <main class="order-container customer-account-layout account-layout">
+    {% include 'includes/customer_sidebar.html' with active_nav='orders' %}
+    <section class="account-orders">
+      <div class="page-heading">
+        <h1>Đơn hàng của tôi</h1>
+        <form class="compact-search" method="get">
+          <input type="hidden" name="status" value="{{ status }}">
+          <input
+            type="search"
+            name="q"
+            value="{{ search_q }}"
+            placeholder="Tìm theo mã đơn, tên sản phẩm..."
+            aria-label="Tìm đơn hàng"
+          >
+          <button type="submit" aria-label="Tìm kiếm">{% icon 'search' %}</button>
+        </form>
+      </div>
+      <nav class="status-tabs customer-tabs" aria-label="Lọc trạng thái đơn hàng">
+        {% for tab in tabs %}
+          <a
+            class="{% if tab.active %}active{% endif %}"
+            href="?status={{ tab.key }}&q={{ search_q|urlencode }}"
+          >
+            {{ tab.label }}
+            <span>({{ tab.count }})</span>
+          </a>
+        {% endfor %}
+      </nav>
+      <div class="stack">
+        {% for order in page_obj %}
+          <article class="panel order-card">
+            <header>
+              <div>
+                <a href="{% url 'orders:order_detail' order.pk %}">
+                  <strong>Mã đơn: #{{ order.order_code }}</strong>
+                </a>
+                <small>Đặt lúc {{ order.created_at|date:'H:i, d/m/Y' }}</small>
+                {% if order.order_status == 'SHIPPING' %}
+                  <small class="address-preview">Giao tới: {{ order.shipping_address }}</small>
+                {% endif %}
+              </div>
+              <span class="badge {{ order.ui_status_class }}">{{ order.ui_status }}</span>
+            </header>
+            {% if order.order_status == 'SHIPPING' or order.order_status == 'CONFIRMED' %}
+              {% include 'orders/includes/steps.html' %}
+            {% endif %}
+            {% include 'orders/includes/items.html' %}
+            <footer>
+              {% if order.coupon_code %}
+                <span class="coupon-chip">
+                  Đã dùng mã {{ order.coupon_code }} (-{{ order.discount_total|money }})
+                </span>
+              {% endif %}
+              <div class="order-card-actions">
+                <div class="order-amount">
+                  <small>Tổng thanh toán:</small>
+                  <strong class="{% if order.order_status == 'SHIPPING' %}red{% endif %}">
+                    {{ order.grand_total|money }}
+                  </strong>
+                </div>
+                {% if order.can_cancel %}
+                  <a class="button danger" href="{% url 'orders:return_request' order.pk %}">
+                    Hủy đơn hàng
+                  </a>
+                {% endif %}
+                {% if order.can_return %}
+                  <a class="button" href="{% url 'orders:return_request' order.pk %}">
+                    Yêu cầu đổi / trả
+                  </a>
+                {% endif %}
+                {% if order.order_status == 'SHIPPING' %}
+                  <button type="button" class="button" data-open-support>Liên hệ hỗ trợ</button>
+                {% endif %}
+                <a
+                  class="button {% if order.order_status == 'SHIPPING' %}primary{% endif %}"
+                  href="{% url 'orders:order_detail' order.pk %}"
+                >
+                  {% if order.order_status == 'SHIPPING' %}
+                    Xem chi tiết vận đơn
+                  {% else %}
+                    Xem chi tiết
+                  {% endif %}
+                </a>
+                {% if order.order_status == 'DELIVERED' or order.order_status == 'CANCELLED' %}
+                  <form method="post" action="{% url 'orders:buy_again' order.pk %}">
+                    {% csrf_token %}
+                    <button class="button primary" type="submit">Mua lại</button>
+                  </form>
+                {% endif %}
+              </div>
+            </footer>
+          </article>
+        {% empty %}
+          <div class="panel empty">
+            <h2>Chưa có đơn hàng phù hợp</h2>
+            <p>Đơn hàng của bạn sẽ được cập nhật tại đây.</p>
+            <a class="button primary" href="{% url 'catalog:public_catalog' %}">
+              Tiếp tục mua sắm
+            </a>
+          </div>
+        {% endfor %}
+      </div>
+      {% include 'orders/includes/pagination.html' %}
+    </section>
+  </main>
+{% endblock %}

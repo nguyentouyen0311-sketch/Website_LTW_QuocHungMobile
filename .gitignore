@@ -56,6 +56,7 @@ staticfiles/
 # File do người dùng/nhân viên upload trong quá trình test hoặc vận hành
 media/*
 !media/.gitkeep
+private_uploads/
 
 # 6. Nhật ký hệ thống & Gỡ lỗi (Logs & Debug)
 *.log
@@ -113,3 +114,6 @@ coverage.xml
 htmlcov/
 .mypy_cache/
 .ruff_cache/
+
+# Local screenshots and generated review reports
+artifacts/

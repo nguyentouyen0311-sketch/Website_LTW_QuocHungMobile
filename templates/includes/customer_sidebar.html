@@ -1,0 +1,49 @@
+{% load static order_ui %}
+
+<aside class="panel customer-sidebar account-sidebar" aria-label="Menu tài khoản khách hàng">
+  <div class="customer-sidebar-identity account-identity">
+    <div class="customer-avatar-box">
+      {% if request.user.customer_profile and request.user.customer_profile.avatar %}
+        <img src="{{ request.user.customer_profile.avatar.url }}" alt="{{ request.user.get_full_name|default:request.user.username }}" class="customer-avatar-img">
+      {% elif profile and profile.avatar %}
+        <img src="{{ profile.avatar.url }}" alt="{{ request.user.get_full_name|default:request.user.username }}" class="customer-avatar-img">
+      {% elif storefront_customer.initials %}
+        <span class="customer-avatar-text avatar">{{ storefront_customer.initials }}</span>
+      {% else %}
+        <span class="customer-avatar-text avatar">{{ request.user.username|slice:':2'|upper }}</span>
+      {% endif %}
+    </div>
+    <div class="customer-meta-box">
+      <strong class="customer-name">{{ request.user.get_full_name|default:request.user.username }}</strong>
+      <span class="customer-phone">{{ request.user.customer_profile.phone|default:'Chưa cập nhật SĐT' }}</span>
+      {% if request.user.customer_profile and request.user.customer_profile.membership_tier %}
+        <span class="customer-tier-badge">★ {{ request.user.customer_profile.membership_tier }}</span>
+      {% endif %}
+    </div>
+  </div>
+
+  <nav class="customer-nav" aria-label="Điều hướng tài khoản">
+    <a href="{% url 'accounts:profile' %}" class="customer-nav-item {% if active_nav == 'profile' %}active{% endif %}">
+      {% icon 'user' %}
+      <span>Thông tin cá nhân</span>
+    </a>
+    <a href="{% url 'orders:my_orders' %}" class="customer-nav-item {% if active_nav == 'orders' or active_nav == 'my_orders' %}active{% endif %}">
+      {% icon 'orders' %}
+      <span>Đơn hàng của tôi</span>
+    </a>
+    <a href="{% url 'accounts:password_change' %}" class="customer-nav-item {% if active_nav == 'password_change' or active_nav == 'password' %}active{% endif %}">
+      {% icon 'lock' %}
+      <span>Đổi mật khẩu</span>
+    </a>
+  </nav>
+
+  <div class="customer-sidebar-footer">
+    <form method="post" action="{% url 'accounts:logout' %}">
+      {% csrf_token %}
+      <button type="submit" class="customer-logout-btn">
+        {% icon 'customer_logout' %}
+        <span>Đăng xuất tài khoản</span>
+      </button>
+    </form>
+  </div>
+</aside>

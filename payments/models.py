@@ -1,6 +1,4 @@
 from decimal import Decimal
-import json
-from typing import Optional
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
@@ -12,7 +10,39 @@ def _is_finite_decimal(value):
 
 class PaymentMethod(models.TextChoices):
     COD = 'COD', 'Thanh toán khi nhận hàng (COD)'
-    QR = 'QR', 'Chuyển khoản ngân hàng qua mã QR'
+
+
+class CODCollection(models.Model):
+    payment = models.OneToOneField(
+        'Payment', on_delete=models.PROTECT, related_name='cod_collection'
+    )
+    amount = models.DecimalField(max_digits=14, decimal_places=2)
+    reference = models.CharField(max_length=100, unique=True)
+    collected_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='cod_collections'
+    )
+    collected_at = models.DateTimeField()
+    note = models.CharField(max_length=500, blank=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(amount__gt=0), name='cod_collection_positive'
+            ),
+            models.UniqueConstraint(
+                models.functions.Upper('reference'), name='unique_cod_reference_upper'
+            ),
+        ]
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            raise ValidationError('Chứng từ thu tiền là bản ghi bất biến.')
+        self.reference = str(self.reference or '').strip().upper()
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError('Không được xóa chứng từ thu tiền.')
 
 
 class PaymentStatus(models.TextChoices):
@@ -39,7 +69,7 @@ class Payment(models.Model):
         max_length=10,
         choices=PaymentMethod.choices,
         verbose_name='Phương thức thanh toán',
-        help_text='Phương thức thanh toán (COD hoặc QR, không gán mặc định ngầm định).',
+        help_text='Chỉ hỗ trợ thanh toán khi nhận hàng (COD).',
     )
     status = models.CharField(
         max_length=30,
@@ -57,14 +87,14 @@ class Payment(models.Model):
         max_length=60,
         null=True,
         blank=True,
-        verbose_name='Mã tham chiếu QR',
-        help_text='Mã tham chiếu chuyển khoản hoặc mã đơn hàng phục vụ đối soát QR (tối đa 60 ký tự, cho phép NULL).',
+        verbose_name='Tham chiếu thanh toán lưu trữ',
+        help_text='Trường lưu trữ chứng từ cũ; không dùng trong quy trình thanh toán hiện tại.',
     )
     expires_at = models.DateTimeField(
         null=True,
         blank=True,
         verbose_name='Thời hạn thanh toán',
-        help_text='Thời điểm hết hạn thanh toán đối với đơn hàng QR (NULL cho COD hoặc khi chưa kích hoạt thời hạn).',
+        help_text='Thời hạn chứng từ cũ; thanh toán COD không sử dụng.',
     )
     customer_notified_at = models.DateTimeField(
         null=True,
@@ -104,7 +134,8 @@ class Payment(models.Model):
                 name='payment_expected_amount_gte_0',
             ),
             models.CheckConstraint(
-                condition=models.Q(method__in=PaymentMethod.values),
+                # Retain the historical database allowance; model validation accepts only COD for new records.
+                condition=models.Q(method__in=['COD', 'QR']),
                 name='payment_method_valid',
             ),
             models.CheckConstraint(
@@ -132,14 +163,20 @@ class Payment(models.Model):
             raw_amount = getattr(self, 'expected_amount', None)
             if isinstance(raw_amount, bool):
                 errors['expected_amount'] = [
-                    ValidationError('Số tiền dự kiến không được sử dụng kiểu logic (boolean).', code='invalid')
+                    ValidationError(
+                        'Số tiền dự kiến không được sử dụng kiểu logic (boolean).', code='invalid'
+                    )
                 ]
             elif isinstance(raw_amount, float):
                 errors['expected_amount'] = [
-                    ValidationError('Số tiền dự kiến không được sử dụng kiểu số thực (float).', code='invalid')
+                    ValidationError(
+                        'Số tiền dự kiến không được sử dụng kiểu số thực (float).', code='invalid'
+                    )
                 ]
 
-        exclude_for_super = exclude_set | {'expected_amount'} if 'expected_amount' in errors else exclude_set
+        exclude_for_super = (
+            exclude_set | {'expected_amount'} if 'expected_amount' in errors else exclude_set
+        )
         try:
             super().clean_fields(exclude=exclude_for_super)
         except ValidationError as e:
@@ -179,61 +216,15 @@ class Payment(models.Model):
             errors['expected_amount'] = 'Số tiền dự kiến không được vượt quá 2 chữ số thập phân.'
 
         if self.qr_reference and len(str(self.qr_reference).strip()) > 60:
-            errors['qr_reference'] = 'Mã tham chiếu QR không được vượt quá 60 ký tự.'
+            errors['qr_reference'] = 'Tham chiếu lưu trữ không được vượt quá 60 ký tự.'
 
         if errors:
             raise ValidationError(errors)
 
-    def set_recipient_snapshot(self, recipient_dict: dict, additional_note: str = "") -> None:
-        if not isinstance(recipient_dict, dict):
-            return
-        snapshot = {
-            'bank_name': str(recipient_dict.get('bank_name') or recipient_dict.get('BANK_NAME') or '').strip(),
-            'bank_bin': str(recipient_dict.get('bank_bin') or recipient_dict.get('BANK_BIN') or '').strip(),
-            'account_number': str(recipient_dict.get('account_number') or recipient_dict.get('ACCOUNT_NUMBER') or '').strip(),
-            'account_holder': str(recipient_dict.get('account_holder') or recipient_dict.get('ACCOUNT_HOLDER') or '').strip(),
-        }
-        data = {'recipient': snapshot}
-        if additional_note:
-            data['note'] = str(additional_note).strip()
-        self.notes = json.dumps(data, ensure_ascii=False)
-
-    def get_recipient_snapshot(self) -> Optional[dict]:
-        if not self.notes:
-            return None
-        try:
-            data = json.loads(self.notes)
-            if isinstance(data, dict) and 'recipient' in data:
-                rec = data['recipient']
-                if isinstance(rec, dict) and rec.get('bank_bin') and rec.get('account_number'):
-                    return rec
-        except Exception:
-            pass
-        return None
-
-    @property
-    def has_recipient_snapshot(self) -> bool:
-        return self.get_recipient_snapshot() is not None
-
-    @property
-    def recipient_bank_name(self) -> Optional[str]:
-        snap = self.get_recipient_snapshot()
-        return snap.get('bank_name') if snap else None
-
-    @property
-    def recipient_bank_bin(self) -> Optional[str]:
-        snap = self.get_recipient_snapshot()
-        return snap.get('bank_bin') if snap else None
-
-    @property
-    def recipient_account_number(self) -> Optional[str]:
-        snap = self.get_recipient_snapshot()
-        return snap.get('account_number') if snap else None
-
-    @property
-    def recipient_account_holder(self) -> Optional[str]:
-        snap = self.get_recipient_snapshot()
-        return snap.get('account_holder') if snap else None
+    def save(self, *args, **kwargs):
+        if self._state.adding and self.method != PaymentMethod.COD:
+            raise ValidationError('Chỉ được tạo thanh toán khi nhận hàng (COD).')
+        super().save(*args, **kwargs)
 
 
 class PaymentTransaction(models.Model):
@@ -329,14 +320,20 @@ class PaymentTransaction(models.Model):
             raw_amount = getattr(self, 'received_amount', None)
             if isinstance(raw_amount, bool):
                 errors['received_amount'] = [
-                    ValidationError('Số tiền thực nhận không được sử dụng kiểu logic (boolean).', code='invalid')
+                    ValidationError(
+                        'Số tiền thực nhận không được sử dụng kiểu logic (boolean).', code='invalid'
+                    )
                 ]
             elif isinstance(raw_amount, float):
                 errors['received_amount'] = [
-                    ValidationError('Số tiền thực nhận không được sử dụng kiểu số thực (float).', code='invalid')
+                    ValidationError(
+                        'Số tiền thực nhận không được sử dụng kiểu số thực (float).', code='invalid'
+                    )
                 ]
 
-        exclude_for_super = exclude_set | {'received_amount'} if 'received_amount' in errors else exclude_set
+        exclude_for_super = (
+            exclude_set | {'received_amount'} if 'received_amount' in errors else exclude_set
+        )
         try:
             super().clean_fields(exclude=exclude_for_super)
         except ValidationError as e:
@@ -359,7 +356,9 @@ class PaymentTransaction(models.Model):
         elif isinstance(self.received_amount, float):
             errors['received_amount'] = 'Số tiền thực nhận không được sử dụng kiểu số thực (float).'
         elif not _is_finite_decimal(self.received_amount):
-            errors['received_amount'] = 'Số tiền thực nhận không hợp lệ (phải là số Decimal hữu hạn).'
+            errors['received_amount'] = (
+                'Số tiền thực nhận không hợp lệ (phải là số Decimal hữu hạn).'
+            )
         elif self.received_amount < Decimal('0.00'):
             errors['received_amount'] = 'Số tiền thực nhận không được âm.'
         elif self.received_amount.as_tuple().exponent < -2:
@@ -371,12 +370,16 @@ class PaymentTransaction(models.Model):
         if self.bank_transaction_ref:
             self.bank_transaction_ref = str(self.bank_transaction_ref).strip().upper()
             if len(self.bank_transaction_ref) > 100:
-                errors['bank_transaction_ref'] = 'Mã giao dịch ngân hàng không được vượt quá 100 ký tự.'
+                errors['bank_transaction_ref'] = (
+                    'Mã giao dịch ngân hàng không được vượt quá 100 ký tự.'
+                )
 
         if self.recipient_account_last4:
             acc4 = str(self.recipient_account_last4).strip()
             if len(acc4) > 4:
-                errors['recipient_account_last4'] = '4 số cuối tài khoản nhận không được vượt quá 4 ký tự.'
+                errors['recipient_account_last4'] = (
+                    '4 số cuối tài khoản nhận không được vượt quá 4 ký tự.'
+                )
 
         if not self.verification_status:
             errors['verification_status'] = 'Trạng thái xác minh không được để trống.'
@@ -395,7 +398,10 @@ class ReconciliationReason(models.TextChoices):
     OVERPAYMENT = 'OVERPAYMENT', 'Chuyển khoản thừa tiền'
     WRONG_REFERENCE = 'WRONG_REFERENCE', 'Sai nội dung / mã tham chiếu'
     UNCLEAR_OR_EXPIRED = 'UNCLEAR_OR_EXPIRED', 'Giao dịch chưa rõ hoặc đơn hết hạn chưa xác nhận'
-    TRANSFER_AFTER_CANCELLATION = 'TRANSFER_AFTER_CANCELLATION', 'Phát hiện tiền chuyển sau khi đơn đã hủy'
+    TRANSFER_AFTER_CANCELLATION = (
+        'TRANSFER_AFTER_CANCELLATION',
+        'Phát hiện tiền chuyển sau khi đơn đã hủy',
+    )
     OTHER = 'OTHER', 'Ngoại lệ khác cần đối soát'
 
 
@@ -489,7 +495,9 @@ class PaymentReconciliation(models.Model):
             ),
             models.UniqueConstraint(
                 fields=['payment'],
-                condition=models.Q(status__in=[ReconciliationStatus.OPEN, ReconciliationStatus.ESCALATED]),
+                condition=models.Q(
+                    status__in=[ReconciliationStatus.OPEN, ReconciliationStatus.ESCALATED]
+                ),
                 name='unique_unresolved_reconciliation_per_payment',
             ),
         ]
@@ -517,7 +525,9 @@ class PaymentReconciliation(models.Model):
         if self.transaction_id is not None and self.payment_id is not None:
             tx = getattr(self, 'transaction', None)
             if tx and tx.payment_id != self.payment_id:
-                errors['transaction'] = 'Giao dịch ngân hàng liên kết phải thuộc về cùng bản ghi thanh toán.'
+                errors['transaction'] = (
+                    'Giao dịch ngân hàng liên kết phải thuộc về cùng bản ghi thanh toán.'
+                )
 
         if errors:
             raise ValidationError(errors)
@@ -638,11 +648,15 @@ class Refund(models.Model):
             raw_amount = getattr(self, 'amount', None)
             if isinstance(raw_amount, bool):
                 errors['amount'] = [
-                    ValidationError('Số tiền hoàn không được sử dụng kiểu logic (boolean).', code='invalid')
+                    ValidationError(
+                        'Số tiền hoàn không được sử dụng kiểu logic (boolean).', code='invalid'
+                    )
                 ]
             elif isinstance(raw_amount, float):
                 errors['amount'] = [
-                    ValidationError('Số tiền hoàn không được sử dụng kiểu số thực (float).', code='invalid')
+                    ValidationError(
+                        'Số tiền hoàn không được sử dụng kiểu số thực (float).', code='invalid'
+                    )
                 ]
 
         exclude_for_super = exclude_set | {'amount'} if 'amount' in errors else exclude_set
@@ -689,7 +703,9 @@ class Refund(models.Model):
             if cleaned_ref:
                 self.bank_reference = cleaned_ref.upper()
                 if len(self.bank_reference) > 100:
-                    errors['bank_reference'] = 'Mã tham chiếu ngân hàng không được vượt quá 100 ký tự.'
+                    errors['bank_reference'] = (
+                        'Mã tham chiếu ngân hàng không được vượt quá 100 ký tự.'
+                    )
             else:
                 self.bank_reference = None
 
@@ -701,5 +717,3 @@ class Refund(models.Model):
             cleaned_ref = str(self.bank_reference).strip()
             self.bank_reference = cleaned_ref.upper() if cleaned_ref else None
         super().save(*args, **kwargs)
-
-

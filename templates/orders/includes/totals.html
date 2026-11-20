@@ -1,0 +1,46 @@
+{% load order_ui %}
+
+<dl class="totals">
+  <div>
+    <dt>Tạm tính:</dt>
+    <dd>
+      {{ order.subtotal|money }}
+    </dd>
+  </div>
+  {% if order.coupon_code %}
+    <div>
+      <dt>Mã giảm giá ({{ order.coupon_code }}):</dt>
+      <dd class="green">
+        -{{ order.discount_total|money }}
+      </dd>
+    </div>
+  {% endif %}
+  <div>
+    <dt>Phí vận chuyển:</dt>
+    <dd class="green">
+      {% if order.shipping_fee %}
+        {{ order.shipping_fee|money }}
+      {% else %}
+        Miễn phí
+      {% endif %}
+    </dd>
+  </div>
+  {% if admin_items %}
+    <div>
+      <dt>
+        Phương thức thanh toán
+        <br>
+        (MaTT: TT{{ order.payment.pk }})
+      </dt>
+      <dd class="green">
+        Thanh toán khi nhận hàng
+      </dd>
+    </div>
+  {% endif %}
+  <div class="grand-total">
+    <dt>Tổng thanh toán:</dt>
+    <dd>
+      {{ order.grand_total|money }}
+    </dd>
+  </div>
+</dl>

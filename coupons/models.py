@@ -353,7 +353,7 @@ class CouponUsage(models.Model):
         max_length=12,
         choices=CouponUsageStatus.choices,
         verbose_name="Trạng thái sử dụng",
-        help_text="RESERVED (giữ chỗ QR), USED (đã áp dụng thành công), RELEASED (đã giải phóng do hủy/hết hạn). Không có giá trị mặc định để tránh đồng nhất QR và COD."
+        help_text="RESERVED (lượt giữ chỗ lưu trữ), USED (đã áp dụng thành công), RELEASED (đã giải phóng). Không gán mặc định ngầm định; đơn COD sử dụng USED tại lúc đặt hàng."
     )
     created_at = models.DateTimeField(
         auto_now_add=True,

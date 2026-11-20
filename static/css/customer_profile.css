@@ -1,0 +1,778 @@
+/* ==========================================================================
+   QUỐC HÙNG MOBILE — CUSTOMER PERSONAL INFORMATION PAGE STYLES
+   DesignRule compliant: #E62E2D primary red, #FEF2F2 soft red, #1F2A24 footer
+   ========================================================================== */
+
+/* Main Container Layout */
+.customer-account-layout {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 32px 24px 64px;
+  display: grid;
+  grid-template-columns: 270px minmax(0, 1fr);
+  gap: 32px;
+  align-items: start;
+}
+
+/* ==========================================================================
+   CUSTOMER ACCOUNT SIDEBAR (Compact White Card)
+   ========================================================================== */
+.customer-sidebar {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 24px 18px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.customer-sidebar-identity {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.customer-avatar-box {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: #e5e7eb;
+  color: #374151;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 17px;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.customer-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.customer-avatar-text {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  letter-spacing: 0.5px;
+}
+
+.customer-meta-box {
+  min-width: 0;
+  flex: 1;
+}
+
+.customer-name {
+  display: block;
+  font-size: 15px;
+  font-weight: 700;
+  color: #111827;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.customer-phone {
+  display: block;
+  font-size: 13px;
+  color: #6b7280;
+  margin-top: 2px;
+}
+
+.customer-tier-badge {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* Sidebar Navigation */
+.customer-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 18px 0;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.customer-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: #4b5563;
+  text-decoration: none;
+  transition: all 0.15s ease;
+}
+
+.customer-nav-item:hover {
+  background: #f8f9fa;
+  color: #111827;
+}
+
+.customer-nav-item .ui-icon {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+/* Active navigation item: Soft Red #FEF2F2, Red Text #E62E2D, Red Left Accent */
+.customer-nav-item.active {
+  background: #fef2f2;
+  color: #e62e2d;
+  font-weight: 600;
+  border-left: 3px solid #e62e2d;
+  border-top-left-radius: 2px;
+  border-bottom-left-radius: 2px;
+}
+
+.customer-nav-item.active .ui-icon {
+  filter: invert(24%) sepia(88%) saturate(4500%) hue-rotate(352deg) brightness(92%) contrast(97%);
+}
+
+/* Sidebar Logout Footer */
+.customer-sidebar-footer {
+  padding-top: 14px;
+}
+
+.customer-logout-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 0;
+  background: transparent;
+  color: #dc2626;
+  font-size: 13.5px;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease;
+}
+
+.customer-logout-btn:hover {
+  background: #fef2f2;
+}
+
+.customer-logout-btn .ui-icon {
+  width: 18px;
+  height: 18px;
+  filter: invert(24%) sepia(88%) saturate(4500%) hue-rotate(352deg) brightness(92%) contrast(97%);
+}
+
+/* ==========================================================================
+   MAIN CONTENT AREA
+   ========================================================================== */
+.customer-main-content {
+  min-width: 0;
+}
+
+.cp-page-title-group {
+  margin-bottom: 24px;
+}
+
+.cp-page-title {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 28px;
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 6px;
+  line-height: 1.25;
+}
+
+.cp-page-subtitle {
+  font-size: 14px;
+  color: #6b7280;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* Alerts / Notices */
+.cp-messages-list {
+  margin-bottom: 20px;
+}
+
+.cp-alert {
+  padding: 14px 18px;
+  border-radius: 8px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  margin-bottom: 12px;
+}
+
+.cp-alert-success {
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  color: #065f46;
+}
+
+.cp-alert-error,
+.cp-alert-danger {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+}
+
+.cp-alert-info {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1e40af;
+}
+
+/* ==========================================================================
+   LARGE PROFILE CARD & HEADER
+   ========================================================================== */
+.cp-main-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 32px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.cp-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding-bottom: 28px;
+}
+
+.cp-header-left {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  min-width: 0;
+}
+
+.cp-header-avatar {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: #e5e7eb;
+  color: #374151;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 24px;
+  flex-shrink: 0;
+  overflow: hidden;
+  border: 2px solid #ffffff;
+  box-shadow: 0 0 0 1px #e5e7eb;
+}
+
+.cp-header-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cp-name-badge-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.cp-customer-name {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 19px;
+  font-weight: 700;
+  color: #111827;
+  margin: 0;
+}
+
+.cp-verified-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 9999px;
+  background: #ecfdf5;
+  color: #059669;
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.cp-meta-stats {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #6b7280;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+
+.cp-meta-stats strong {
+  color: #374151;
+  font-weight: 600;
+}
+
+.cp-meta-dot {
+  color: #9ca3af;
+}
+
+.cp-header-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.cp-btn-change-avatar {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 18px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #111827;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.cp-btn-change-avatar:hover {
+  background: #f8f9fa;
+  border-color: #d1d5db;
+}
+
+.cp-btn-change-avatar svg {
+  color: #4b5563;
+}
+
+.cp-avatar-format-hint {
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+.cp-divider {
+  border: 0;
+  height: 1px;
+  background: #e5e7eb;
+  margin: 0 0 28px;
+}
+
+/* Field Error Bar */
+.cp-field-error-bar {
+  padding: 10px 14px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  color: #991b1b;
+  font-size: 13px;
+  margin-bottom: 20px;
+}
+
+.cp-field-error-bar p {
+  margin: 2px 0;
+}
+
+/* ==========================================================================
+   TWO-COLUMN FORM GRID
+   ========================================================================== */
+.cp-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 22px 28px;
+}
+
+.cp-form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.cp-form-group-full {
+  grid-column: span 2;
+}
+
+.cp-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 7px;
+}
+
+.cp-field-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 7px;
+}
+
+.cp-label-row .cp-field-label {
+  margin-bottom: 0;
+}
+
+.cp-required-star {
+  color: #e62e2d;
+  font-weight: 700;
+}
+
+.cp-inline-change-btn {
+  background: none;
+  border: 0;
+  padding: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #e62e2d;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.cp-inline-change-btn:hover {
+  color: #c82322;
+  text-decoration: underline;
+}
+
+.cp-inline-address-link {
+  font-size: 13px;
+  font-weight: 500;
+  color: #e62e2d;
+  text-decoration: none;
+}
+
+.cp-inline-address-link:hover {
+  text-decoration: underline;
+}
+
+/* Inputs, Textareas */
+.cp-input,
+.cp-textarea {
+  width: 100%;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #111827;
+  font-size: 14px;
+  font-family: inherit;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  box-sizing: border-box;
+}
+
+.cp-input {
+  height: 44px;
+  padding: 0 14px;
+}
+
+.cp-textarea {
+  padding: 10px 14px;
+  min-height: 68px;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.cp-input:focus,
+.cp-textarea:focus {
+  border-color: #e62e2d;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(230, 46, 45, 0.12);
+}
+
+.cp-input.is-invalid,
+.cp-textarea.is-invalid {
+  border-color: #dc2626;
+  background: #fffafa;
+}
+
+.cp-input-readonly {
+  background: #f3f4f6 !important;
+  color: #4b5563 !important;
+  border-color: #e5e7eb !important;
+  cursor: default;
+  user-select: all;
+}
+
+.cp-field-hint {
+  font-size: 12px;
+  color: #6b7280;
+  margin-top: 5px;
+}
+
+.cp-field-error {
+  font-size: 12px;
+  color: #dc2626;
+  margin-top: 5px;
+  line-height: 1.4;
+}
+
+/* Radio Group: Giới tính */
+.cp-gender-group {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  height: 44px;
+}
+
+.cp-radio-wrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.cp-radio-wrapper input[type="radio"] {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: #e62e2d;
+  cursor: pointer;
+}
+
+.cp-radio-text {
+  font-size: 14px;
+  color: #111827;
+}
+
+/* ==========================================================================
+   PASSWORD CHANGE CARD & FORM STYLES
+   ========================================================================== */
+.cp-password-card {
+  max-width: 760px;
+}
+
+.cp-password-card-header {
+  padding-bottom: 20px;
+}
+
+.cp-password-card-title {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 6px;
+}
+
+.cp-password-card-desc {
+  font-size: 13.5px;
+  color: #6b7280;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.cp-password-fields-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  max-width: 580px;
+}
+
+.cp-password-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.cp-password-input-wrap .cp-input {
+  padding-right: 46px;
+}
+
+.cp-btn-toggle-pw {
+  position: absolute;
+  right: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  background: transparent;
+  border: 0;
+  color: #6b7280;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: color 0.15s ease;
+}
+
+.cp-btn-toggle-pw:hover {
+  color: #111827;
+  background: #f3f4f6;
+}
+
+.cp-password-rules-box {
+  background: #f8f9fa;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-top: 8px;
+}
+
+.cp-rules-title {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #374151;
+  margin: 0 0 6px;
+}
+
+.cp-rules-list {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 12px;
+  color: #6b7280;
+  line-height: 1.6;
+}
+
+.cp-rules-list li {
+  margin-bottom: 2px;
+}
+
+/* ==========================================================================
+   FORM BOTTOM ACTIONS
+   ========================================================================== */
+.cp-form-actions-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
+  margin-top: 36px;
+  padding-top: 24px;
+  border-top: 1px solid #f3f4f6;
+}
+
+.cp-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 44px;
+  padding: 0 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-sizing: border-box;
+}
+
+.cp-btn-cancel {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  color: #374151;
+}
+
+.cp-btn-cancel:hover {
+  background: #f8f9fa;
+  border-color: #d1d5db;
+  color: #111827;
+}
+
+.cp-btn-save {
+  background: #e62e2d;
+  border: 1px solid #e62e2d;
+  color: #ffffff;
+  padding: 0 32px;
+}
+
+.cp-btn-save:hover {
+  background: #c82322;
+  border-color: #c82322;
+}
+
+/* ==========================================================================
+   RESPONSIVE DESIGN (320px, 375px, 768px, 1024px, 1280px)
+   ========================================================================== */
+@media (max-width: 992px) {
+  .customer-account-layout {
+    grid-template-columns: 1fr;
+    gap: 24px;
+    padding: 24px 16px 48px;
+  }
+
+  .customer-sidebar {
+    padding: 20px 16px;
+  }
+
+  .customer-nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .customer-nav-item {
+    padding: 10px 14px;
+  }
+
+  .customer-nav-item.active {
+    border-left: 0;
+    border-bottom: 3px solid #e62e2d;
+    border-radius: 8px;
+  }
+}
+
+@media (max-width: 768px) {
+  .cp-main-card {
+    padding: 24px 18px;
+  }
+
+  .cp-card-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 18px;
+  }
+
+  .cp-header-right {
+    align-items: flex-start;
+    width: 100%;
+  }
+
+  .cp-btn-change-avatar {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .cp-avatar-format-hint {
+    text-align: left;
+  }
+
+  .cp-form-grid {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+
+  .cp-form-group-full {
+    grid-column: span 1;
+  }
+
+  .cp-form-actions-bar {
+    flex-direction: column-reverse;
+    gap: 10px;
+  }
+
+  .cp-btn {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .cp-page-title {
+    font-size: 24px;
+  }
+
+  .cp-header-avatar {
+    width: 58px;
+    height: 58px;
+    font-size: 20px;
+  }
+
+  .cp-customer-name {
+    font-size: 17px;
+  }
+}

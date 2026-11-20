@@ -1,0 +1,13 @@
+{% load static %}
+
+<a class="qh-brand" href="{% url 'home' %}">
+  <span class="logo-crop">
+    <img src="{% static 'orders/assets/figma/8-2-imgImage2.png' %}" alt="">
+  </span>
+  <span>
+    QUỐC HÙNG MOBILE
+    {% if admin_brand %}
+      <small>ADMIN PORTAL</small>
+    {% endif %}
+  </span>
+</a>

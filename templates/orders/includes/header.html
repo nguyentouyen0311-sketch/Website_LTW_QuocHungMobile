@@ -1,0 +1,46 @@
+{% load order_ui %}
+
+<header class="customer-header">
+  <div class="header-inner">
+    {% include 'orders/includes/brand.html' %}
+    <div class="header-search">
+      <form action="{% url 'catalog:public_catalog' %}" method="get">
+        <input
+          name="q"
+          type="search"
+          aria-label="Tìm sản phẩm"
+          placeholder="Tìm kiếm điện thoại, laptop, phụ kiện..."
+        >
+        <button type="submit" aria-label="Tìm kiếm">{% icon 'search' %}</button>
+      </form>
+      {% if account_nav %}
+        <nav aria-label="Danh mục sản phẩm">
+          {% for category in storefront_nav_categories %}
+            <a href="{% url 'catalog:public_category' category.pk %}">{{ category.name }}</a>
+          {% endfor %}
+        </nav>
+      {% endif %}
+    </div>
+    <nav class="customer-actions" aria-label="Tài khoản">
+      <a class="current" href="{% url 'orders:my_orders' %}">
+        {% icon 'orders' %}
+        <span>Đơn hàng của tôi</span>
+      </a>
+      <a href="{% url 'cart:cart_detail' %}">
+        {% icon 'cart' %}
+        <span>Giỏ hàng</span>
+        {% if cart_item_count %}
+          <b>
+            {{ cart_item_count }}
+          </b>
+        {% endif %}
+      </a>
+      <a href="{% url 'accounts:profile' %}">
+        <i class="avatar">
+          {{ request.user.username|slice:':2'|upper }}
+        </i>
+        <strong>{{ request.user.get_full_name|default:request.user.username }}</strong>
+      </a>
+    </nav>
+  </div>
+</header>

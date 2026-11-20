@@ -24,8 +24,7 @@
 Dự án **Quốc Hùng Mobile** là website thương mại điện tử toàn diện dành cho bán lẻ thiết bị di động và sản phẩm công nghệ. Hệ thống không chỉ cung cấp giao diện mua hàng cho người tiêu dùng (B2C) mà còn tích hợp bộ công cụ quản trị nghiệp vụ nội bộ (Back-office management) mạnh mẽ:
 
 * **Bán lẻ trực tuyến:** Duyệt danh mục, tìm kiếm, lọc theo cấu hình/màu sắc (biến thể sản phẩm), giỏ hàng thông minh, áp dụng mã giảm giá (coupon), đặt hàng và thanh toán.
-* **Thanh toán linh hoạt:** Hỗ trợ thanh toán khi nhận hàng (COD) và thanh toán chuyển khoản qua mã **VietQR** động.
-* **Đối soát thanh toán theo SLA:** Cơ chế đối soát giao dịch chuyển khoản ngân hàng tự động cảnh báo và chuyển cấp xử lý (Escalation) sau 12 giờ làm việc.
+* **Thanh toán COD:** Kiểm tra hàng và thanh toán tiền mặt khi nhận hàng; nhân viên ghi nhận chứng từ thu tiền thực tế.
 * **Quản lý kho hàng chuyên sâu:** Quản lý xuất/nhập/tồn kho theo từng biến thể sản phẩm, cơ chế giữ hàng tạm thời (reservation) khi đặt hàng và lịch sử điều chỉnh kho (inventory adjustment).
 * **Trợ lý khách hàng tích hợp:** Chatbot trả lời câu hỏi thường gặp (FAQ Bot) tự động theo từ khóa và hộp thư hỗ trợ trực tuyến kết nối khách hàng với nhân viên tư vấn.
 * **Phân quyền vai trò người dùng (RBAC):** Quản lý nghiêm ngặt quyền hạn theo 4 nhóm đối tượng: Khách hàng (Customer), Nhân viên bán hàng (Sales Staff), Nhân viên kho (Inventory Staff) và Quản trị viên (Admin).
@@ -73,11 +72,10 @@ Website Quốc Hùng Mobile/
 │   ├── checkout_helpers.py     # Hỗ trợ checkout, tính toán chi phí, xử lý giỏ hàng
 │   └── models.py               # Order, OrderItem, OrderHistory
 │
-├── payments/                   # Cổng thanh toán COD, VietQR & Đối soát SLA
-│   ├── qr.py                   # Tạo mã VietQR động theo chuẩn Napas247
-│   ├── sla.py                  # Thuật toán tính toán hạn chót đối soát 12 giờ làm việc
-│   ├── services.py             # Nghiệp vụ xác thực thanh toán, hoàn tiền, escalation
-│   └── management/commands/    # Lệnh quét đơn quá hạn: escalate_overdue_reconciliations.py
+├── payments/                   # Thanh toán khi nhận hàng (COD)
+│   ├── cod_services.py         # Ghi nhận thu tiền COD, kiểm tra số tiền & chống trùng
+│   ├── cod_forms.py            # Biểu mẫu chứng từ thu tiền thực tế
+│   └── models.py               # Payment, CODCollection, chứng từ tài chính
 │
 ├── chat/                       # Chatbot hỗ trợ khách hàng & Hộp thư nhân viên
 │   ├── models.py               # ChatFAQ, ChatConversation, ChatMessage
@@ -194,7 +192,7 @@ Hệ thống cung cấp các lệnh quản trị tự động phục vụ thiế
    ```bash
    python manage.py seed_chat_faq
    ```
-   *Lệnh này sẽ nạp sẵn các kịch bản câu hỏi thường gặp về giờ mở cửa, cách thanh toán VietQR, chính sách hủy đơn, đổi trả...*
+   *Lệnh này sẽ nạp sẵn các kịch bản câu hỏi thường gặp về giờ mở cửa, cách thanh toán COD, chính sách hủy đơn, đổi trả...*
 
 3. **Tạo tài khoản Quản trị viên tối cao (Superuser):**
    ```bash
@@ -222,9 +220,9 @@ Hệ thống xây dựng theo mô hình phân quyền theo vai trò (Role-Based 
 | Nhóm vai trò (Role) | Phạm vi truy cập & Quyền hạn |
 | :--- | :--- |
 | **Customer** *(Khách hàng)* | Xem sản phẩm, quản lý giỏ hàng, đặt hàng, áp dụng coupon, theo dõi đơn hàng, gửi tin nhắn chat hỗ trợ, hủy đơn hàng (khi đủ điều kiện COD chưa giao). |
-| **Sales Staff** *(Nhân viên bán hàng)* | Duyệt đơn hàng chờ xác nhận, kiểm tra đối soát thanh toán chuyển khoản VietQR, quản lý inbox chat hỗ trợ khách hàng, xem danh mục & sản phẩm. |
+| **Sales Staff** *(Nhân viên bán hàng)* | Quản lý các trạng thái đơn hàng, ghi nhận thu tiền COD, quản lý inbox chat hỗ trợ khách hàng, xem danh mục & sản phẩm. |
 | **Inventory Staff** *(Nhân viên kho)* | Quản lý kho hàng, nhập kho sản phẩm, kiểm kê điều chỉnh số lượng tồn kho (Inventory Adjustment), xem lịch sử giao dịch kho. |
-| **Admin** *(Quản trị viên)* | Toàn quyền cấu hình hệ thống: Quản lý danh mục & sản phẩm, cấu hình mã coupon, quản lý tài khoản nhân viên, xử lý các đơn hàng bị leo thang quá hạn (Escalation). |
+| **Admin** *(Quản trị viên)* | Toàn quyền cấu hình hệ thống: Quản lý danh mục & sản phẩm, cấu hình mã coupon, quản lý tài khoản nhân viên, quản lý đơn hàng và xác nhận hoàn tiền thực tế. |
 
 ---
 
@@ -281,7 +279,7 @@ gitGraph
 * **`feature/<ten-tinh-nang>` (Nhánh phát triển tính năng mới):**
   * Được tách ra từ `develop` (hoặc `main` nếu nhóm phát triển theo mô hình rút gọn) để lập trình một tính năng cụ thể.
   * Sau khi hoàn thành và kiểm thử cục bộ, tạo Pull Request để merge lại vào `develop`.
-  * *Ví dụ:* `feature/vietqr-auto-verify`, `feature/inventory-export-excel`.
+  * *Ví dụ:* `feature/cod-collection`, `feature/inventory-export-excel`.
 
 * **`bugfix/<ten-loi>` (Nhánh sửa lỗi thông thường):**
   * Dùng để sửa các lỗi phát hiện trong quá trình kiểm thử tính năng trên môi trường phát triển.
@@ -334,7 +332,7 @@ git commit -m "<type>(<scope>): <mô tả ngắn về thay đổi>"
 * `fix:` Sửa lỗi (ví dụ: `fix(cart): sua loi tinh sai tong tien khi ap dung ma giam gia`)
 * `docs:` Thay đổi tài liệu, README (ví dụ: `docs: cap nhat huong dan cai dat database`)
 * `style:` Định dạng code, căn lề CSS/HTML không ảnh hưởng logic (ví dụ: `style(catalog): can chinh layout danh sach san pham`)
-* `refactor:` Tái cấu trúc mã nguồn nhưng giữ nguyên nghiệp vụ (ví dụ: `refactor(payments): toi uu hoa thuat toan tinh SLA doi soat`)
+* `refactor:` Tái cấu trúc mã nguồn nhưng giữ nguyên nghiệp vụ (ví dụ: `refactor(payments): toi uu hoa ghi nhan thu tien COD`)
 * `test:` Thêm hoặc sửa test case (ví dụ: `test(coupons): bo sung test case ma giam gia het han`)
 * `chore:` Cập nhật thư viện, cấu hình build, .gitignore (ví dụ: `chore: bo sung thu vien vao requirements.txt`)
 

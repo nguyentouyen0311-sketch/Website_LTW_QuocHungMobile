@@ -1,0 +1,40 @@
+{% load order_ui %}
+
+<div class="item-list">
+  {% for item in order.ui_items %}
+    <div class="order-item">
+      <a
+        class="product-thumb"
+        href="{% url 'catalog:public_product_detail' item.variant.product_id %}"
+        aria-label="{{ item.product_name_snapshot }}"
+      >
+        {% if item.ui_image %}
+          <img src="{{ item.ui_image }}" alt="{{ item.product_name_snapshot }}">
+        {% endif %}
+      </a>
+      <div class="item-description">
+        <a href="{% url 'catalog:public_product_detail' item.variant.product_id %}">
+          <strong>{{ item.product_name_snapshot }}</strong>
+        </a>
+        <small>{{ item.variant_snapshot }}</small>
+        <small>
+          Số lượng: {{ item.quantity }}
+          {% if admin_items %}
+            · SKU: {{ item.sku_snapshot }}
+          {% endif %}
+        </small>
+      </div>
+      <div class="item-price">
+        <strong>{{ item.ui_line_gross|money }}</strong>
+        {% if item.original_unit_price > item.unit_price %}
+          <del>
+            {{ item.ui_original_gross|money }}
+          </del>
+        {% endif %}
+        {% if admin_items %}
+          <small class="green">Tồn khả dụng: {{ item.ui_available }}</small>
+        {% endif %}
+      </div>
+    </div>
+  {% endfor %}
+</div>

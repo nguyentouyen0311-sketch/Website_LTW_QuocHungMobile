@@ -6,6 +6,7 @@ from accounts.views import (
     landing_view,
     profile_view,
     profile_edit_view,
+    CustomerPasswordChangeView,
     staff_list_view,
     staff_create_view,
     staff_edit_view,
@@ -15,6 +16,11 @@ from accounts.views import (
 app_name = 'accounts'
 
 urlpatterns = [
+    path(
+        'password-change/',
+        CustomerPasswordChangeView.as_view(),
+        name='password_change',
+    ),
     path('register/', register_view, name='register'),
     path('login/', login_view, name='login'),
     path('logout/', logout_view, name='logout'),
@@ -26,5 +32,3 @@ urlpatterns = [
     path('staff/<int:user_id>/edit/', staff_edit_view, name='staff_edit'),
     path('staff/<int:user_id>/status/', staff_change_status_view, name='staff_change_status'),
 ]
-
-

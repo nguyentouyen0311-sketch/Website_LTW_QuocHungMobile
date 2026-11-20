@@ -1,0 +1,52 @@
+{% load static order_ui %}
+
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>{% block title %}{{ title }} — Quốc Hùng Mobile{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    >
+    <link rel="stylesheet" href="{% static 'orders/workspace.css' %}">
+    {% block extra_css %}{% endblock %}
+    <script defer src="{% static 'orders/workspace.js' %}"></script>
+  </head>
+  <body class="orders-page {% block body_class %}{% endblock %}">
+    {% block header %}
+      {% include 'orders/includes/header.html' %}
+    {% endblock %}
+    {% if messages %}
+      <div class="flash-stack" role="status">
+        {% for message in messages %}
+          <p class="notice {{ message.tags }}">{{ message }}</p>
+        {% endfor %}
+      </div>
+    {% endif %}
+    {% block content %}{% endblock %}
+    {% block footer %}
+      {% include 'orders/includes/footer.html' %}
+      <button class="chat-bubble" type="button" data-open-support aria-label="Liên hệ hỗ trợ">
+        {% icon 'chat' %}
+        <i>
+        </i>
+      </button>
+      <dialog id="support-dialog">
+        <button type="button" data-close-dialog aria-label="Đóng" class="dialog-close">×</button>
+        <h2>Quốc Hùng Mobile luôn sẵn sàng hỗ trợ</h2>
+        <p>Gọi CSKH và cung cấp mã đơn hàng để được hỗ trợ giao nhận, hủy đơn hoặc đổi trả.</p>
+        <a class="button primary" href="tel:18006868">Gọi 1800 6868 (Miễn phí)</a>
+        <p>
+          <a class="button" href="{% url 'chat:chat' %}">Nhắn CSKH trực tuyến</a>
+        </p>
+        <p>
+          <a href="{% url 'orders:my_orders' %}">Tra cứu đơn hàng của tôi</a>
+        </p>
+      </dialog>
+    {% endblock %}
+  </body>
+</html>

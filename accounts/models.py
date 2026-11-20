@@ -4,6 +4,12 @@ from django.db import models
 
 class CustomerProfile(models.Model):
 
+    GENDER_CHOICES = [
+        ('MALE', 'Nam'),
+        ('FEMALE', 'Nữ'),
+        ('OTHER', 'Khác'),
+    ]
+
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -20,6 +26,28 @@ class CustomerProfile(models.Model):
         blank=True,
         null=True,
         verbose_name='Địa chỉ mặc định',
+    )
+    avatar = models.ImageField(
+        upload_to='avatars/',
+        blank=True,
+        null=True,
+        verbose_name='Ảnh đại diện',
+    )
+    date_of_birth = models.DateField(
+        blank=True,
+        null=True,
+        verbose_name='Ngày sinh',
+    )
+    gender = models.CharField(
+        max_length=10,
+        blank=True,
+        null=True,
+        choices=GENDER_CHOICES,
+        verbose_name='Giới tính',
+    )
+    is_verified = models.BooleanField(
+        default=False,
+        verbose_name='Đã xác thực',
     )
 
     class Meta:

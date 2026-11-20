@@ -1,9 +1,17 @@
 import re
+import uuid
 from decimal import Decimal
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
+
+from orders.uploads import PrivateReturnStorage
+
+
+class ShippingMethod(models.TextChoices):
+    DELIVERY = 'DELIVERY', 'Giao hàng nhanh tiêu chuẩn'
+    PICKUP = 'PICKUP', 'Nhận trực tiếp tại cửa hàng'
 
 
 def validate_delivery_phone(phone_raw):
@@ -45,11 +53,32 @@ class OrderStatus(models.TextChoices):
 
 
 class Order(models.Model):
+    address_province = models.CharField(max_length=100, blank=True, verbose_name='Tỉnh / Thành phố')
+    address_district = models.CharField(max_length=100, blank=True, verbose_name='Quận / Huyện')
+    address_ward = models.CharField(max_length=100, blank=True, verbose_name='Phường / Xã')
+    shipping_note = models.CharField(max_length=500, blank=True, verbose_name='Ghi chú giao hàng')
+    shipping_method = models.CharField(
+        max_length=12,
+        choices=ShippingMethod.choices,
+        default=ShippingMethod.DELIVERY,
+        verbose_name='Phương thức giao nhận',
+    )
+    shipping_fee = models.DecimalField(
+        max_digits=14, decimal_places=2, default=Decimal('0.00'), verbose_name='Phí vận chuyển'
+    )
+    tracking_number = models.CharField(max_length=100, blank=True, verbose_name='Mã vận đơn')
+    carrier_name = models.CharField(max_length=120, blank=True, verbose_name='Đơn vị vận chuyển')
+    carrier_contact = models.CharField(
+        max_length=20, blank=True, verbose_name='Điện thoại giao nhận'
+    )
+    estimated_delivery_at = models.DateTimeField(
+        null=True, blank=True, verbose_name='Dự kiến giao hàng'
+    )
     order_code = models.CharField(
         max_length=30,
         unique=True,
         verbose_name='Mã đơn hàng',
-        help_text='Mã đơn hàng duy nhất hệ thống (NOT NULL, UNIQUE; tối đa 30 ký tự; dùng cho QR thanh toán).',
+        help_text='Mã đơn hàng duy nhất hệ thống, tối đa 30 ký tự.',
     )
     customer = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -76,7 +105,7 @@ class Order(models.Model):
         max_length=30,
         choices=OrderStatus.choices,
         verbose_name='Trạng thái đơn hàng',
-        help_text='Trạng thái đơn hàng theo quy trình nghiệp vụ (không gán giá trị mặc định để tránh đồng nhất QR và COD).',
+        help_text='Trạng thái đơn hàng theo quy trình nghiệp vụ.',
     )
     subtotal = models.DecimalField(
         max_digits=14,
@@ -198,6 +227,9 @@ class Order(models.Model):
 
 
 class OrderItem(models.Model):
+    original_unit_price = models.DecimalField(
+        max_digits=14, decimal_places=2, null=True, blank=True
+    )
     order = models.ForeignKey(
         'orders.Order',
         on_delete=models.CASCADE,
@@ -275,7 +307,9 @@ class OrderItem(models.Model):
         ]
 
     def __str__(self):
-        return f"Dòng {self.id}: {self.product_name_snapshot} ({self.sku_snapshot}) x {self.quantity}"
+        return (
+            f"Dòng {self.id}: {self.product_name_snapshot} ({self.sku_snapshot}) x {self.quantity}"
+        )
 
     def clean(self):
         super().clean()
@@ -289,7 +323,9 @@ class OrderItem(models.Model):
         if not self.variant_snapshot or not str(self.variant_snapshot).strip():
             errors['variant_snapshot'] = 'Snapshot thuộc tính biến thể không được để trống.'
         elif len(str(self.variant_snapshot).strip()) > 255:
-            errors['variant_snapshot'] = 'Snapshot thuộc tính biến thể không được vượt quá 255 ký tự.'
+            errors['variant_snapshot'] = (
+                'Snapshot thuộc tính biến thể không được vượt quá 255 ký tự.'
+            )
 
         if not self.sku_snapshot or not str(self.sku_snapshot).strip():
             errors['sku_snapshot'] = 'Snapshot SKU không được để trống.'
@@ -312,6 +348,12 @@ class OrderItem(models.Model):
 
 
 class OrderStatusHistory(models.Model):
+    def get_old_status_display(self):
+        return dict(OrderStatus.choices).get(self.old_status, 'Khởi tạo')
+
+    def get_new_status_display(self):
+        return dict(OrderStatus.choices).get(self.new_status, self.new_status)
+
     order = models.ForeignKey(
         'orders.Order',
         on_delete=models.CASCADE,
@@ -377,12 +419,16 @@ class OrderStatusHistory(models.Model):
 
     def save(self, *args, **kwargs):
         if self.pk is not None:
-            raise ValidationError('Lịch sử trạng thái đơn hàng là bản ghi bất biến (append-only), không thể chỉnh sửa.')
+            raise ValidationError(
+                'Lịch sử trạng thái đơn hàng là bản ghi bất biến (append-only), không thể chỉnh sửa.'
+            )
         self.full_clean()
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        raise ValidationError('Lịch sử trạng thái đơn hàng là bản ghi bất biến (append-only), không thể xóa.')
+        raise ValidationError(
+            'Lịch sử trạng thái đơn hàng là bản ghi bất biến (append-only), không thể xóa.'
+        )
 
 
 class CancellationReasonCode(models.TextChoices):
@@ -463,7 +509,9 @@ class OrderCancellation(models.Model):
 
     def save(self, *args, **kwargs):
         if self.pk is not None:
-            raise ValidationError('Bản ghi hủy đơn hàng là bất biến (append-only), không thể chỉnh sửa.')
+            raise ValidationError(
+                'Bản ghi hủy đơn hàng là bất biến (append-only), không thể chỉnh sửa.'
+            )
         self.full_clean()
         super().save(*args, **kwargs)
 
@@ -471,3 +519,95 @@ class OrderCancellation(models.Model):
         raise ValidationError('Bản ghi hủy đơn hàng là bất biến (append-only), không thể xóa.')
 
 
+class ReturnType(models.TextChoices):
+    EXCHANGE = 'EXCHANGE', 'Đổi sản phẩm mới (1 đổi 1)'
+    REFUND = 'REFUND', 'Trả hàng & hoàn tiền'
+    CANCEL = 'CANCEL', 'Hủy đơn trước giao hàng'
+
+
+class ReturnStatus(models.TextChoices):
+    PENDING = 'PENDING', 'Chờ xử lý'
+    APPROVED = 'APPROVED', 'Đã tiếp nhận'
+    REJECTED = 'REJECTED', 'Từ chối'
+    COMPLETED = 'COMPLETED', 'Đã hoàn tất'
+
+
+class ReturnReason(models.TextChoices):
+    HARDWARE = 'HARDWARE', 'Sản phẩm gặp lỗi kỹ thuật / lỗi phần cứng từ nhà sản xuất'
+    DAMAGED = 'DAMAGED', 'Sản phẩm bị hư hỏng khi giao nhận'
+    WRONG_ITEM = 'WRONG_ITEM', 'Sản phẩm giao không đúng đơn đặt hàng'
+    NO_LONGER_NEEDED = 'NO_LONGER_NEEDED', 'Không còn nhu cầu / đặt nhầm'
+    OTHER = 'OTHER', 'Lý do khác'
+
+
+class ReturnRequest(models.Model):
+    order = models.ForeignKey(Order, on_delete=models.PROTECT, related_name='return_requests')
+    customer = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='return_requests'
+    )
+    request_key = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    request_type = models.CharField(max_length=12, choices=ReturnType.choices)
+    reason = models.CharField(max_length=30, choices=ReturnReason.choices)
+    description = models.TextField(max_length=3000)
+    status = models.CharField(
+        max_length=12, choices=ReturnStatus.choices, default=ReturnStatus.PENDING
+    )
+    expected_amount = models.DecimalField(max_digits=14, decimal_places=2)
+    pickup_fee = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0.00'))
+    created_at = models.DateTimeField(default=timezone.now)
+    response_due_at = models.DateTimeField()
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='reviewed_return_requests',
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    review_note = models.TextField(blank=True, max_length=3000)
+    refund = models.OneToOneField(
+        'payments.Refund',
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name='return_request',
+    )
+
+    class Meta:
+        ordering = ['-created_at', '-id']
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(expected_amount__gte=0), name='return_amount_nonnegative'
+            ),
+            models.UniqueConstraint(
+                fields=['order'],
+                condition=models.Q(status__in=['PENDING', 'APPROVED']),
+                name='one_open_return_per_order',
+            ),
+        ]
+
+    def __str__(self):
+        return f'YC{self.pk} — {self.order.order_code}'
+
+
+class ReturnRequestItem(models.Model):
+    request = models.ForeignKey(ReturnRequest, on_delete=models.CASCADE, related_name='items')
+    order_item = models.ForeignKey(
+        OrderItem, on_delete=models.PROTECT, related_name='return_request_items'
+    )
+    amount = models.DecimalField(max_digits=14, decimal_places=2)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['request', 'order_item'], name='unique_request_order_item'
+            )
+        ]
+
+
+class ReturnAttachment(models.Model):
+    request = models.ForeignKey(ReturnRequest, on_delete=models.CASCADE, related_name='attachments')
+    file = models.FileField(storage=PrivateReturnStorage(), upload_to='returns/%Y/%m/')
+    original_name = models.CharField(max_length=200)
+    content_type = models.CharField(max_length=60)
+    created_at = models.DateTimeField(auto_now_add=True)

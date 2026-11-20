@@ -1,0 +1,228 @@
+{% extends 'orders/base.html' %}
+
+{% load order_ui %}
+
+{% block body_class %}
+  return-page
+{% endblock %}
+{% block content %}
+  <main class="order-container return-main">
+    <nav class="breadcrumb">
+      <span>
+        <a href="{% url 'orders:my_orders' %}">Đơn hàng của tôi</a>
+        /
+        <a href="{% url 'orders:order_detail' order.pk %}">Đơn #{{ order.order_code }}</a>
+        / Yêu cầu đổi / trả sản phẩm
+      </span>
+    </nav>
+    <div class="page-heading">
+      <div>
+        <h1>Gửi yêu cầu Đổi trả / Hủy đơn hàng</h1>
+        <p class="muted">
+          Vui lòng chọn sản phẩm, hình thức xử lý và cung cấp lý do để Quốc Hùng Mobile hỗ trợ nhanh
+          nhất.
+        </p>
+      </div>
+    </div>
+    <div class="policy-banner">
+      <span>{% icon 'shield' %}</span>
+      <p>
+        <strong>Chính sách Quốc Hùng Mobile:</strong>
+        Miễn phí 1 đổi 1 trong 30 ngày đầu nếu có lỗi phần cứng từ nhà sản xuất. Hỗ trợ hủy đơn
+        miễn phí trước khi bàn giao vận chuyển và thu hồi tận nơi không thu phụ phí.
+      </p>
+    </div>
+    <div class="return-columns">
+      <form
+        class="panel return-form"
+        method="post"
+        enctype="multipart/form-data"
+        id="return-form"
+        novalidate
+      >
+        {% csrf_token %}
+        {{ form.request_key }}{{ form.request_key.errors }}{{ form.non_field_errors }}
+        {% if not eligible %}
+          <div class="notice warning">{{ eligibility_message }}</div>
+        {% endif %}
+        <fieldset>
+          <legend>
+            BƯỚC 1: CHỌN HÌNH THỨC YÊU CẦU
+            <em>*</em>
+          </legend>
+          <div class="request-types">
+            {% for value,label in form.fields.request_type.choices %}
+              <label class="option-card">
+                <input
+                  type="radio"
+                  name="request_type"
+                  value="{{ value }}"
+                  {% if selected_type == value %}checked{% endif %}
+                >
+                <span>
+                  <strong>{{ label }}</strong>
+                  <small>
+                    {% if value == 'EXCHANGE' %}
+                      Đổi sang máy mới cùng phiên bản hoặc mẫu khác nếu lỗi do nhà sản xuất.
+                    {% elif value == 'CANCEL' %}
+                      Hủy đơn trước khi bàn giao cho đơn vị vận chuyển.
+                    {% else %}
+                      Hoàn lại 100% giá trị thanh toán sau khi kiểm tra sản phẩm trả lại.
+                    {% endif %}
+                  </small>
+                </span>
+              </label>
+            {% endfor %}
+          </div>
+          {{ form.request_type.errors }}
+        </fieldset>
+        <fieldset>
+          <legend>
+            BƯỚC 2: CHỌN SẢN PHẨM TRONG ĐƠN #{{ order.order_code }}
+            <em>*</em>
+          </legend>
+          {% for item in order.ui_items %}
+            {% if item.ui_returnable %}
+              {% with item_id=item.pk|as_string %}
+                <label class="return-product">
+                  <input
+                    type="checkbox"
+                    name="items"
+                    value="{{ item.pk }}"
+                    data-amount="{{ item.line_total }}"
+                    {% if item_id in selected_items %}checked{% endif %}
+                  >
+                  <span class="product-thumb">
+                    {% if item.ui_image %}
+                      <img src="{{ item.ui_image }}" alt="">
+                    {% endif %}
+                  </span>
+                  <span class="item-description">
+                    <strong>{{ item.product_name_snapshot }}</strong>
+                    <small>Phân loại: {{ item.variant_snapshot }}</small>
+                    {% if order.return_deadline %}
+                      <small class="green">
+                        Bảo hành 1 đổi 1 đến {{ order.return_deadline|date:'d/m/Y' }}
+                      </small>
+                    {% endif %}
+                  </span>
+                  <span class="item-price">
+                    <strong>{{ item.line_total|money }}</strong>
+                    <small>Số lượng: {{ item.quantity }}</small>
+                  </span>
+                </label>
+              {% endwith %}
+            {% endif %}
+          {% endfor %}
+          {{ form.items.errors }}
+        </fieldset>
+        <div class="field">
+          <label for="id_reason">
+            BƯỚC 3: LÝ DO ĐỔI TRẢ / HỦY ĐƠN
+            <em>*</em>
+          </label>
+          {{ form.reason }}{{ form.reason.errors }}
+        </div>
+        <div class="field">
+          <label for="id_description">
+            MÔ TẢ CHI TIẾT TÌNH TRẠNG SẢN PHẨM
+            <em>*</em>
+          </label>
+          {{ form.description }}{{ form.description.errors }}
+        </div>
+        <fieldset>
+          <legend>BƯỚC 4: TẢI LÊN HÌNH ẢNH HOẶC VIDEO THỰC TẾ (TỐI ĐA 5 TỆP)</legend>
+          <small class="muted">
+            Ảnh JPG, PNG, WEBP tối đa 10 MB; video MP4, WEBM tối đa 50 MB mỗi tệp.
+          </small>
+          <div class="upload-area">
+            <div id="attachment-previews"></div>
+            <label class="upload-add" for="id_attachments">
+              <span>{% icon 'camera' %}</span>
+              + Thêm ảnh / video
+            </label>
+            {{ form.attachments }}
+          </div>
+          <p id="upload-status" class="muted" aria-live="polite">Đã tải 0/5 tệp</p>
+          {{ form.attachments.errors }}
+          {% if form.is_bound %}
+            <small class="muted">
+              Nếu biểu mẫu có lỗi, vui lòng chọn lại tệp minh chứng trước khi gửi.
+            </small>
+          {% endif %}
+        </fieldset>
+        <div class="return-buttons">
+          <a class="button" href="{% url 'orders:order_detail' order.pk %}">Hủy bỏ</a>
+          <button class="button primary" type="submit" {% if not eligible %}disabled{% endif %}>
+            GỬI YÊU CẦU XỬ LÝ →
+          </button>
+        </div>
+      </form>
+      <aside class="panel return-summary">
+        <h2>Thông tin đơn hàng & Hoàn trả</h2>
+        <p class="muted">Được bảo vệ bởi cam kết dịch vụ Quốc Hùng</p>
+        <dl class="contact-details">
+          <div>
+            <dt>Mã đơn hàng gốc:</dt>
+            <dd>
+              <strong>#{{ order.order_code }}</strong>
+            </dd>
+          </div>
+          <div>
+            <dt>Ngày nhận hàng:</dt>
+            <dd class="green">
+              {% if order.delivered_at %}
+                {{ order.delivered_at|date:'d/m/Y' }} (Còn {{ order.return_days_remaining }} ngày 1 đổi 1)
+              {% else %}
+                Chưa bàn giao vận chuyển
+              {% endif %}
+            </dd>
+          </div>
+          <div>
+            <dt>Phương thức xử lý:</dt>
+            <dd id="return-type-label">
+              Đổi sản phẩm mới (1 đổi 1)
+            </dd>
+          </div>
+          <div>
+            <dt>Hình thức thu hồi:</dt>
+            <dd>
+              {% if order.can_cancel %}
+                Chưa phát sinh thu hồi
+              {% else %}
+                Nhân viên đến nhận tận nơi (Miễn phí)
+              {% endif %}
+            </dd>
+          </div>
+        </dl>
+        <div class="return-value">
+          <dl class="totals">
+            <div>
+              <dt>Giá trị sản phẩm xử lý:</dt>
+              <dd id="return-item-amount">
+                —
+              </dd>
+            </div>
+            <div>
+              <dt>Phí vận chuyển đổi trả:</dt>
+              <dd class="green">
+                Miễn phí (0₫)
+              </dd>
+            </div>
+            <div class="grand-total">
+              <dt>Giá trị đổi trả dự kiến:</dt>
+              <dd id="return-expected-amount">
+                —
+              </dd>
+            </div>
+          </dl>
+        </div>
+        <p class="notice warning">
+          ◷ Bộ phận CSKH sẽ phản hồi xác nhận yêu cầu của bạn trong vòng
+          <strong>30 phút</strong>
+          qua SĐT {{ order.recipient_phone }} hoặc hỗ trợ trực tiếp.
+        </p>
+      </aside>
+    </div>
+  </main>
+{% endblock %}

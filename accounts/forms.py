@@ -1,4 +1,5 @@
 import re
+from datetime import date
 from django import forms
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User, Group
@@ -371,29 +372,31 @@ class CustomerProfileForm(forms.Form):
     full_name = forms.CharField(
         label='Họ và tên',
         max_length=150,
-        required=False,
+        required=True,
         widget=forms.TextInput(attrs={
             'id': 'id_full_name',
-            'placeholder': 'Ví dụ: Nguyễn Văn A',
+            'placeholder': 'Ví dụ: Nguyễn Văn An',
             'class': 'form-input',
             'autocomplete': 'name',
         }),
         error_messages={
+            'required': 'Vui lòng nhập họ và tên.',
             'max_length': 'Họ và tên không được vượt quá 150 ký tự.',
         }
     )
 
     email = forms.CharField(
-        label='Email',
+        label='Địa chỉ Email',
         max_length=254,
-        required=False,
+        required=True,
         widget=forms.EmailInput(attrs={
             'id': 'id_email',
-            'placeholder': 'nguyenvana@gmail.com',
+            'placeholder': 'nguyenvanan@gmail.com',
             'class': 'form-input',
             'autocomplete': 'email',
         }),
         error_messages={
+            'required': 'Vui lòng nhập địa chỉ email.',
             'max_length': 'Địa chỉ email không được vượt quá 254 ký tự.',
         }
     )
@@ -401,27 +404,68 @@ class CustomerProfileForm(forms.Form):
     phone = forms.CharField(
         label='Số điện thoại',
         max_length=20,
-        required=False,
+        required=True,
         widget=forms.TextInput(attrs={
             'id': 'id_phone',
-            'placeholder': '0982 805 704',
+            'placeholder': '0905 123 456',
             'class': 'form-input',
             'autocomplete': 'tel',
         }),
         error_messages={
+            'required': 'Vui lòng nhập số điện thoại.',
             'max_length': 'Số điện thoại không được vượt quá 20 ký tự.',
         }
     )
 
+    date_of_birth = forms.DateField(
+        label='Ngày sinh',
+        required=False,
+        input_formats=['%Y-%m-%d', '%d/%m/%Y'],
+        widget=forms.DateInput(attrs={
+            'id': 'id_date_of_birth',
+            'type': 'date',
+            'class': 'form-input',
+        }),
+        error_messages={
+            'invalid': 'Định dạng ngày sinh không hợp lệ. Vui lòng nhập ngày dạng DD/MM/YYYY hoặc YYYY-MM-DD.',
+        }
+    )
+
+    gender = forms.ChoiceField(
+        label='Giới tính',
+        choices=[
+            ('MALE', 'Nam'),
+            ('FEMALE', 'Nữ'),
+            ('OTHER', 'Khác'),
+        ],
+        required=False,
+        widget=forms.RadioSelect(attrs={
+            'class': 'form-radio-gender',
+        }),
+    )
+
     default_address = forms.CharField(
-        label='Địa chỉ mặc định',
+        label='Địa chỉ giao hàng mặc định',
         required=False,
         widget=forms.Textarea(attrs={
             'id': 'id_default_address',
-            'placeholder': 'Số nhà, tên đường, phường/xã, quận/huyện, tỉnh/thành phố...',
+            'placeholder': 'Nhập số nhà, tên đường, phường/xã, quận/huyện, tỉnh/thành phố...',
             'class': 'form-input form-textarea',
-            'rows': 3,
+            'rows': 2,
         }),
+    )
+
+    avatar = forms.ImageField(
+        label='Ảnh đại diện',
+        required=False,
+        widget=forms.FileInput(attrs={
+            'id': 'id_avatar',
+            'accept': 'image/jpeg,image/png,image/webp',
+            'class': 'form-file-avatar',
+        }),
+        error_messages={
+            'invalid_image': 'Định dạng ảnh không hợp lệ hoặc tệp tin bị lỗi. Chỉ chấp nhận tệp tin JPG, PNG hoặc WEBP.',
+        }
     )
 
     def __init__(self, *args, user=None, **kwargs):
@@ -435,24 +479,31 @@ class CustomerProfileForm(forms.Form):
             if 'email' not in self.initial and self.user.email:
                 self.initial['email'] = self.user.email
             if 'full_name' not in self.initial:
-                name_parts = [self.user.last_name, self.user.first_name]
+                name_parts = [self.user.first_name, self.user.last_name]
                 full_name_val = " ".join([p for p in name_parts if p]).strip()
-                if full_name_val:
-                    self.initial['full_name'] = full_name_val
+                if not full_name_val and self.user.username:
+                    full_name_val = self.user.username
+                self.initial['full_name'] = full_name_val
             if profile:
                 if 'phone' not in self.initial and profile.phone:
                     self.initial['phone'] = profile.phone
                 if 'default_address' not in self.initial and profile.default_address:
                     self.initial['default_address'] = profile.default_address
+                if 'date_of_birth' not in self.initial and profile.date_of_birth:
+                    self.initial['date_of_birth'] = profile.date_of_birth
+                if 'gender' not in self.initial and profile.gender:
+                    self.initial['gender'] = profile.gender
 
     def clean_full_name(self):
         full_name = self.cleaned_data.get('full_name', '').strip()
+        if not full_name:
+            raise ValidationError('Họ và tên không được để trống.')
         return full_name
 
     def clean_email(self):
         email_raw = self.cleaned_data.get('email', '').strip()
         if not email_raw:
-            return ''
+            raise ValidationError('Địa chỉ email không được để trống.')
 
         email = email_raw.lower()
         try:
@@ -477,7 +528,7 @@ class CustomerProfileForm(forms.Form):
     def clean_phone(self):
         phone_raw = self.cleaned_data.get('phone', '').strip()
         if not phone_raw:
-            return ''
+            raise ValidationError('Số điện thoại không được để trống.')
 
         phone_cleaned = validate_vietnamese_mobile(phone_raw)
 
@@ -499,27 +550,46 @@ class CustomerProfileForm(forms.Form):
 
         return phone_cleaned
 
+    def clean_date_of_birth(self):
+        dob = self.cleaned_data.get('date_of_birth')
+        if dob:
+            if dob > date.today():
+                raise ValidationError('Ngày sinh không thể lớn hơn ngày hiện tại.')
+            if dob.year < 1900:
+                raise ValidationError('Năm sinh không hợp lệ.')
+        return dob
+
+    def clean_avatar(self):
+        avatar = self.cleaned_data.get('avatar')
+        if avatar:
+            if avatar.size > 2 * 1024 * 1024:
+                raise ValidationError('Dung lượng ảnh đại diện không được vượt quá 2MB.')
+            allowed_extensions = ['.jpg', '.jpeg', '.png', '.webp']
+            ext = re.search(r'\.[a-zA-Z0-9]+$', avatar.name)
+            if not ext or ext.group(0).lower() not in allowed_extensions:
+                raise ValidationError('Định dạng ảnh không hợp lệ. Chỉ chấp nhận tệp tin JPG, PNG hoặc WEBP.')
+            try:
+                from PIL import Image
+                img = Image.open(avatar)
+                img.verify()
+                avatar.seek(0)
+            except Exception:
+                raise ValidationError('Tệp tin tải lên không phải là định dạng hình ảnh hợp lệ.')
+        return avatar
+
     def clean_default_address(self):
         address = self.cleaned_data.get('default_address', '').strip()
         return address
 
     def clean(self):
         cleaned_data = super().clean()
-        email = cleaned_data.get('email', '')
-        phone = cleaned_data.get('phone', '')
-
         if 'first_name' in self.data:
             cleaned_data['first_name'] = self.data.get('first_name', '').strip()
         if 'last_name' in self.data:
             cleaned_data['last_name'] = self.data.get('last_name', '').strip()
-
-        if not email and not phone:
-            raise ValidationError('Vui lòng cung cấp ít nhất một phương thức liên hệ (email hoặc số điện thoại).')
-
         return cleaned_data
 
     def save(self):
-
         if not self.user:
             raise ValueError('Yêu cầu truyền đối tượng user hợp lệ để lưu hồ sơ.')
 
@@ -527,6 +597,9 @@ class CustomerProfileForm(forms.Form):
         phone = self.cleaned_data.get('phone', '') or None
         default_address = self.cleaned_data.get('default_address', '') or None
         full_name = self.cleaned_data.get('full_name', '')
+        date_of_birth = self.cleaned_data.get('date_of_birth')
+        gender = self.cleaned_data.get('gender') or None
+        avatar = self.cleaned_data.get('avatar')
 
         with transaction.atomic():
             user = self.user
@@ -538,11 +611,11 @@ class CustomerProfileForm(forms.Form):
             elif full_name:
                 parts = full_name.rsplit(' ', 1)
                 if len(parts) == 2:
-                    user.last_name = parts[0]
-                    user.first_name = parts[1]
-                else:
-                    user.last_name = ''
                     user.first_name = parts[0]
+                    user.last_name = parts[1]
+                else:
+                    user.first_name = parts[0]
+                    user.last_name = ''
             else:
                 user.first_name = ''
                 user.last_name = ''
@@ -557,6 +630,10 @@ class CustomerProfileForm(forms.Form):
 
             profile.phone = phone
             profile.default_address = default_address
+            profile.date_of_birth = date_of_birth
+            profile.gender = gender
+            if avatar:
+                profile.avatar = avatar
             profile.save()
 
         return user, profile
