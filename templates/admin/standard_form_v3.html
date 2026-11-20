@@ -6,13 +6,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ title }}</title>
   <link rel="stylesheet" href="{% static 'css/tokens.css' %}">
-  <link rel="stylesheet" href="{% static 'css/admin_category.css' %}">
+  <link rel="stylesheet" href="{% static 'css/admin_category.css' %}"><link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
   <link rel="stylesheet" href="{% static 'css/admin_forms.css' %}">
   <style>.af-auto-sku{margin:0 0 20px;padding:14px 16px;border:1px solid #E5E7EB;border-radius:12px;background:#F3F4F6;color:#111827}.af-auto-sku strong{display:block;font-size:14px;font-weight:700}.af-auto-sku p{margin:4px 0 0;color:#6B7280;font-size:13px;line-height:1.5}.af-form-errors{margin:0 0 18px;padding:12px 14px;border-radius:8px;background:#FEF2F2;color:#C82322;font-size:14px}</style>
 </head>
 <body>
   <div class="adm-shell">
-    {% include 'admin/includes/backend_sidebar.html' %}
+    {% include 'catalog/includes/management_sidebar.html' with active_nav=active_nav %}
     <section class="adm-workspace">
       <header class="adm-topbar"><span class="adm-menu">☰</span><div class="adm-crumb">Quản lý hàng hóa <b>/</b> <strong>{{ title }}</strong></div><input placeholder="Tìm kiếm nhanh..."><b class="adm-role">ADMINISTRATOR</b></header>
       <main class="adm-main"><div class="af-content">
