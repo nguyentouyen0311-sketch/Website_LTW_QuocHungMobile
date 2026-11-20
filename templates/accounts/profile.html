@@ -1,0 +1,20 @@
+{% extends 'storefront/base_storefront.html' %}
+
+{% block title %}Tài khoản của tôi | Quốc Hùng Mobile{% endblock %}
+
+{% block content %}
+<main style="max-width: 900px; min-height: 55vh; margin: 0 auto; padding: 48px 24px;">
+  <section style="padding: 32px; border: 1px solid var(--border-default); border-radius: 16px; background: var(--bg-surface);">
+    <p style="margin: 0 0 8px; color: var(--color-primary-red); font-weight: 700;">TÀI KHOẢN CỦA TÔI</p>
+    <h1 style="margin: 0; color: var(--text-primary);">Xin chào, {{ user.username }}</h1>
+    <p style="color: var(--text-secondary);">Vai trò: {{ role_labels }}</p>
+    <dl style="display: grid; grid-template-columns: max-content 1fr; gap: 12px 24px; margin: 28px 0; color: var(--text-primary);">
+      <dt>Tên đăng nhập</dt><dd style="margin: 0;">{{ user.username }}</dd>
+      <dt>Email</dt><dd style="margin: 0;">{{ user.email|default:'Chưa cập nhật' }}</dd>
+      {% if profile %}<dt>Số điện thoại</dt><dd style="margin: 0;">{{ profile.phone|default:'Chưa cập nhật' }}</dd>{% endif %}
+    </dl>
+    {% if can_edit_profile %}<a href="{% url 'accounts:profile_edit' %}" style="display: inline-block; margin-right: 12px; padding: 11px 16px; border-radius: 8px; background: var(--color-primary-red); color: white; font-weight: 700; text-decoration: none;">Chỉnh sửa thông tin</a>{% endif %}
+    <form method="post" action="{% url 'accounts:logout' %}" style="display: inline;">{% csrf_token %}<button type="submit" style="padding: 11px 16px; border: 1px solid var(--border-default); border-radius: 8px; background: white; color: var(--text-primary); cursor: pointer; font: inherit;">Đăng xuất</button></form>
+  </section>
+</main>
+{% endblock %}

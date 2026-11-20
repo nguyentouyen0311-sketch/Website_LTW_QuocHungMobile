@@ -1,0 +1,15 @@
+{% extends 'storefront/base_storefront.html' %}
+{% block title %}Khu vực quản lý | Quốc Hùng Mobile{% endblock %}
+{% block content %}
+<main style="max-width:1120px;min-height:55vh;margin:0 auto;padding:42px 24px;">
+  <p style="margin:0;color:var(--color-primary-red);font-size:13px;font-weight:700;letter-spacing:.08em;">BACKEND QUẢN LÝ</p>
+  <h1 style="margin:8px 0;color:var(--text-primary);">Xin chào, {{ user.username }}</h1>
+  <p style="margin:0 0 28px;color:var(--text-secondary);">Chọn nghiệp vụ phù hợp với vai trò của bạn: {{ roles|join:', ' }}.</p>
+  <section style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px;">
+    {% if is_admin %}<a href="{% url 'accounts:staff_list' %}" style="padding:22px;border:1px solid var(--border-default);border-radius:12px;color:var(--text-primary);text-decoration:none;background:#fff;"><strong>Quản lý nhân viên</strong><br><small>Tạo, cập nhật và phân quyền nhân viên</small></a>{% endif %}
+    {% if is_admin or is_sales_staff %}<a href="{% url 'orders:pending_orders_list' %}" style="padding:22px;border:1px solid var(--border-default);border-radius:12px;color:var(--text-primary);text-decoration:none;background:#fff;"><strong>Quản lý đơn hàng</strong><br><small>Xử lý các đơn hàng đang chờ</small></a><a href="{% url 'payments:verification_list' %}" style="padding:22px;border:1px solid var(--border-default);border-radius:12px;color:var(--text-primary);text-decoration:none;background:#fff;"><strong>Xác minh thanh toán</strong><br><small>Kiểm tra và đối soát thanh toán</small></a><a href="{% url 'chat:staff_inbox' %}" style="padding:22px;border:1px solid var(--border-default);border-radius:12px;color:var(--text-primary);text-decoration:none;background:#fff;"><strong>Hộp thư hỗ trợ</strong><br><small>Trao đổi với khách hàng</small></a>{% endif %}
+    {% if is_admin or is_inventory_staff %}<a href="{% url 'inventory:inventory_list' %}" style="padding:22px;border:1px solid var(--border-default);border-radius:12px;color:var(--text-primary);text-decoration:none;background:#fff;"><strong>Quản lý kho</strong><br><small>Tồn kho, nhập kho và điều chỉnh</small></a>{% endif %}
+    {% if is_admin %}<a href="{% url 'catalog:product_list' %}" style="padding:22px;border:1px solid var(--border-default);border-radius:12px;color:var(--text-primary);text-decoration:none;background:#fff;"><strong>Quản lý sản phẩm</strong><br><small>Sản phẩm, danh mục và thuộc tính</small></a><a href="{% url 'coupons:coupon_list' %}" style="padding:22px;border:1px solid var(--border-default);border-radius:12px;color:var(--text-primary);text-decoration:none;background:#fff;"><strong>Quản lý mã giảm giá</strong><br><small>Tạo và cập nhật chương trình ưu đãi</small></a>{% endif %}
+  </section>
+</main>
+{% endblock %}

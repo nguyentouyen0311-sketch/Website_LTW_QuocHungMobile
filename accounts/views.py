@@ -40,14 +40,9 @@ from cart.services import merge_guest_cart_to_user, retry_on_db_lock
 def get_post_login_redirect_url(user, next_url=None, request=None):
 
     login_url = reverse('accounts:login')
-    # Các template tài khoản cũ không còn là điểm đến mặc định. Điều hướng người
-    # dùng đến đúng khu vực đang có giao diện hoạt động theo vai trò của họ.
-    if is_admin(user) or is_sales_staff(user):
-        landing_url = reverse('catalog:product_list')
-    elif is_inventory_staff(user):
-        landing_url = reverse('inventory:inventory_list')
-    else:
-        landing_url = reverse('home')
+    # Khi không có trang đích hợp lệ (ví dụ từ trang cần đăng nhập),
+    # người dùng quay về trang chủ sau khi đăng nhập thành công.
+    landing_url = reverse('home')
 
     if next_url:
         next_clean = next_url.strip()
@@ -220,13 +215,29 @@ def landing_view(request):
     return render(request, 'accounts/landing.html', context)
 
 
+def backend_dashboard_view(request):
+    """Trang vào backend dành cho các tài khoản nội bộ."""
+    if not request.user.is_authenticated:
+        return redirect(f"{reverse('accounts:login')}?next={request.path}")
+
+    if not (is_admin(request.user) or is_sales_staff(request.user) or is_inventory_staff(request.user)):
+        return HttpResponseForbidden("Bạn không có quyền truy cập khu vực quản lý.")
+
+    context = {
+        'user': request.user,
+        'roles': sorted(get_user_roles(request.user)),
+        'is_admin': is_admin(request.user),
+        'is_sales_staff': is_sales_staff(request.user),
+        'is_inventory_staff': is_inventory_staff(request.user),
+        'is_customer': is_customer(request.user),
+    }
+    return render(request, 'accounts/landing.html', context)
+
+
 def profile_view(request):
 
     if not request.user.is_authenticated:
         return redirect(f"{reverse('accounts:login')}?next={request.path}")
-
-    if not is_customer(request.user):
-        return HttpResponseForbidden("Bạn không có quyền truy cập chức năng này.")
 
     profile = getattr(request.user, 'customer_profile', None)
     if profile is None:
@@ -235,6 +246,8 @@ def profile_view(request):
     context = {
         'user': request.user,
         'profile': profile,
+        'can_edit_profile': is_customer(request.user),
+        'role_labels': ', '.join(sorted(get_user_roles(request.user))) or 'Tài khoản đã đăng nhập',
     }
     return render(request, 'accounts/profile.html', context)
 
