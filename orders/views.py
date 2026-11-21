@@ -661,6 +661,41 @@ def checkout_view(request):
     return redirect('orders:checkout')
 
 
+def customer_orders_list_view(request):
+    if not request.user.is_authenticated:
+        login_url = resolve_url(settings.LOGIN_URL)
+        return redirect(f"{login_url}?next={request.get_full_path()}")
+
+    if not is_customer(request.user):
+        raise PermissionDenied("Chỉ tài khoản Khách hàng mới có quyền xem đơn hàng cá nhân.")
+
+    orders = (
+        Order.objects.filter(customer=request.user)
+        .select_related('payment')
+        .prefetch_related('items')
+        .order_by('-created_at', '-id')
+    )
+    status = request.GET.get('status', '').strip()
+    if status in OrderStatus.values:
+        orders = orders.filter(order_status=status)
+    else:
+        status = ''
+
+    paginator = Paginator(orders, 10)
+    page_obj = paginator.get_page(request.GET.get('page'))
+    for order in page_obj:
+        order.grand_total_formatted = format_vnd(order.grand_total)
+        order.item_count = sum(item.quantity for item in order.items.all())
+
+    return render(request, 'orders/my_orders.html', {
+        'page_obj': page_obj,
+        'status': status,
+        'status_choices': OrderStatus.choices,
+        'active_nav': 'orders',
+        'title': 'Đơn hàng của tôi — Quốc Hùng Mobile',
+    })
+
+
 def order_detail_view(request, pk, cancel_form=None):
     if not request.user.is_authenticated:
         login_url = resolve_url(settings.LOGIN_URL)
