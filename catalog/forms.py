@@ -690,7 +690,12 @@ class ProductVariantForm(forms.ModelForm):
         cleaned_data['derived_combination_key'] = derived_key
         cleaned_data['selected_values'] = selected_values
         if not self.instance.pk:
-            cleaned_data['automatic_sku'] = self._build_automatic_sku(selected_values)
+            automatic_sku = self._build_automatic_sku(selected_values)
+            cleaned_data['automatic_sku'] = automatic_sku
+            # ModelForm calls ProductVariant.full_clean() after this method.
+            # Since SKU is intentionally not a visible form field, assign the
+            # generated value before model-level validation runs.
+            self.instance.sku = automatic_sku
 
         siblings = ProductVariant.objects.filter(product_id=self.product.id)
         if self.instance and self.instance.pk:
