@@ -252,14 +252,6 @@ def profile_view(request):
             _, profile = form.save()
             profile.date_of_birth = parse_date(request.POST.get('date_of_birth', ''))
             profile.gender = request.POST.get('gender', '') if request.POST.get('gender', '') in ('male', 'female', 'other') else ''
-            avatar = request.FILES.get('avatar')
-            if avatar:
-                if avatar.size > 2 * 1024 * 1024:
-                    form.add_error(None, 'Ảnh đại diện không được vượt quá 2MB.')
-                elif avatar.content_type not in ('image/jpeg', 'image/png'):
-                    form.add_error(None, 'Chỉ hỗ trợ ảnh JPG hoặc PNG.')
-                else:
-                    profile.avatar = avatar
             if not form.errors:
                 profile.save()
                 messages.success(request, 'Cập nhật thông tin cá nhân thành công!')
