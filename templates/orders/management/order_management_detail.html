@@ -1,8 +1,10 @@
 {% extends 'admin/management_base.html' %}
+{% load static %}
 
 {% block title %}{{ title }}{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/order_management_detail.css' %}">{% endblock %}
 {% block content %}
-<section class="management-panel">
+<section class="management-panel order-management-detail">
   <p style="margin:0;color:var(--color-primary-red);font-weight:700;">BACKEND / ĐƠN HÀNG</p>
   <div style="display:flex;justify-content:space-between;gap:16px;align-items:start;flex-wrap:wrap">
     <div><h1 style="margin:8px 0;color:#17231d;">Đơn hàng #{{ order.order_code }}</h1><p style="color:var(--text-secondary);margin:0">Tạo lúc {{ order.created_at|date:'H:i, d/m/Y' }} · {{ order.get_order_status_display }}</p></div>
