@@ -65,6 +65,7 @@ from orders.services import (
 from payments.models import Payment, PaymentMethod, PaymentStatus, RefundStatus
 from payments.cod_forms import CODCollectionForm
 from payments.cod_services import record_cod_collection
+from payments.return_refund_services import create_return_refund_request
 from payments.qr import (
     generate_qr_svg,
     generate_vietqr_payload,
@@ -734,7 +735,9 @@ def return_request_create_view(request, pk):
 
 @role_required(ROLE_SALES_STAFF, ROLE_ADMIN)
 def return_request_management_view(request):
-    requests = ReturnRequest.objects.select_related('order', 'order_item', 'customer', 'replacement_variant__product').order_by('-updated_at')
+    requests = ReturnRequest.objects.select_related(
+        'order', 'order__payment', 'order_item', 'customer', 'replacement_variant__product', 'refund_record'
+    ).order_by('-updated_at')
     return render(request, 'orders/management/return_request_list.html', {
         'return_requests': requests,
         'active_nav': 'return_requests',
@@ -758,6 +761,20 @@ def return_request_review_view(request, pk):
         messages.error(request, 'Yêu cầu này đã được xử lý trước đó.')
     else:
         messages.error(request, 'Dữ liệu xử lý chưa hợp lệ.')
+    return redirect('orders:return_request_management')
+
+
+@role_required(ROLE_ADMIN)
+@require_POST
+def create_return_refund_view(request, pk):
+    try:
+        refund, created = create_return_refund_request(pk, request.user)
+        if created:
+            messages.success(request, f'Đã lập hồ sơ hoàn tiền #{refund.pk} ({format_vnd(refund.amount)}), đang chờ xử lý.')
+        else:
+            messages.info(request, f'Hồ sơ hoàn tiền #{refund.pk} đã tồn tại.')
+    except ValidationError as error:
+        messages.error(request, '; '.join(error.messages))
     return redirect('orders:return_request_management')
 
 

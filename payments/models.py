@@ -580,6 +580,15 @@ class RefundStatus(models.TextChoices):
 
 
 class Refund(models.Model):
+    return_request = models.OneToOneField(
+        'orders.ReturnRequest',
+        on_delete=models.PROTECT,
+        related_name='refund_record',
+        null=True,
+        blank=True,
+        verbose_name='Yêu cầu trả hàng',
+        help_text='Yêu cầu đổi/trả tạo ra hồ sơ hoàn tiền này (nếu có).',
+    )
     order = models.ForeignKey(
         'orders.Order',
         on_delete=models.PROTECT,
