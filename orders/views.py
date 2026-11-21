@@ -150,6 +150,25 @@ def _get_initial_checkout_data(request, cart=None, checkout_token='', quote_toke
     return initial_data
 
 
+def _refresh_quote_token(form, quote):
+    """Keep a bound checkout form aligned with the server-calculated quote.
+
+    Django renders values from ``form.data`` for a bound form, so changing only
+    ``initial`` after a preview/quote mismatch leaves the old hidden token in
+    the HTML.  That made a cart with a restored coupon impossible to submit:
+    every subsequent request compared against the original, coupon-less quote.
+    """
+    quote_token = getattr(quote, 'quote_token', '')
+    if not quote_token:
+        return
+
+    form.initial['quote_token'] = quote_token
+    if form.is_bound:
+        form_data = form.data.copy()
+        form_data['quote_token'] = quote_token
+        form.data = form_data
+
+
 def _render_safe_checkout(request, context):
     from django.template.loader import get_template
     from django.template import Context
@@ -264,20 +283,24 @@ def checkout_view(request):
         order_code = get_or_create_pending_order_code(request, cart)
         checkout_token = make_checkout_token(request.user.id, cart.id, order_code)
 
+        initial_data = _get_initial_checkout_data(
+            request,
+            cart=cart,
+            checkout_token=checkout_token,
+            db_available=True,
+        )
+
         try:
-            quote = calculate_server_quote(cart)
+            quote = calculate_server_quote(
+                cart,
+                coupon_code=initial_data.get('coupon_code', ''),
+            )
         except OperationalError as oe:
             if not _is_sqlite_lock_error(oe):
                 raise
             quote = QuoteUnavailable()
 
-        initial_data = _get_initial_checkout_data(
-            request,
-            cart=cart,
-            checkout_token=checkout_token,
-            quote_token=getattr(quote, 'quote_token', ''),
-            db_available=not getattr(quote, 'is_unavailable', False),
-        )
+        initial_data['quote_token'] = getattr(quote, 'quote_token', '')
 
         form = CheckoutForm(initial=initial_data)
         context = {
@@ -376,6 +399,7 @@ def checkout_view(request):
             _save_pending_checkout_data(request)
             form.add_error(None, 'Hệ thống đang bận xử lý giao dịch. Vui lòng thử lại sau giây lát.')
             quote = QuoteUnavailable(coupon_code=coupon_code or "")
+        _refresh_quote_token(form, quote)
         context = {
             'form': form,
             'quote': quote,
@@ -612,6 +636,7 @@ def checkout_view(request):
 
     except _QuoteMismatch as qm:
         fresh_quote = qm.fresh_quote
+        _refresh_quote_token(form, fresh_quote)
         messages.warning(request, "Thông tin giỏ hàng đã thay đổi, vui lòng kiểm tra và xác nhận lại.")
         context = {
             'form': form,
