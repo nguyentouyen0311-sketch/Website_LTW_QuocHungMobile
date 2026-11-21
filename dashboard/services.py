@@ -615,7 +615,9 @@ def get_product_metrics(date_range: Dict[str, Any], limit: int = 10) -> Dict[str
     full_variant_list = []
     for var in managed_variants:
         if var.id in variant_sales_map:
-            full_variant_list.append(variant_sales_map[var.id])
+            # Dùng bản sao độc lập: hạng của bảng bán chậm không được ghi đè
+            # lên hạng đã tính cho bảng bán chạy cùng biến thể.
+            full_variant_list.append(dict(variant_sales_map[var.id]))
         else:
             full_variant_list.append({
                 'variant_id': var.id,
