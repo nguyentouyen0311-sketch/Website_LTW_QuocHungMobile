@@ -8,6 +8,7 @@ from django.http import HttpResponseNotAllowed, HttpResponseForbidden, HttpRespo
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
+from django.utils.dateparse import parse_date
 
 from accounts.forms import (
     CustomerRegistrationForm,
@@ -243,11 +244,39 @@ def profile_view(request):
     if profile is None:
         profile = CustomerProfile.objects.filter(user=request.user).first()
 
+    if request.method == 'POST':
+        if not is_customer(request.user):
+            return HttpResponseForbidden('Bạn không có quyền cập nhật hồ sơ này.')
+        form = CustomerProfileForm(request.POST, user=request.user)
+        if form.is_valid():
+            _, profile = form.save()
+            profile.date_of_birth = parse_date(request.POST.get('date_of_birth', ''))
+            profile.gender = request.POST.get('gender', '') if request.POST.get('gender', '') in ('male', 'female', 'other') else ''
+            avatar = request.FILES.get('avatar')
+            if avatar:
+                if avatar.size > 2 * 1024 * 1024:
+                    form.add_error(None, 'Ảnh đại diện không được vượt quá 2MB.')
+                elif avatar.content_type not in ('image/jpeg', 'image/png'):
+                    form.add_error(None, 'Chỉ hỗ trợ ảnh JPG hoặc PNG.')
+                else:
+                    profile.avatar = avatar
+            if not form.errors:
+                profile.save()
+                messages.success(request, 'Cập nhật thông tin cá nhân thành công!')
+                return redirect('accounts:profile')
+    else:
+        form = CustomerProfileForm(user=request.user)
+
+    from orders.models import Order
+    total_orders = Order.objects.filter(customer=request.user).count()
+    full_name = request.user.get_full_name().strip() or request.user.username
+    initials = ''.join(part[0] for part in full_name.split()[:2]).upper() or 'KH'
     context = {
         'user': request.user,
         'profile': profile,
         'can_edit_profile': is_customer(request.user),
         'role_labels': ', '.join(sorted(get_user_roles(request.user))) or 'Tài khoản đã đăng nhập',
+        'form': form, 'total_orders': total_orders, 'full_name': full_name, 'initials': initials,
     }
     return render(request, 'accounts/profile.html', context)
 

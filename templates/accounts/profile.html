@@ -1,20 +1,10 @@
 {% extends 'storefront/base_storefront.html' %}
-
-{% block title %}Tài khoản của tôi | Quốc Hùng Mobile{% endblock %}
-
+{% load static %}
+{% block title %}Thông tin cá nhân | Quốc Hùng Mobile{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/profile.css' %}">{% endblock %}
 {% block content %}
-<main style="max-width: 900px; min-height: 55vh; margin: 0 auto; padding: 48px 24px;">
-  <section style="padding: 32px; border: 1px solid var(--border-default); border-radius: 16px; background: var(--bg-surface);">
-    <p style="margin: 0 0 8px; color: var(--color-primary-red); font-weight: 700;">TÀI KHOẢN CỦA TÔI</p>
-    <h1 style="margin: 0; color: var(--text-primary);">Xin chào, {{ user.username }}</h1>
-    <p style="color: var(--text-secondary);">Vai trò: {{ role_labels }}</p>
-    <dl style="display: grid; grid-template-columns: max-content 1fr; gap: 12px 24px; margin: 28px 0; color: var(--text-primary);">
-      <dt>Tên đăng nhập</dt><dd style="margin: 0;">{{ user.username }}</dd>
-      <dt>Email</dt><dd style="margin: 0;">{{ user.email|default:'Chưa cập nhật' }}</dd>
-      {% if profile %}<dt>Số điện thoại</dt><dd style="margin: 0;">{{ profile.phone|default:'Chưa cập nhật' }}</dd>{% endif %}
-    </dl>
-    {% if can_edit_profile %}<a href="{% url 'accounts:profile_edit' %}" style="display: inline-block; margin-right: 12px; padding: 11px 16px; border-radius: 8px; background: var(--color-primary-red); color: white; font-weight: 700; text-decoration: none;">Chỉnh sửa thông tin</a>{% endif %}
-    <form method="post" action="{% url 'accounts:logout' %}" style="display: inline;">{% csrf_token %}<button type="submit" style="padding: 11px 16px; border: 1px solid var(--border-default); border-radius: 8px; background: white; color: var(--text-primary); cursor: pointer; font: inherit;">Đăng xuất</button></form>
-  </section>
-</main>
+<main class="profile-page"><div class="profile-layout">
+<aside class="profile-sidebar"><div class="side-user"><b>{{ initials }}</b><span><strong>{{ full_name }}</strong><small>{{ profile.phone|default:'Chưa cập nhật số điện thoại' }}</small><em>★ Thành viên QH Gold</em></span></div><nav><a class="active" href="{% url 'accounts:profile' %}">♙ Thông tin cá nhân</a><a href="{% url 'accounts:password_reset' %}">♧ Đổi mật khẩu</a></nav><form method="post" action="{% url 'accounts:logout' %}">{% csrf_token %}<button>↪ Đăng xuất tài khoản</button></form></aside>
+<section class="profile-content"><h1>Thông tin cá nhân</h1><p>Quản lý thông tin hồ sơ để bảo mật tài khoản và tự động điền khi đặt hàng.</p><form method="post" enctype="multipart/form-data" class="profile-card">{% csrf_token %}{% if form.non_field_errors %}<div class="errors">{{ form.non_field_errors }}</div>{% endif %}<div class="profile-head"><span class="avatar" id="avatar-preview">{% if profile.avatar %}<img src="{{ profile.avatar.url }}" alt="">{% else %}{{ initials }}{% endif %}</span><div><h2>{{ full_name }} <i>✓ Đã xác thực</i></h2><p>Ngày tham gia: <b>{{ user.date_joined|date:'d/m/Y' }}</b> · Tổng đơn hàng đã mua: <b>{{ total_orders }} đơn</b></p></div><div class="upload"><input id="avatar-input" type="file" name="avatar" accept="image/jpeg,image/png" hidden><button type="button" id="avatar-button">⇧ Đổi ảnh đại diện</button><small>JPG, PNG tối đa 2MB</small></div></div><div class="profile-grid"><label>Họ và tên *{{ form.full_name }}</label><label>Số điện thoại *{{ form.phone }}</label><label class="email">Địa chỉ Email *<button type="button" id="edit-email">Thay đổi</button>{{ form.email }}<small>Dùng để đăng nhập & nhận hóa đơn điện tử</small></label><label>Ngày sinh<input type="date" name="date_of_birth" value="{{ profile.date_of_birth|date:'Y-m-d' }}"></label><fieldset><legend>Giới tính</legend><label><input type="radio" name="gender" value="male" {% if profile.gender == 'male' %}checked{% endif %}> Nam</label><label><input type="radio" name="gender" value="female" {% if profile.gender == 'female' %}checked{% endif %}> Nữ</label><label><input type="radio" name="gender" value="other" {% if profile.gender == 'other' %}checked{% endif %}> Khác</label></fieldset><label>Mã khách hàng / Tên đăng nhập<input value="{{ user.username }}" readonly></label><label class="address">Địa chỉ giao hàng mặc định{{ form.default_address }}</label></div><div class="actions"><button type="reset">Hủy thay đổi</button><button type="submit">Lưu thay đổi</button></div></form></section></div></main>
+<script>document.addEventListener('DOMContentLoaded',()=>{const f=document.querySelector('#avatar-input'),p=document.querySelector('#avatar-preview'),e=document.querySelector('#id_email');e.readOnly=true;document.querySelector('#avatar-button').onclick=()=>f.click();f.onchange=()=>{const x=f.files[0];if(!x)return;if(x.size>2097152||!['image/jpeg','image/png'].includes(x.type)){alert('Chỉ nhận ảnh JPG/PNG tối đa 2MB.');f.value='';return}const r=new FileReader;r.onload=()=>p.innerHTML='<img src="'+r.result+'" alt="">';r.readAsDataURL(x)};document.querySelector('#edit-email').onclick=()=>{e.readOnly=false;e.focus()}})</script>
 {% endblock %}

@@ -21,6 +21,12 @@ class CustomerProfile(models.Model):
         null=True,
         verbose_name='Địa chỉ mặc định',
     )
+    avatar = models.ImageField(upload_to='avatars/%Y/%m/', blank=True, null=True, verbose_name='Ảnh đại diện')
+    date_of_birth = models.DateField(blank=True, null=True, verbose_name='Ngày sinh')
+    gender = models.CharField(
+        max_length=10, blank=True, choices=[('male', 'Nam'), ('female', 'Nữ'), ('other', 'Khác')],
+        verbose_name='Giới tính'
+    )
 
     class Meta:
         verbose_name = 'Hồ sơ khách hàng'
