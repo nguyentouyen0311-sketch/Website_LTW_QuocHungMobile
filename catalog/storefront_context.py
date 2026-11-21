@@ -21,7 +21,12 @@ def storefront_navigation(request):
 
     Chỉ trả về danh mục đang được quản trị viên bật hiển thị để storefront
     luôn phản ánh dữ liệu quản trị, không phụ thuộc một danh sách hard-code.
+    Danh mục QA phục vụ kiểm thử đổi/trả không được hiển thị trên storefront.
     """
     return {
-        'storefront_nav_categories': Category.objects.filter(is_visible=True).order_by('name'),
+        'storefront_nav_categories': (
+            Category.objects.filter(is_visible=True)
+            .exclude(name='QA - Đổi trả')
+            .order_by('name')
+        ),
     }
