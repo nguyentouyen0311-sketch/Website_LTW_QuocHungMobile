@@ -131,7 +131,9 @@ def chat_close_view(request):
     if conversation:
         services.close_conversation(conversation.pk)
         messages.success(request, 'Đã kết thúc cuộc trò chuyện. Gửi tin nhắn mới để bắt đầu phiên hỗ trợ khác.')
-        return customer_redirect(request, conversation)
+        # Do not keep rendering the closed thread. Returning to the default
+        # chat screen immediately restores the automated FAQ suggestions.
+        return customer_redirect(request)
     return customer_redirect(request)
 
 

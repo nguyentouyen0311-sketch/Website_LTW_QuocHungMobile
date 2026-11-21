@@ -162,7 +162,7 @@ class ChatbotTests(TestCase):
         self.client.post(reverse('chat:send'), {'content': 'cod'})
         original = ChatConversation.objects.get()
         response = self.client.post(reverse('chat:close'), follow=True)
-        self.assertContains(response, 'Thanh toán khi nhận hàng.')
+        self.assertContains(response, self.faq.question)
         self.client.post(reverse('chat:send'), {'content': 'cod'})
         original.refresh_from_db()
         self.assertEqual(original.status, 'CLOSED')
