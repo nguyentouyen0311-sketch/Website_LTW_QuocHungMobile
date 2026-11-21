@@ -251,4 +251,14 @@
             }
         }
     });
+
+    // Chuẩn hóa phần phải của header cho các module backend dùng sidebar chung.
+    document.addEventListener('DOMContentLoaded', function () {
+        const header = document.querySelector('.adm-topbar, .dashboard-topbar');
+        if (!header || header.querySelector('.qhm-shared-header-actions') || header.querySelector('.dashboard-topbar-right')) return;
+        const actions = document.createElement('div');
+        actions.className = 'qhm-shared-header-actions';
+        actions.innerHTML = '<span class="qhm-shared-role">{% if is_admin %}ADMINISTRATOR{% else %}NHÂN VIÊN{% endif %}</span><a href="{% url "catalog:public_catalog" %}" target="_blank" rel="noopener">Xem cửa hàng ↗</a>';
+        header.appendChild(actions);
+    });
 </script>

@@ -44,6 +44,8 @@ body.qhm-dashboard-page {
     overflow-x: hidden;
 }
 
+.qhm-shared-header-actions{display:flex;align-items:center;gap:18px;margin-left:auto}.qhm-shared-role{padding:8px 15px;border-radius:999px;background:#111827;color:#fff;font-size:12px;font-weight:800}.qhm-shared-header-actions a{padding:10px 16px;border:1px solid var(--dashboard-border);border-radius:10px;color:var(--dashboard-text);text-decoration:none;font-weight:700;font-size:14px;background:#fff}.qhm-shared-header-actions a:hover{border-color:var(--dashboard-primary);color:var(--dashboard-primary)}.adm-topbar .qhm-shared-header-actions{margin-left:auto}@media(max-width:820px){.qhm-shared-role{display:none}.qhm-shared-header-actions{gap:8px}.qhm-shared-header-actions a{padding:8px 10px;font-size:12px}}
+
 
 *, *::before, *::after {
     box-sizing: border-box;
