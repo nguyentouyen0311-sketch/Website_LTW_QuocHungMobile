@@ -41,13 +41,13 @@ class CartStorefrontTests(TestCase):
         self.assertContains(response, 'Giỏ hàng đang trống')
         self.assertEqual(Cart.objects.count(), count)
 
-    def test_render_real_data_without_voucher_controls(self):
+    def test_render_real_data_with_coupon_preview_controls(self):
         response = self.client.get(reverse('cart:cart_detail'))
-        self.assertTemplateUsed(response, 'cart/detail.html')
+        self.assertTemplateUsed(response, 'storefront/cart_detail.html')
         self.assertContains(response, self.product.name)
         self.assertContains(response, '2.000.000')
-        for text in ('Mã giảm giá', 'coupon', 'voucher', 'Áp dụng'):
-            self.assertNotContains(response, text)
+        self.assertContains(response, 'Mã giảm giá')
+        self.assertContains(response, 'Áp dụng')
         self.assertEqual(response.context['evaluation']['total_quantity'], 2)
 
     def test_admin_cannot_use_customer_cart(self):
@@ -125,8 +125,10 @@ class CartStorefrontTests(TestCase):
         protected.force_login(self.customer)
         self.assertEqual(protected.post(reverse('cart:cart_remove_selected'), {'item_ids': [self.item.pk]}).status_code, 403)
 
-    def test_removed_coupon_preview_endpoint_is_not_available(self):
-        self.assertEqual(self.client.post('/cart/coupon/preview/', {'code': 'SAMPLE'}).status_code, 404)
+    def test_coupon_preview_endpoint_is_available(self):
+        response = self.client.post('/cart/coupon/preview/', {'code': 'SAMPLE'})
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'storefront/cart_detail.html')
 
     def test_unavailable_stock_blocks_checkout_and_is_visible(self):
         Inventory.objects.filter(variant=self.variant).update(physical_sellable=2)
