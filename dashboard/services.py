@@ -1032,7 +1032,7 @@ def get_return_exchange_metrics(date_range: Dict[str, Any]) -> Dict[str, Any]:
     for req in requests_on_cohort:
         group_key = req.reason_code if (req.reason_code and req.reason_code in RETURN_REASON_LABELS) else None
         if not group_key:
-            group_key = classify_return_reason(req.reason) if req.reason else ReturnReasonCode.OTHER
+            group_key = classify_return_reason(req.description) if req.description else ReturnReasonCode.OTHER
         if group_key not in reasons_stat:
             group_key = ReturnReasonCode.OTHER
 
@@ -1047,7 +1047,9 @@ def get_return_exchange_metrics(date_range: Dict[str, Any]) -> Dict[str, Any]:
             'product_name': req.order_item.product_name_snapshot if req.order_item else 'N/A',
             'reason_code': group_key,
             'category_group': RETURN_REASON_LABELS.get(group_key, 'Lý do khác'),
-            'reason': req.reason,
+            # Giữ khóa `reason` để template/báo cáo cũ tương thích, dữ liệu lấy từ
+            # trường mô tả chuẩn của ReturnRequest.
+            'reason': req.description,
             'status': req.get_status_display(),
             'status_raw': req.status,
             'created_at': req.created_at,

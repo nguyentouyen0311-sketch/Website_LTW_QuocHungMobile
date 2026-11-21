@@ -454,7 +454,8 @@ class DashboardTestCase(TestCase):
             customer=self.customer_user,
             request_type=ReturnRequestType.RETURN,
             quantity=1,
-            reason='Lỗi màn hình nhấp nháy',
+            reason_code=ReturnReasonCode.TECHNICAL_DEFECT,
+            description='Lỗi màn hình nhấp nháy',
             status=ReturnRequestStatus.APPROVED,
         )
 
@@ -512,7 +513,8 @@ class DashboardTestCase(TestCase):
             request_type=ReturnRequestType.EXCHANGE,
             replacement_variant=self.variant,
             quantity=1,
-            reason='Muốn đổi sang màu khác',
+            reason_code=ReturnReasonCode.CHANGE_COLOR_CAPACITY,
+            description='Muốn đổi sang màu khác',
             status=ReturnRequestStatus.APPROVED,
         )
 
@@ -523,7 +525,8 @@ class DashboardTestCase(TestCase):
             customer=self.customer_user,
             request_type=ReturnRequestType.RETURN,
             quantity=1,
-            reason='Lỗi micro không nghe được tiếng',
+            reason_code=ReturnReasonCode.TECHNICAL_DEFECT,
+            description='Lỗi micro không nghe được tiếng',
             status=ReturnRequestStatus.APPROVED,
         )
 
@@ -636,7 +639,7 @@ class DashboardTestCase(TestCase):
                 request_type=ReturnRequestType.RETURN,
                 quantity=1,
                 reason_code=code,
-                reason=f"Chi tiết giải thích cho mã {code}" if code != ReturnReasonCode.OTHER else "Khách hàng dọn nhà đi công tác nước ngoài dài hạn",
+                description=f"Chi tiết giải thích cho mã {code}" if code != ReturnReasonCode.OTHER else "Khách hàng dọn nhà đi công tác nước ngoài dài hạn",
                 status=ReturnRequestStatus.APPROVED,
             )
 
@@ -648,7 +651,7 @@ class DashboardTestCase(TestCase):
             request_type=ReturnRequestType.RETURN,
             quantity=1,
             reason_code='',
-            reason='Màn hình bị lỗi sọc xanh và liệt cảm ứng',
+            description='Màn hình bị lỗi sọc xanh và liệt cảm ứng',
             status=ReturnRequestStatus.PENDING,
         )
 
