@@ -1,0 +1,21 @@
+{% extends 'storefront/base_storefront.html' %}
+
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<main class="sf-page" style="max-width:1120px;margin:40px auto;padding:0 24px">
+  <div style="display:flex;justify-content:space-between;align-items:end;gap:16px;flex-wrap:wrap"><div><p style="margin:0;color:#77837d">Thanh toán an toàn</p><h1 style="margin:5px 0">Xác nhận đặt hàng</h1></div><a href="{% url 'cart:cart_detail' %}">← Quay lại giỏ hàng</a></div>
+  {% if not form %}
+    <section style="background:#fff;border:1px solid #e1e8e4;border-radius:12px;padding:32px;margin-top:24px;text-align:center"><h2>Giỏ hàng đang trống</h2><p>Hãy chọn sản phẩm trước khi đặt hàng.</p><a class="sf-button" href="{% url 'catalog:public_catalog' %}">Tiếp tục mua sắm</a></section>
+  {% else %}
+  <form method="post" style="display:grid;grid-template-columns:minmax(0,1.5fr) minmax(280px,.8fr);gap:24px;margin-top:24px">{% csrf_token %}
+    <section style="background:#fff;border:1px solid #e1e8e4;border-radius:12px;padding:24px">
+      <h2>Thông tin nhận hàng</h2>
+      {% for hidden in form.hidden_fields %}{{ hidden }}{% endfor %}
+      {% for field in form.visible_fields %}<div style="margin:16px 0"><label for="{{ field.id_for_label }}" style="display:block;font-weight:700;margin-bottom:6px">{{ field.label }}</label>{{ field }}{% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}{% for error in field.errors %}<p style="color:#c82322;margin:5px 0">{{ error }}</p>{% endfor %}</div>{% endfor %}
+      {% for error in form.non_field_errors %}<p style="color:#c82322">{{ error }}</p>{% endfor %}
+    </section>
+    <aside style="background:#fff;border:1px solid #e1e8e4;border-radius:12px;padding:24px;height:max-content"><h2>Đơn hàng của bạn</h2>{% for line in quote.lines %}<div style="padding:12px 0;border-bottom:1px solid #edf1ee"><strong>{{ line.product_name }}</strong><br><small>{{ line.attrs_display }} · SL: {{ line.quantity }}</small><div style="margin-top:5px">{{ line.line_total_formatted }}</div></div>{% endfor %}<p>Tạm tính: <strong>{{ quote.subtotal_formatted }}</strong></p>{% if quote.discount_total %}<p>Giảm giá: <strong>-{{ quote.discount_total_formatted }}</strong></p>{% endif %}<p style="font-size:1.2rem;border-top:1px solid #edf1ee;padding-top:12px">Tổng thanh toán: <strong style="color:#df2727">{{ quote.grand_total_formatted }}</strong></p>{% if quote.coupon_error %}<p style="color:#c82322">{{ quote.coupon_error }}</p>{% endif %}<button class="sf-button" type="submit" name="action" value="preview" style="width:100%;margin:5px 0">Kiểm tra đơn hàng</button><button class="sf-button" type="submit" name="action" value="place" style="width:100%;margin:5px 0">Đặt hàng</button></aside>
+  </form>
+  {% endif %}
+</main>
+{% endblock %}
