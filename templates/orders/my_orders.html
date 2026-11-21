@@ -1,24 +1,26 @@
 {% extends 'storefront/base_storefront.html' %}
+{% load static %}
 
 {% block title %}{{ title }}{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/orders.css' %}">{% endblock %}
 {% block content %}
-<main class="sf-page" style="max-width:1120px;margin:40px auto;padding:0 24px">
+<main class="sf-page qhm-orders-page" style="max-width:1120px;margin:40px auto;padding:0 24px">
   <div style="display:flex;justify-content:space-between;gap:16px;align-items:center;flex-wrap:wrap">
     <div><p style="color:#77837d;margin:0 0 4px">Tài khoản của bạn</p><h1 style="margin:0">Đơn hàng của tôi</h1></div>
-    <a class="sf-button" href="{% url 'catalog:public_catalog' %}">Tiếp tục mua sắm</a>
+    <a class="qhm-order-action qhm-order-action--secondary" href="{% url 'catalog:public_catalog' %}">Tiếp tục mua sắm</a>
   </div>
   <form method="get" style="margin:24px 0;display:flex;gap:12px;flex-wrap:wrap">
     <select name="status" aria-label="Lọc theo trạng thái" style="padding:10px 12px;border:1px solid #dce3df;border-radius:8px">
       <option value="">Tất cả trạng thái</option>
       {% for value, label in status_choices %}<option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
     </select>
-    <button class="sf-button" type="submit">Lọc đơn hàng</button>
+    <button class="qhm-order-action qhm-order-action--filter" type="submit">Lọc đơn hàng</button>
   </form>
   <section style="display:grid;gap:16px">
     {% for order in page_obj %}
     <article style="background:#fff;border:1px solid #e1e8e4;border-radius:12px;padding:20px;box-shadow:0 3px 12px rgba(24,45,35,.06)">
       <div style="display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap"><div><strong>Đơn hàng #{{ order.order_code }}</strong><p style="margin:8px 0 0;color:#68766f">Đặt lúc {{ order.created_at|date:'H:i, d/m/Y' }} · {{ order.item_count }} sản phẩm</p></div><strong style="color:#df2727">{{ order.get_order_status_display }}</strong></div>
-      <div style="display:flex;justify-content:space-between;gap:16px;align-items:center;margin-top:18px;flex-wrap:wrap"><span>Tổng thanh toán: <strong>{{ order.grand_total_formatted }}</strong></span><a class="sf-button" href="{% url 'orders:order_detail' order.pk %}">Xem chi tiết</a></div>
+      <div style="display:flex;justify-content:space-between;gap:16px;align-items:center;margin-top:18px;flex-wrap:wrap"><span>Tổng thanh toán: <strong>{{ order.grand_total_formatted }}</strong></span><a class="qhm-order-action qhm-order-action--primary" href="{% url 'orders:order_detail' order.pk %}">Xem chi tiết <span aria-hidden="true">→</span></a></div>
     </article>
     {% empty %}
     <article style="background:#fff;border:1px solid #e1e8e4;border-radius:12px;padding:36px;text-align:center"><h2>Chưa có đơn hàng phù hợp</h2><p>Đơn hàng của bạn sẽ được hiển thị ở đây sau khi đặt mua.</p></article>
