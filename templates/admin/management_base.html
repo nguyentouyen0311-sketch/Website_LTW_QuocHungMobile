@@ -13,7 +13,7 @@
   <div class="management-shell">
     {% include 'catalog/includes/management_sidebar.html' with active_nav=active_nav %}
     <section class="management-workspace">
-      <header class="management-topbar qhm-unified-topbar"><div class="qhm-unified-topbar-left"><button type="button" id="qhm-sidebar-toggle" class="management-menu" aria-label="Mở menu" aria-expanded="false" onclick="toggleQhmSidebar()">☰</button><span class="qhm-unified-crumb">Quản trị hệ thống <b>/</b> <strong>{{ title|default:'Quản lý' }}</strong></span></div><div class="qhm-unified-topbar-right"><label class="qhm-unified-search"><span>⌕</span><input type="search" placeholder="Tìm kiếm nhanh..."></label><span class="qhm-unified-role">{% if is_admin %}ADMINISTRATOR{% else %}NHÂN VIÊN{% endif %}</span><a class="qhm-unified-store" href="{% url 'catalog:public_catalog' %}" target="_blank" rel="noopener">Xem cửa hàng ↗</a></div></header>
+      <header class="management-topbar qhm-unified-topbar"><div class="qhm-unified-topbar-left"><button type="button" id="qhm-sidebar-toggle" class="management-menu" aria-label="Mở menu" aria-expanded="false" onclick="toggleQhmSidebar()">☰</button><span class="qhm-unified-crumb">Quản trị hệ thống <b>/</b> <strong>{{ title|default:'Quản lý' }}</strong></span></div><div class="qhm-unified-topbar-right"><label class="qhm-unified-search"><span>⌕</span><input type="search" placeholder="Tìm kiếm nhanh..."></label><span class="qhm-unified-role">{% if is_admin %}ADMINISTRATOR{% else %}NHÂN VIÊN{% endif %}</span></div></header>
       <main class="management-main">{% block content %}{% endblock %}</main>
     </section>
   </div>
