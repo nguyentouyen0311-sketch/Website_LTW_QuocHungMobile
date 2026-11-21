@@ -280,7 +280,7 @@ class CouponManagementUITest(TestCase):
         self.assertIn('BÁN HÀNG & CSKH', content)
         self.assertIn('HỆ THỐNG', content)
 
-        self.assertIn('class="qhm-nav-item active"', content)
+        self.assertIn('class="qhm-sidebar-link dashboard-nav-link active"', content)
         self.assertIn('Mã giảm giá', content)
 
         self.assertIn(reverse('catalog:category_list'), content)
