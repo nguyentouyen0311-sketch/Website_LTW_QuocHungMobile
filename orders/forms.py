@@ -1,7 +1,11 @@
 from django import forms
 from django.core.exceptions import ValidationError
 
-from orders.models import CancellationReasonCode, validate_delivery_phone
+from catalog.models import ProductVariant
+from orders.models import (
+    CancellationReasonCode, ReturnReasonCode, ReturnRequestType, ReturnRequestStatus,
+    validate_delivery_phone,
+)
 from payments.models import PaymentMethod
 from payments.qr import is_qr_transfer_available
 
@@ -237,5 +241,44 @@ class OrderCancelForm(forms.Form):
             if not desc_stripped:
                 self.add_error('description', 'Vui lòng nhập mô tả chi tiết khi chọn lý do "Khác".')
         return cleaned_data
+
+
+class ReturnRequestForm(forms.Form):
+    order_item = forms.ModelChoiceField(queryset=None, label='Sản phẩm cần xử lý')
+    request_type = forms.ChoiceField(choices=ReturnRequestType.choices, label='Hình thức yêu cầu')
+    reason_code = forms.ChoiceField(choices=ReturnReasonCode.choices, label='Lý do')
+    quantity = forms.IntegerField(min_value=1, label='Số lượng')
+    replacement_variant = forms.ModelChoiceField(
+        queryset=None, required=False, label='Biến thể thay thế (chỉ khi đổi sản phẩm)'
+    )
+    description = forms.CharField(required=False, max_length=3000, label='Mô tả chi tiết', widget=forms.Textarea(attrs={'rows': 4}))
+
+    def __init__(self, *args, order, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.order = order
+        open_item_ids = order.return_requests.filter(
+            status__in=[ReturnRequestStatus.PENDING, ReturnRequestStatus.APPROVED, ReturnRequestStatus.RECEIVED]
+        ).values_list('order_item_id', flat=True)
+        self.fields['order_item'].queryset = order.items.exclude(pk__in=open_item_ids).select_related('variant__product')
+        self.fields['replacement_variant'].queryset = ProductVariant.objects.select_related('product').all()
+
+    def clean(self):
+        cleaned = super().clean()
+        item = cleaned.get('order_item')
+        quantity = cleaned.get('quantity')
+        request_type = cleaned.get('request_type')
+        replacement = cleaned.get('replacement_variant')
+        if item and quantity and quantity > item.quantity:
+            self.add_error('quantity', 'Số lượng không được vượt quá số lượng đã mua.')
+        if request_type == ReturnRequestType.EXCHANGE and not replacement:
+            self.add_error('replacement_variant', 'Vui lòng chọn biến thể thay thế khi đổi sản phẩm.')
+        if request_type == ReturnRequestType.RETURN and replacement:
+            self.add_error('replacement_variant', 'Yêu cầu hoàn tiền không chọn biến thể thay thế.')
+        return cleaned
+
+
+class ReturnReviewForm(forms.Form):
+    decision = forms.ChoiceField(choices=[('APPROVED', 'Duyệt yêu cầu'), ('REJECTED', 'Từ chối yêu cầu')], label='Quyết định')
+    review_note = forms.CharField(required=False, max_length=3000, label='Ghi chú xử lý', widget=forms.Textarea(attrs={'rows': 3}))
 
 

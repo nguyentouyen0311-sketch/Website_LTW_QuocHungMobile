@@ -12,5 +12,6 @@
     <aside style="display:grid;gap:20px;align-content:start"><section style="background:#fff;border:1px solid #e1e8e4;border-radius:12px;padding:24px"><h2>Giao hàng</h2><p><strong>{{ order.recipient_name }}</strong><br>{{ order.recipient_phone }}<br>{{ order.shipping_address }}</p></section><section style="background:#fff;border:1px solid #e1e8e4;border-radius:12px;padding:24px"><h2>Thanh toán</h2><p>Tạm tính: {{ order.subtotal_formatted }}</p>{% if order.discount_total %}<p>Giảm giá: -{{ order.discount_total_formatted }}</p>{% endif %}<p style="font-size:1.15rem"><strong>Tổng: {{ order.grand_total_formatted }}</strong></p>{% if payment %}<p>{{ payment.get_method_display }} · {{ payment.get_status_display }}</p>{% endif %}</section></aside>
   </div>
   {% if can_cancel %}<p style="margin-top:20px"><a class="sf-button" href="{% url 'orders:cancel_order' order.pk %}">Yêu cầu hủy đơn</a></p>{% endif %}
+  {% if order.order_status == 'DELIVERED' %}<p style="margin-top:20px"><a class="sf-button" href="{% url 'orders:return_request_create' order.pk %}">Yêu cầu đổi/trả</a></p>{% endif %}
 </main>
 {% endblock %}

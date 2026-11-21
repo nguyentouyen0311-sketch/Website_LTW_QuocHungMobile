@@ -6,7 +6,10 @@ app_name = 'orders'
 urlpatterns = [
     path('checkout/', views.checkout_view, name='checkout'),
     path('', views.customer_orders_list_view, name='customer_orders_list'),
+    path('management/returns/', views.return_request_management_view, name='return_request_management'),
+    path('management/returns/<int:pk>/review/', views.return_request_review_view, name='return_request_review'),
     path('<int:pk>/', views.order_detail_view, name='order_detail'),
+    path('<int:pk>/return-request/', views.return_request_create_view, name='return_request_create'),
     path('<int:pk>/cancel/', views.customer_order_cancel_view, name='cancel_order'),
     path('<int:pk>/notify-transfer/', views.order_notify_transfer_view, name='notify_transfer'),
 

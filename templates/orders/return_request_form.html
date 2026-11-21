@@ -1,0 +1,9 @@
+{% extends 'storefront/base_storefront.html' %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<main class="sf-page" style="max-width:760px;margin:40px auto;padding:0 24px">
+  <p><a href="{% url 'orders:order_detail' order.pk %}">← Quay lại đơn hàng #{{ order.order_code }}</a></p>
+  <section style="background:#fff;border:1px solid #e1e8e4;border-radius:12px;padding:28px"><h1>Yêu cầu đổi/trả</h1><p>Đơn hàng #{{ order.order_code }} đã giao thành công. Mỗi sản phẩm chỉ có một yêu cầu đang xử lý.</p>
+  <form method="post" style="display:grid;gap:16px">{% csrf_token %}{% for field in form %}<div><label for="{{ field.id_for_label }}" style="display:block;font-weight:700;margin-bottom:6px">{{ field.label }}</label>{{ field }}{% for error in field.errors %}<p style="color:#c82322">{{ error }}</p>{% endfor %}</div>{% endfor %}{% for error in form.non_field_errors %}<p style="color:#c82322">{{ error }}</p>{% endfor %}<button class="sf-button" type="submit">Gửi yêu cầu</button></form></section>
+</main>
+{% endblock %}

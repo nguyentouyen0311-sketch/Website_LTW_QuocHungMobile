@@ -135,6 +135,15 @@
                 </a>
             </div>
 
+            <div class="qhm-sidebar-item dashboard-nav-item">
+                <a href="{% url 'orders:return_request_management' %}"
+                    class="qhm-sidebar-link dashboard-nav-link {% if active_nav == 'return_requests' %}active{% endif %}"
+                    id="side-nav-returns">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M7 7h10v10H7z"></path><path d="M4 12a8 8 0 0 0 14 5M20 12A8 8 0 0 0 6 7"></path></svg>
+                    <span>Yêu cầu đổi/trả</span>
+                </a>
+            </div>
+
             <!-- Mã giảm giá -->
             <div class="qhm-sidebar-item dashboard-nav-item">
                 <a href="{{ qhm_url_coupons|default:'#' }}"
