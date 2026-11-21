@@ -1,0 +1,21 @@
+{% extends chat_base %}
+{% load static %}
+{% block title %}Hỗ trợ khách hàng — Quốc Hùng Mobile{% endblock %}
+{% block page_styles %}<link rel="stylesheet" href="{% static 'cart/css/cart.css' %}"><link rel="stylesheet" href="{% static 'chat/css/workspace.css' %}">{% endblock %}
+{% block page_scripts %}<script src="{% static 'chat/js/workspace.js' %}" defer></script>{% endblock %}
+{% block chat_launcher %}{% endblock %}
+{% block content %}
+<main class="chat-customer">
+  <nav class="chat-breadcrumb" aria-label="Đường dẫn"><a href="{% url 'home' %}">Trang chủ</a><span>/</span><span>Hỗ trợ khách hàng</span></nav>
+  <div class="chat-customer-layout">
+    <aside class="chat-customer-intro"><p class="chat-eyebrow">QUỐC HÙNG MOBILE</p><h1>Luôn sẵn sàng<br>hỗ trợ bạn.</h1><p>Tìm thông tin sản phẩm, xem giá bán hoặc kết nối trực tiếp với nhân viên chăm sóc khách hàng.</p><div class="chat-intro-note"><strong>Câu trả lời từ thông tin cửa hàng</strong><p>Trợ lý sử dụng nội dung đã công bố và dữ liệu sản phẩm trên website. Yêu cầu cần kiểm tra riêng sẽ được chuyển nhân viên.</p></div><a class="chat-button" href="{% url 'catalog:public_catalog' %}">Khám phá sản phẩm ↗</a></aside>
+    <section class="chat-panel chat-conversation" data-chat-live data-snapshot-url="{% url 'chat:updates' %}" data-embedded="{% if embedded %}1{% endif %}" data-conversation="{{ conversation.pk|default:'' }}" data-status="{{ conversation.status|default:'BOT' }}">
+      <header class="chat-conversation-head"><div class="chat-actions"><span class="chat-avatar">QH</span><div><h2>Trợ lý Quốc Hùng Mobile</h2><span class="chat-muted">Tư vấn & chăm sóc khách hàng</span></div></div><span class="chat-badge" data-status-label>{% if conversation %}{{ conversation.get_status_display }}{% else %}Trả lời tự động{% endif %}</span></header>
+      {% for message in messages %}<div class="chat-alert {{ message.tags }}" role="status">{{ message }}</div>{% endfor %}
+      <div class="chat-thread" role="log" aria-live="polite" aria-label="Nội dung cuộc trò chuyện" data-chat-thread>{% include 'chat/includes/thread.html' %}</div>
+      <section class="chat-suggestions" data-faq-suggestions {% if not show_faqs %}hidden{% endif %}><h3>Bạn cần hỗ trợ gì?</h3><div class="chat-choices">{% for faq in faqs %}<form method="post" action="{% url 'chat:ask_faq' faq.pk %}{% if embedded %}?embed=1{% endif %}">{% csrf_token %}<button class="chat-button">{{ faq.question }}</button></form>{% empty %}<p class="chat-muted">Bạn có thể nhập tên sản phẩm hoặc kết nối nhân viên.</p>{% endfor %}</div></section>
+      <div class="chat-compose"><form method="post" action="{% url 'chat:send' %}{% if embedded %}?embed=1{% endif %}" data-draft-key="customer-{{ request.user.pk|default:'guest' }}-{{ conversation.pk|default:'new' }}">{% csrf_token %}{{ form.non_field_errors }}<label for="id_content">Bạn cần hỗ trợ điều gì?</label>{{ form.content.errors }}{{ form.content }}<button class="chat-button chat-primary">Gửi tin nhắn →</button></form><div class="chat-actions"><span class="chat-muted" data-connection-status role="status">Tự cập nhật tin nhắn</span><button type="button" class="chat-button" data-chat-refresh>Tải lại</button><form method="post" action="{% url 'chat:handoff' %}{% if embedded %}?embed=1{% endif %}">{% csrf_token %}<button class="chat-button" data-handoff-button {% if conversation.status == 'WAITING_STAFF' or conversation.status == 'STAFF' %}disabled{% endif %}>Gặp nhân viên</button></form>{% if conversation and conversation.status != 'CLOSED' %}<form method="post" action="{% url 'chat:close' %}{% if embedded %}?embed=1{% endif %}">{% csrf_token %}<button class="chat-button chat-danger">Kết thúc</button></form>{% endif %}</div></div>
+    </section>
+  </div>
+</main>
+{% endblock %}

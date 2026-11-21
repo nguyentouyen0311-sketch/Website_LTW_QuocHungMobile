@@ -1,13 +1,32 @@
 from django.contrib import admin
 
 from .models import ChatConversation, ChatFAQ, ChatMessage
+from .forms import KnowledgeForm
 
 
 @admin.register(ChatFAQ)
 class ChatFAQAdmin(admin.ModelAdmin):
-    list_display = ('id', 'question', 'keywords', 'is_active')
-    list_filter = ('is_active',)
+    form = KnowledgeForm
+    list_display = ('id', 'question', 'category', 'priority', 'is_active', 'updated_at')
+    list_filter = ('is_active', 'category')
     search_fields = ('question', 'answer', 'keywords')
+    readonly_fields = ('knowledge_id', 'updated_at')
+
+    def has_module_permission(self, request):
+        from accounts.permissions import is_admin
+        return is_admin(request.user)
+
+    def has_view_permission(self, request, obj=None):
+        return self.has_module_permission(request)
+
+    def has_add_permission(self, request):
+        return self.has_module_permission(request)
+
+    def has_change_permission(self, request, obj=None):
+        return self.has_module_permission(request)
+
+    def has_delete_permission(self, request, obj=None):
+        return self.has_module_permission(request)
 
 
 class ReadOnlyHistoryAdmin(admin.ModelAdmin):

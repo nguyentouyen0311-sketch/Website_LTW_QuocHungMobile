@@ -1,0 +1,12 @@
+{% for item in chat_messages %}
+<article class="chat-bubble {% if item.sender_type == 'CUSTOMER' and not staff_view or item.sender_type == 'STAFF' and staff_view %}chat-bubble-own{% endif %}" data-message-id="{{ item.pk }}" data-sender="{{ item.sender_type }}" {% if item.sender_type != 'BOT' %}data-content="{{ item.content }}"{% endif %}>
+  <div class="chat-bubble-meta"><strong>{% if item.sender_type == 'BOT' %}Trợ lý tự động{% elif item.sender_type == 'CUSTOMER' %}{% if staff_view %}Khách hàng{% else %}Bạn{% endif %}{% else %}{{ item.sender_user.get_full_name|default:item.sender_user.username }} · CSKH{% endif %}</strong><time datetime="{{ item.created_at|date:'c' }}">{{ item.created_at|date:'H:i d/m' }}</time></div>
+  <p>{{ item.content|linebreaksbr }}</p>
+  {% if item.payload.source %}<small class="chat-source">Nguồn: {{ item.payload.source }}</small>{% endif %}
+  {% if item.payload.choices %}<div class="chat-choices">{% for choice in item.payload.choices %}{% if staff_view %}<span class="chat-chip">{{ choice.label }}</span>{% else %}<form method="post" action="{% url 'chat:ask_faq' choice.id %}{% if embedded %}?embed=1{% endif %}">{% csrf_token %}<button class="chat-button" {% if conversation.status != 'BOT' %}disabled{% endif %}>{{ choice.label }}</button></form>{% endif %}{% endfor %}</div>{% endif %}
+  {% for product in item.payload.products %}<section class="chat-product"><a class="chat-product-title" href="{{ product.url }}">{% if product.image %}<img src="{{ product.image }}" alt="{{ product.name }}" width="56" height="56" loading="lazy">{% endif %}<strong>{{ product.name }}</strong> ↗</a>{% if product.description %}<p>{{ product.description }}</p>{% endif %}{% for variant in product.variants %}<div class="chat-price-row"><span>{{ variant.label }} <small>{{ variant.sku }}</small></span><b>{{ variant.price }}</b></div>{% endfor %}{% if product.more_variants %}<small>Xem thêm phiên bản tại trang sản phẩm.</small>{% endif %}<a class="chat-inline-link" href="{{ product.url }}">Xem chi tiết →</a></section>{% endfor %}
+  {% for link in item.payload.links %}<a class="chat-inline-link" href="{{ link.url }}">{{ link.label }} ↗</a>{% endfor %}
+</article>
+{% empty %}
+<div class="chat-welcome"><span class="chat-avatar" aria-hidden="true">QH</span><h2>Xin chào, chúng tôi có thể giúp gì?</h2><p>Hỏi về cách mua hàng, chính sách hoặc nhập tên sản phẩm để xem giá. Bạn cũng có thể kết nối với nhân viên hỗ trợ.</p></div>
+{% endfor %}

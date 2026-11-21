@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "knowledge_id": "70000000-0000-4000-8000-000000000001",
+      "question": "Tìm sản phẩm và xem giá như thế nào?",
+      "category": "Mua hàng",
+      "answer": "Bạn có thể tìm sản phẩm bằng thanh tìm kiếm trên website hoặc nhập tên cụ thể vào đây, ví dụ: Giá iPhone 16. Giá được hiển thị theo từng phiên bản sản phẩm. Trợ lý không cung cấp thông tin tồn kho.",
+      "keywords": "cách tìm sản phẩm, hướng dẫn tìm sản phẩm, xem giá như thế nào",
+      "priority": 0,
+      "is_active": true
+    },
+    {
+      "knowledge_id": "70000000-0000-4000-8000-000000000002",
+      "question": "Làm thế nào để đặt hàng trên website?",
+      "category": "Mua hàng",
+      "answer": "Mở trang sản phẩm, chọn phiên bản và số lượng, thêm vào giỏ hàng rồi tiếp tục đến trang thanh toán. Kiểm tra thông tin nhận hàng và phương thức thanh toán trước khi xác nhận đặt hàng. Nếu gặp khó khăn, chọn Gặp nhân viên để được hỗ trợ.",
+      "keywords": "cách đặt hàng, hướng dẫn đặt hàng, đặt hàng như thế nào, cách mua hàng, thêm vào giỏ",
+      "priority": 0,
+      "is_active": true
+    },
+    {
+      "knowledge_id": "70000000-0000-4000-8000-000000000003",
+      "question": "Tôi cần hỗ trợ bảo hành hoặc đổi trả",
+      "category": "Bảo hành và đổi trả",
+      "answer": "Vui lòng chọn Gặp nhân viên và cung cấp mã đơn hàng cùng mô tả vấn đề để được kiểm tra điều kiện bảo hành hoặc đổi trả. Trợ lý chưa xác nhận thời hạn hoặc quyền lợi cho từng trường hợp.",
+      "keywords": "bảo hành, đổi trả, đổi hàng, trả hàng, hoàn tiền",
+      "priority": 0,
+      "is_active": true
+    },
+    {
+      "knowledge_id": "70000000-0000-4000-8000-000000000004",
+      "question": "Thanh toán khi nhận hàng (COD) là gì?",
+      "category": "Thanh toán",
+      "answer": "COD là thanh toán khi nhận hàng. Bạn hãy kiểm tra các phương thức đang được hỗ trợ trên trang thanh toán của đơn hàng. Nếu cần xác minh một khoản thanh toán cụ thể, chọn Gặp nhân viên.",
+      "keywords": "cod, trả tiền khi nhận hàng, thanh toán khi nhận, phương thức thanh toán, hình thức thanh toán",
+      "priority": 0,
+      "is_active": true
+    },
+    {
+      "knowledge_id": "70000000-0000-4000-8000-000000000005",
+      "question": "Thông tin liên hệ và giờ mở cửa",
+      "category": "Thông tin cửa hàng",
+      "answer": "Admin cần điền thông tin liên hệ và giờ mở cửa đã được xác minh trước khi công bố nội dung này.",
+      "keywords": "hotline, số điện thoại cửa hàng, địa chỉ cửa hàng, mở cửa, giờ làm việc, liên hệ cửa hàng",
+      "priority": 0,
+      "is_active": false
+    }
+  ]
+}

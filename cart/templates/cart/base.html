@@ -8,9 +8,13 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700&display=swap" rel="stylesheet">
+  {% block page_styles %}
   <link rel="stylesheet" href="{% static 'css/tokens.css' %}">
   <link rel="stylesheet" href="{% static 'cart/css/cart.css' %}">
+  {% endblock %}
+  {% block page_scripts %}
   <script src="{% static 'cart/js/cart.js' %}" defer></script>
+  {% endblock %}
 </head>
 <body class="qhm-cart-page">
   <header class="cart-header">
@@ -37,7 +41,7 @@
     </div>
   </header>
   {% block content %}{% endblock %}
-  <a class="cart-chat" href="{% url 'chat:chat' %}" aria-label="Mở trợ lý chăm sóc khách hàng"><img src="{% static 'cart/assets/chat.svg' %}" alt="" width="24" height="24"><span aria-hidden="true"></span></a>
+  {% block chat_launcher %}{% include 'includes/chat_launcher.html' %}{% endblock %}
   <footer class="cart-footer">
     <div class="cart-footer-inner">
       <div class="cart-footer-grid">
