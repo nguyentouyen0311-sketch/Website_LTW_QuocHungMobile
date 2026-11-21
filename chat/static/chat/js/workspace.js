@@ -2,7 +2,7 @@
   'use strict';
   const sidebar = document.getElementById('qhm-sidebar');
   const overlay = document.getElementById('qhm-overlay');
-  const menu = document.getElementById('qhm-menu-btn');
+  const menu = document.getElementById('qhm-menu-btn') || document.getElementById('qhm-sidebar-toggle');
   const close = document.getElementById('qhm-sidebar-close');
   function setMenu(open) {
     sidebar?.classList.toggle('is-open', open);

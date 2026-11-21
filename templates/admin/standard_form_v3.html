@@ -14,7 +14,7 @@
   <div class="adm-shell">
     {% include 'catalog/includes/management_sidebar.html' with active_nav=active_nav %}
     <section class="adm-workspace">
-      <header class="adm-topbar"><span class="adm-menu">☰</span><div class="adm-crumb">Quản lý hàng hóa <b>/</b> <strong>{{ title }}</strong></div><input placeholder="Tìm kiếm nhanh..."><b class="adm-role">ADMINISTRATOR</b></header>
+      {% include 'admin/includes/backend_header.html' with backend_section='Quản lý hàng hóa' backend_title=title backend_search_placeholder='Tìm kiếm nhanh...' %}
       <main class="adm-main"><div class="af-content">
         <a class="af-back" href="{% url 'catalog:attribute_list' %}">← Quay lại Biến thể & Thuộc tính</a>
         <div class="af-heading"><div><h1>{{ title }}</h1><p>{% if product %}Chọn giá trị thuộc tính để tạo tổ hợp biến thể; hệ thống sẽ chặn tổ hợp trùng.{% else %}Nhập nội dung ngắn gọn, rõ ràng để nhân viên bán hàng dễ sử dụng.{% endif %}</p></div></div>

@@ -10,6 +10,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{% static 'coupons/css/voucher_workspace.css' %}">
   <link rel="stylesheet" href="{% static 'chat/css/workspace.css' %}">
+  <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
   <script src="{% static 'chat/js/workspace.js' %}" defer></script>
 </head>
 <body>
@@ -35,7 +36,7 @@
   </aside>
   <div class="qhm-overlay" id="qhm-overlay"></div>
   <section class="qhm-workspace">
-    <header class="qhm-topbar"><button type="button" class="qhm-menu-btn" id="qhm-menu-btn" aria-label="Mở menu điều hướng" aria-expanded="false">☰</button><div class="qhm-breadcrumb"><span>Bán hàng & CSKH</span><b>/</b><strong>Chatbot & CSKH</strong></div>{% if is_admin %}<form method="get" action="{% url 'chat:knowledge_list' %}" class="chat-topbar-search"><label class="chat-sr-only" for="chat-quick-search">Tìm trong bộ tri thức</label><input id="chat-quick-search" type="search" name="q" placeholder="Tìm nội dung tri thức…"></form>{% endif %}<span class="qhm-role-badge">{% if is_admin %}ADMINISTRATOR{% else %}NHÂN VIÊN BÁN HÀNG{% endif %}</span></header>
+    {% include 'admin/includes/backend_header.html' with backend_section='Bán hàng & CSKH' backend_title='Chatbot & CSKH' backend_search_placeholder='Tìm nội dung tri thức...' backend_search_action='/chat/knowledge/' %}
     <main class="qhm-main">
       <div class="chat-heading"><div><p class="chat-eyebrow">TRUNG TÂM HỖ TRỢ</p><h1>Quản lý Chatbot & CSKH</h1><p class="chat-muted">Kết nối khách hàng, quản lý tri thức và câu trả lời tự động.</p></div>{% if is_admin %}<a class="chat-button chat-primary" href="{% url 'chat:knowledge_create' %}">＋ Thêm nội dung mới</a>{% endif %}</div>
       <nav class="chat-tabs" aria-label="Chức năng chatbot"><a href="{% url 'chat:staff_inbox' %}" {% if chat_tab == 'inbox' %}aria-current="page"{% endif %}>Hội thoại</a>{% if is_admin %}<a href="{% url 'chat:knowledge_list' %}" {% if chat_tab == 'knowledge' %}aria-current="page"{% endif %}>Bộ tri thức</a><a href="{% url 'chat:knowledge_test' %}" {% if chat_tab == 'test' %}aria-current="page"{% endif %}>Thử chatbot</a>{% endif %}</nav>

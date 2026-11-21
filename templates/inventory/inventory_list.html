@@ -25,46 +25,7 @@
 
         <!-- 2. Main Workspace -->
         <main class="dashboard-main" role="main">
-            <!-- Top Header (Height 64px, White, Breadcrumbs & Search & Admin Badge) -->
-            <header class="dashboard-topbar" role="banner">
-                <div class="dashboard-topbar-left">
-                    <button type="button" class="dashboard-menu-toggle" id="qhm-sidebar-toggle" aria-label="Mở menu quản trị" onclick="toggleQhmSidebar()">
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <line x1="3" y1="12" x2="21" y2="12"></line>
-                            <line x1="3" y1="6" x2="21" y2="6"></line>
-                            <line x1="3" y1="18" x2="21" y2="18"></line>
-                        </svg>
-                    </button>
-                    <nav class="dashboard-breadcrumb" aria-label="Đường dẫn trang">
-                        <a href="{% url 'dashboard:index' %}">Tổng quan</a>
-                        <span class="sep">&gt;</span>
-                        <span>Quản lý hàng hóa</span>
-                        <span class="sep">&gt;</span>
-                        <span class="current">Quản lý tồn kho</span>
-                    </nav>
-                </div>
-
-                <div class="dashboard-topbar-right">
-                    <!-- Quick Search in Topbar -->
-                    <form method="get" action="{% url 'inventory:inventory_list' %}" class="dashboard-search-box" style="margin: 0;">
-                        {% if alert_filter and alert_filter != 'all' %}<input type="hidden" name="alert" value="{{ alert_filter }}">{% endif %}
-                        <span class="dashboard-search-icon" aria-hidden="true">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <circle cx="11" cy="11" r="8"></circle>
-                                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                            </svg>
-                        </span>
-                        <input type="text" name="q" class="dashboard-search-input" placeholder="Tìm kiếm SKU, sản phẩm, mã kho..." value="{{ q }}" aria-label="Tìm kiếm nhanh">
-                    </form>
-
-                    <!-- Administrator Badge -->
-                    <span class="dashboard-admin-badge" title="Tài khoản Quản trị viên">
-                        <span class="dashboard-admin-badge-dot" aria-hidden="true"></span>
-                        ADMINISTRATOR
-                    </span>
-
-                </div>
-            </header>
+            {% include 'admin/includes/backend_header.html' with backend_section='Quản lý hàng hóa' backend_title='Quản lý tồn kho' backend_search_placeholder='Tìm kiếm SKU, sản phẩm, mã kho...' backend_search_action='/inventory/' backend_search_value=q %}
 
             <!-- Main Content Container (padding 24px–32px) -->
             <div class="dashboard-content" style="padding: 28px 32px; max-width: 1600px; margin: 0 auto; width: 100%;">
