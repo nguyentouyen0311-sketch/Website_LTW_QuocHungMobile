@@ -18,16 +18,7 @@
   <div class="qhm-overlay" id="qhm-overlay"></div>
 
   <section class="qhm-workspace">
-    <header class="qhm-topbar">
-      <button type="button" class="qhm-menu-btn" id="qhm-menu-btn" aria-label="Mở menu điều hướng">☰</button>
-      <div class="qhm-breadcrumb">
-        <span>Bán hàng & CSKH</span>
-        <b>/</b>
-        <strong>Quản lý mã giảm giá</strong>
-      </div>
-      <input type="search" class="qhm-topbar-search" placeholder="Tìm kiếm nhanh..." readonly aria-label="Tìm kiếm nhanh">
-      <b class="qhm-role-badge">ADMINISTRATOR</b>
-    </header>
+    {% include 'admin/includes/backend_header.html' with backend_section='Bán hàng & CSKH' backend_title='Quản lý mã giảm giá' backend_search_placeholder='Tìm kiếm nhanh...' %}
 
     <main class="qhm-main">
       <div class="qhm-heading-row">

@@ -21,7 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const sidebar = document.getElementById('qhm-sidebar');
   const overlay = document.getElementById('qhm-overlay');
-  const menuBtn = document.getElementById('qhm-menu-btn');
+  const menuBtn = document.getElementById('qhm-menu-btn') || document.getElementById('qhm-sidebar-toggle');
   const sidebarClose = document.getElementById('qhm-sidebar-close');
 
   if (menuBtn && typeof window.toggleQhmSidebar === 'function') {

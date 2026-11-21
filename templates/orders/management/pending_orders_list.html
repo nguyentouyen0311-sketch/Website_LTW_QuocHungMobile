@@ -1,5 +1,6 @@
 {% extends 'admin/management_base.html' %}
 {% block title %}{{ title }}{% endblock %}
+{% block backend_header %}{% include 'admin/includes/backend_header.html' with backend_section='Bán hàng & CSKH' backend_title='Đơn hàng chờ xác nhận' backend_search_placeholder='Tìm kiếm nhanh...' %}{% endblock %}
 {% block content %}
 <section class="management-panel">
   <p style="margin:0;color:var(--color-primary-red);font-weight:700;">BACKEND / ĐƠN HÀNG</p>
