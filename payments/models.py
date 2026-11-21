@@ -638,6 +638,12 @@ class Refund(models.Model):
         verbose_name='Thời điểm hoàn tất',
         help_text='Thời điểm giao dịch chuyển tiền hoàn thành công theo xác nhận ngân hàng (NULL khi chưa hoàn).',
     )
+    audit_note = models.TextField(
+        blank=True,
+        max_length=1000,
+        verbose_name='Ghi chú kiểm toán',
+        help_text='Ghi chú xác nhận nội bộ cho giao dịch hoàn tiền.',
+    )
 
     class Meta:
         verbose_name = 'Bản ghi hoàn tiền'

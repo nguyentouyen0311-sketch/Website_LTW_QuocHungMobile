@@ -9,6 +9,7 @@ urlpatterns = [
     path('management/returns/', views.return_request_management_view, name='return_request_management'),
     path('management/returns/<int:pk>/review/', views.return_request_review_view, name='return_request_review'),
     path('management/returns/<int:pk>/create-refund/', views.create_return_refund_view, name='create_return_refund'),
+    path('management/refunds/<int:pk>/confirm/', views.confirm_return_refund_view, name='confirm_return_refund'),
     path('<int:pk>/', views.order_detail_view, name='order_detail'),
     path('<int:pk>/return-request/', views.return_request_create_view, name='return_request_create'),
     path('<int:pk>/cancel/', views.customer_order_cancel_view, name='cancel_order'),

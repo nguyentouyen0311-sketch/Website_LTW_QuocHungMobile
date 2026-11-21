@@ -282,3 +282,10 @@ class ReturnReviewForm(forms.Form):
     review_note = forms.CharField(required=False, max_length=3000, label='Ghi chú xử lý', widget=forms.Textarea(attrs={'rows': 3}))
 
 
+class ReturnRefundConfirmationForm(forms.Form):
+    bank_reference = forms.CharField(label='Mã giao dịch ngân hàng', max_length=100)
+    completed_at = forms.DateTimeField(label='Thời điểm hoàn tiền', widget=forms.DateTimeInput(attrs={'type': 'datetime-local'}))
+    audit_note = forms.CharField(label='Ghi chú kiểm toán', min_length=5, max_length=1000, widget=forms.Textarea(attrs={'rows': 2}))
+    confirm = forms.BooleanField(label='Tôi xác nhận giao dịch hoàn tiền đã hoàn tất tại ngân hàng.')
+
+

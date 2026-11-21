@@ -41,6 +41,7 @@ from orders.forms import (
     OrderDeliverForm,
     ReturnRequestForm,
     ReturnReviewForm,
+    ReturnRefundConfirmationForm,
     OrderShipForm,
 )
 from orders.models import (
@@ -65,7 +66,7 @@ from orders.services import (
 from payments.models import Payment, PaymentMethod, PaymentStatus, RefundStatus
 from payments.cod_forms import CODCollectionForm
 from payments.cod_services import record_cod_collection
-from payments.return_refund_services import create_return_refund_request
+from payments.return_refund_services import create_return_refund_request, confirm_return_refund
 from payments.qr import (
     generate_qr_svg,
     generate_vietqr_payload,
@@ -775,6 +776,27 @@ def create_return_refund_view(request, pk):
             messages.info(request, f'Hồ sơ hoàn tiền #{refund.pk} đã tồn tại.')
     except ValidationError as error:
         messages.error(request, '; '.join(error.messages))
+    return redirect('orders:return_request_management')
+
+
+@role_required(ROLE_ADMIN)
+@require_POST
+def confirm_return_refund_view(request, pk):
+    form = ReturnRefundConfirmationForm(request.POST)
+    if form.is_valid():
+        try:
+            refund, confirmed = confirm_return_refund(
+                pk,
+                request.user,
+                form.cleaned_data['bank_reference'],
+                form.cleaned_data['completed_at'],
+                form.cleaned_data['audit_note'],
+            )
+            messages.success(request, f'Đã ghi nhận hoàn tiền #{refund.pk} ({format_vnd(refund.amount)}).')
+        except ValidationError as error:
+            messages.error(request, '; '.join(error.messages))
+    else:
+        messages.error(request, 'Dữ liệu xác nhận hoàn tiền chưa hợp lệ.')
     return redirect('orders:return_request_management')
 
 
