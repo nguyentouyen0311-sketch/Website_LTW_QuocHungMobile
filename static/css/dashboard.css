@@ -44,6 +44,25 @@ body.qhm-dashboard-page {
     overflow-x: hidden;
 }
 
+.dashboard-inline-icon,
+.dashboard-tab-icon {
+    width: 16px;
+    height: 16px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    vertical-align: -3px;
+}
+
+.dashboard-period-badge .dashboard-inline-icon,
+.status-pill .dashboard-inline-icon,
+.dashboard-tab-btn .dashboard-tab-icon {
+    display: inline-block;
+    margin-right: 5px;
+}
+
 *, *::before, *::after {
     box-sizing: border-box;
 }
