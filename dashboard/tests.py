@@ -640,7 +640,9 @@ class DashboardTestCase(TestCase):
                 quantity=1,
                 reason_code=code,
                 description=f"Chi tiết giải thích cho mã {code}" if code != ReturnReasonCode.OTHER else "Khách hàng dọn nhà đi công tác nước ngoài dài hạn",
-                status=ReturnRequestStatus.APPROVED,
+                # Các bản ghi chỉ phục vụ thống kê phải ở trạng thái kết thúc để
+                # không vi phạm quy tắc một yêu cầu đang mở trên mỗi dòng đơn.
+                status=ReturnRequestStatus.COMPLETED,
             )
 
         # Tạo thêm 1 bản ghi cũ (legacy record) không có reason_code (rỗng) để test cơ chế fallback an toàn
