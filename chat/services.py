@@ -14,7 +14,7 @@ MIN_KEYWORD_LENGTH = 2
 
 ESCALATE_NOTICE = (
     'Câu hỏi của bạn đã được ghi nhận và chuyển cho nhân viên bán hàng. '
-    'Nhân viên sẽ trả lời tại đây khi sẵn sàng, vui lòng quay lại trang này để xem phản hồi.'
+    'Nhân viên sẽ trả lời tại đây khi sẵn sàng.'
 )
 
 
@@ -60,7 +60,7 @@ def normalize_text(text):
     text = (text or '').replace('đ', 'd').replace('Đ', 'D')
     text = unicodedata.normalize('NFD', text)
     text = ''.join(ch for ch in text if unicodedata.category(ch) != 'Mn')
-    return ' '.join(text.casefold().split())
+    return ' '.join(re.sub(r'[^\w\s]', ' ', text.casefold()).split())
 
 
 def split_keywords(raw):
@@ -84,20 +84,9 @@ def is_case_specific_request(normalized_text):
 
 
 def find_matching_faq(text):
-    normalized = normalize_text(text)
-    if not normalized or is_case_specific_request(normalized):
-        return None
-
-    matching_faqs = []
-    for faq in ChatFAQ.objects.filter(is_active=True).order_by('id'):
-        keywords = split_keywords(faq.keywords)
-        if any(keyword_matches_text(kw, normalized) for kw in keywords):
-            matching_faqs.append(faq)
-
-    if len(matching_faqs) == 1:
-        return matching_faqs[0]
-
-    return None
+    from .engine import resolve_question
+    result = resolve_question(text)
+    return result.get('faq') if result['kind'] == 'faq' else None
 
 
 def get_guest_key(request, create=False):
@@ -140,10 +129,10 @@ def clean_content(content):
     return content
 
 
-def _add_message(conversation, sender_type, content, sender_user=None, faq=None):
+def _add_message(conversation, sender_type, content, sender_user=None, faq=None, payload=None):
     return ChatMessage.objects.create(
         conversation=conversation, sender_type=sender_type,
-        sender_user=sender_user, faq=faq, content=content,
+        sender_user=sender_user, faq=faq, content=content, payload=payload or {},
     )
 
 
@@ -151,25 +140,29 @@ def customer_ask_faq(conversation, faq):
     if not faq.is_active:
         raise ChatError('Câu hỏi này hiện không còn được sử dụng.')
     with transaction.atomic():
-        conversation.refresh_from_db()
+        conversation = ChatConversation.objects.select_for_update().get(pk=conversation.pk)
         if conversation.status != Status.BOT:
             raise ChatError('Cuộc trò chuyện đang chờ hoặc do nhân viên hỗ trợ, vui lòng nhắn trực tiếp.')
         _add_message(conversation, Sender.CUSTOMER, faq.question, sender_user=conversation.customer)
-        _add_message(conversation, Sender.BOT, faq.answer, faq=faq)
+        faq.refresh_from_db()
+        if not faq.is_active:
+            raise ChatError('Nội dung này đã ngừng công bố, vui lòng chọn chủ đề khác.')
+        _add_message(conversation, Sender.BOT, faq.answer, faq=faq, payload={'source': faq.category})
 
 
 def customer_send_text(conversation, content):
+    from .engine import resolve_question
     content = clean_content(content)
     with transaction.atomic():
-        conversation.refresh_from_db()
+        conversation = ChatConversation.objects.select_for_update().get(pk=conversation.pk)
         if conversation.status == Status.CLOSED:
             raise ChatError('Cuộc trò chuyện này đã kết thúc.')
         _add_message(conversation, Sender.CUSTOMER, content, sender_user=conversation.customer)
         if conversation.status != Status.BOT:
             return
-        faq = find_matching_faq(content)
-        if faq:
-            _add_message(conversation, Sender.BOT, faq.answer, faq=faq)
+        result = resolve_question(content)
+        if result['kind'] != 'handoff':
+            _add_message(conversation, Sender.BOT, result['answer'], faq=result.get('faq'), payload=result.get('payload'))
             return
         changed = ChatConversation.objects.filter(
             pk=conversation.pk, status=Status.BOT,
@@ -179,18 +172,44 @@ def customer_send_text(conversation, content):
 
 
 def staff_reply(conversation_id, staff_user, content):
+    from accounts.permissions import is_sales_staff
+    if not is_sales_staff(staff_user):
+        raise ChatError('Bạn không có quyền hỗ trợ hội thoại.')
     content = clean_content(content)
     with transaction.atomic():
-        ChatConversation.objects.filter(
-            pk=conversation_id, status=Status.WAITING_STAFF,
-        ).update(status=Status.STAFF, assigned_staff=staff_user)
-        conversation = ChatConversation.objects.get(pk=conversation_id)
+        conversation = ChatConversation.objects.select_for_update().get(pk=conversation_id)
+        if conversation.status == Status.WAITING_STAFF:
+            conversation.status = Status.STAFF
+            conversation.assigned_staff = staff_user
+            conversation.save(update_fields=['status', 'assigned_staff'])
         if conversation.status != Status.STAFF:
             raise ChatError('Chỉ trả lời được hội thoại đang chờ nhân viên hoặc đang được hỗ trợ.')
+        if conversation.assigned_staff_id != staff_user.pk:
+            raise ChatError('Hội thoại đang được nhân viên khác hỗ trợ.')
         return _add_message(conversation, Sender.STAFF, content, sender_user=staff_user)
 
 
-def close_conversation(conversation_id):
-    return ChatConversation.objects.filter(pk=conversation_id).exclude(
-        status=Status.CLOSED,
-    ).update(status=Status.CLOSED, closed_at=timezone.now())
+def request_staff(conversation):
+    with transaction.atomic():
+        conversation = ChatConversation.objects.select_for_update().get(pk=conversation.pk)
+        if conversation.status == Status.CLOSED:
+            raise ChatError('Cuộc trò chuyện đã kết thúc.')
+        if conversation.status == Status.BOT:
+            conversation.status = Status.WAITING_STAFF
+            conversation.save(update_fields=['status'])
+            _add_message(conversation, Sender.BOT, ESCALATE_NOTICE)
+
+
+def close_conversation(conversation_id, actor=None):
+    from accounts.permissions import is_admin, is_sales_staff
+    with transaction.atomic():
+        conversation = ChatConversation.objects.select_for_update().get(pk=conversation_id)
+        if actor is not None:
+            if not is_sales_staff(actor) or (conversation.assigned_staff_id not in (None, actor.pk) and not is_admin(actor)):
+                raise ChatError('Chỉ nhân viên phụ trách hoặc admin được kết thúc hội thoại này.')
+        if conversation.status == Status.CLOSED:
+            return 0
+        conversation.status = Status.CLOSED
+        conversation.closed_at = timezone.now()
+        conversation.save(update_fields=['status', 'closed_at'])
+        return 1

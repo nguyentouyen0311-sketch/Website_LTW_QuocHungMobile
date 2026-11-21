@@ -1,0 +1,48 @@
+{% load static %}
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Chatbot & CSKH — Quốc Hùng Mobile{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'coupons/css/voucher_workspace.css' %}">
+  <link rel="stylesheet" href="{% static 'chat/css/workspace.css' %}">
+  <script src="{% static 'chat/js/workspace.js' %}" defer></script>
+</head>
+<body>
+<div id="qhm-voucher-root" class="chat-admin-root">
+  <aside class="qhm-sidebar" id="qhm-sidebar" aria-label="Điều hướng quản trị">
+    <button type="button" class="qhm-sidebar-close" id="qhm-sidebar-close" aria-label="Đóng menu">✕</button>
+    <a class="qhm-sidebar-brand" href="{% url 'accounts:landing' %}"><span class="qhm-monogram">QH</span><span class="qhm-brand-text"><b>QUỐC HÙNG MOBILE</b><small>ADMIN PORTAL</small></span></a>
+    <nav class="qhm-nav">
+      <p class="qhm-nav-group">TỔNG QUAN</p>
+      <a class="qhm-nav-item" href="{% url 'accounts:landing' %}">Dashboard thống kê</a>
+      <p class="qhm-nav-group">QUẢN LÝ HÀNG HÓA</p>
+      <a class="qhm-nav-item" href="{% url 'catalog:category_list' %}">Quản lý danh mục</a>
+      <a class="qhm-nav-item" href="{% url 'catalog:product_list' %}">Quản lý sản phẩm</a>
+      <a class="qhm-nav-item" href="{% url 'catalog:attribute_list' %}">Biến thể & Thuộc tính</a>
+      {% if is_inventory_staff %}<a class="qhm-nav-item" href="{% url 'inventory:inventory_list' %}">Quản lý tồn kho</a>{% endif %}
+      <p class="qhm-nav-group">BÁN HÀNG & CSKH</p>
+      <a class="qhm-nav-item" href="{% url 'orders:pending_orders_list' %}">Quản lý đơn hàng</a>
+      {% if is_admin %}<a class="qhm-nav-item" href="{% url 'coupons:coupon_list' %}">Mã giảm giá</a>{% endif %}
+      <a class="qhm-nav-item active" href="{% url 'chat:staff_inbox' %}" aria-current="page">Quản lý Chatbot & CSKH</a>
+      {% if is_admin %}<p class="qhm-nav-group">HỆ THỐNG</p><a class="qhm-nav-item" href="{% url 'accounts:staff_list' %}">Tài khoản & Phân quyền</a>{% endif %}
+    </nav>
+    <div class="qhm-user-panel"><i class="qhm-user-avatar">{{ request.user.username|slice:':2'|upper }}</i><div class="qhm-user-info"><div class="qhm-user-name">{{ request.user.get_full_name|default:request.user.username }}</div><small class="qhm-user-role">{% if is_admin %}Administrator{% else %}Nhân viên bán hàng{% endif %}</small></div><form method="post" action="{% url 'accounts:logout' %}">{% csrf_token %}<button class="qhm-logout-btn" aria-label="Đăng xuất" title="Đăng xuất">↪</button></form></div>
+  </aside>
+  <div class="qhm-overlay" id="qhm-overlay"></div>
+  <section class="qhm-workspace">
+    <header class="qhm-topbar"><button type="button" class="qhm-menu-btn" id="qhm-menu-btn" aria-label="Mở menu điều hướng" aria-expanded="false">☰</button><div class="qhm-breadcrumb"><span>Bán hàng & CSKH</span><b>/</b><strong>Chatbot & CSKH</strong></div>{% if is_admin %}<form method="get" action="{% url 'chat:knowledge_list' %}" class="chat-topbar-search"><label class="chat-sr-only" for="chat-quick-search">Tìm trong bộ tri thức</label><input id="chat-quick-search" type="search" name="q" placeholder="Tìm nội dung tri thức…"></form>{% endif %}<span class="qhm-role-badge">{% if is_admin %}ADMINISTRATOR{% else %}NHÂN VIÊN BÁN HÀNG{% endif %}</span><a class="chat-button" href="{% url 'home' %}">Xem cửa hàng ↗</a></header>
+    <main class="qhm-main">
+      <div class="chat-heading"><div><p class="chat-eyebrow">TRUNG TÂM HỖ TRỢ</p><h1>Quản lý Chatbot & CSKH</h1><p class="chat-muted">Kết nối khách hàng, quản lý tri thức và câu trả lời tự động.</p></div>{% if is_admin %}<a class="chat-button chat-primary" href="{% url 'chat:knowledge_create' %}">＋ Thêm nội dung mới</a>{% endif %}</div>
+      <nav class="chat-tabs" aria-label="Chức năng chatbot"><a href="{% url 'chat:staff_inbox' %}" {% if chat_tab == 'inbox' %}aria-current="page"{% endif %}>Hội thoại</a>{% if is_admin %}<a href="{% url 'chat:knowledge_list' %}" {% if chat_tab == 'knowledge' %}aria-current="page"{% endif %}>Bộ tri thức</a><a href="{% url 'chat:knowledge_test' %}" {% if chat_tab == 'test' %}aria-current="page"{% endif %}>Thử chatbot</a>{% endif %}</nav>
+      {% for message in messages %}<div class="chat-alert {{ message.tags }}" role="status">{{ message }}</div>{% endfor %}
+      {% block content %}{% endblock %}
+    </main>
+  </section>
+</div>
+</body>
+</html>
