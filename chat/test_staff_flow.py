@@ -116,14 +116,15 @@ class StaffReplyTests(TestCase):
         self.assertEqual(reply.sender_user, self.staff)
         self.assertEqual(reply.content, 'Dạ máy có màu hồng ạ')
 
-    def test_second_staff_reply_keeps_first_assignment(self):
+    def test_second_staff_reply_is_rejected_when_assigned(self):
         self.client.post(self.url, {'content': 'Dạ máy có màu hồng ạ'})
         other = make_sales('nvban_b')
         self.client.force_login(other)
-        self.client.post(self.url, {'content': 'Em bổ sung thêm thông tin'})
+        response = self.client.post(self.url, {'content': 'Em bổ sung thêm thông tin'})
         self.conversation.refresh_from_db()
+        self.assertEqual(response.status_code, 200)
         self.assertEqual(self.conversation.assigned_staff, self.staff)
-        self.assertEqual(self.conversation.messages.filter(sender_type=Sender.STAFF).count(), 2)
+        self.assertEqual(self.conversation.messages.filter(sender_type=Sender.STAFF).count(), 1)
 
     def test_admin_can_reply(self):
         admin = make_admin()

@@ -182,11 +182,11 @@ def staff_conversation_view(request, conversation_id):
         if form.is_valid():
             try:
                 services.staff_reply(conversation.pk, request.user, form.cleaned_data['content'])
-                return redirect(reverse('chat:staff_conversation', args=[conversation.pk]) + f'?status={Status.STAFF}')
+                return redirect('chat:staff_conversation', conversation_id=conversation.pk)
             except services.ChatError as error:
                 form.add_error(None, str(error))
         conversation.refresh_from_db()
-        return staff_page(request, conversation, form, status=400)
+        return staff_page(request, conversation, form)
     return staff_page(request, conversation, form)
 
 
