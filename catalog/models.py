@@ -66,6 +66,10 @@ class ProductReview(models.Model):
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, related_name='product_reviews',
         blank=True, null=True, verbose_name='Khách hàng'
     )
+    order_item = models.OneToOneField(
+        'orders.OrderItem', on_delete=models.SET_NULL, related_name='product_review',
+        blank=True, null=True, verbose_name='Dòng sản phẩm đã mua'
+    )
     reviewer_name = models.CharField(max_length=120, verbose_name='Tên người đánh giá')
     rating = models.PositiveSmallIntegerField(verbose_name='Số sao')
     variant_text = models.CharField(max_length=160, blank=True, verbose_name='Phân loại đã mua')

@@ -282,6 +282,20 @@ class ReturnReviewForm(forms.Form):
     review_note = forms.CharField(required=False, max_length=3000, label='Ghi chú xử lý', widget=forms.Textarea(attrs={'rows': 3}))
 
 
+class PurchasedProductReviewForm(forms.Form):
+    rating = forms.ChoiceField(
+        choices=[(value, f'{value} sao') for value in range(5, 0, -1)],
+        label='Mức độ hài lòng', widget=forms.RadioSelect,
+    )
+    content = forms.CharField(
+        label='Nhận xét của bạn', max_length=2000,
+        widget=forms.Textarea(attrs={'rows': 5, 'placeholder': 'Chia sẻ trải nghiệm thực tế của bạn về sản phẩm...'}),
+    )
+
+    def clean_content(self):
+        return self.cleaned_data['content'].strip()
+
+
 class ReturnRefundConfirmationForm(forms.Form):
     bank_reference = forms.CharField(label='Mã giao dịch ngân hàng', max_length=100)
     completed_at = forms.DateTimeField(label='Thời điểm hoàn tiền', widget=forms.DateTimeInput(attrs={'type': 'datetime-local'}))

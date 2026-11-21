@@ -11,6 +11,7 @@ urlpatterns = [
     path('management/returns/<int:pk>/create-refund/', views.create_return_refund_view, name='create_return_refund'),
     path('management/refunds/<int:pk>/confirm/', views.confirm_return_refund_view, name='confirm_return_refund'),
     path('<int:pk>/', views.order_detail_view, name='order_detail'),
+    path('<int:pk>/items/<int:item_pk>/review/', views.purchased_product_review_view, name='purchased_product_review'),
     path('<int:pk>/return-request/', views.return_request_create_view, name='return_request_create'),
     path('<int:pk>/cancel/', views.customer_order_cancel_view, name='cancel_order'),
     path('<int:pk>/notify-transfer/', views.order_notify_transfer_view, name='notify_transfer'),

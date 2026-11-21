@@ -1,0 +1,15 @@
+{% extends 'storefront/base_storefront.html' %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<main class="sf-page" style="max-width:720px;margin:40px auto;padding:0 24px">
+  <p><a href="{% url 'orders:order_detail' order.pk %}">← Quay lại đơn hàng #{{ order.order_code }}</a></p>
+  <section style="background:#fff;border:1px solid #e1e8e4;border-radius:12px;padding:28px;box-shadow:0 3px 12px rgba(24,45,35,.06)">
+    <h1>Đánh giá sản phẩm</h1>
+    <p><strong>{{ item.product_name_snapshot }}</strong><br><span style="color:#68766f">{{ item.variant_snapshot }}</span></p>
+    <form method="post">{% csrf_token %}
+      {% for field in form %}<p>{{ field.label_tag }}<br>{{ field }}{% for error in field.errors %}<br><span style="color:#c62828">{{ error }}</span>{% endfor %}</p>{% endfor %}
+      <button class="sf-button" type="submit">Gửi đánh giá</button>
+    </form>
+  </section>
+</main>
+{% endblock %}
