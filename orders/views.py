@@ -59,6 +59,8 @@ from orders.services import (
     _is_sqlite_lock_error,
 )
 from payments.models import Payment, PaymentMethod, PaymentStatus, RefundStatus
+from payments.cod_forms import CODCollectionForm
+from payments.cod_services import record_cod_collection
 from payments.qr import (
     generate_qr_svg,
     generate_vietqr_payload,
@@ -970,7 +972,7 @@ def pending_orders_list_view(request):
 
 
 @role_required(ROLE_SALES_STAFF, ROLE_ADMIN)
-def order_management_detail_view(request, pk, confirmation_form=None, ship_form=None, deliver_form=None):
+def order_management_detail_view(request, pk, confirmation_form=None, ship_form=None, deliver_form=None, cod_collection_form=None):
     order = get_object_or_404(
         Order.objects.select_related('customer', 'payment').prefetch_related(
             'items', 'items__variant', 'status_history', 'items__reservations', 'inventory_transactions'
@@ -1149,6 +1151,17 @@ def order_management_detail_view(request, pk, confirmation_form=None, ship_form=
     if deliver_form is None:
         deliver_form = OrderDeliverForm()
 
+    cod_collection = getattr(payment, 'cod_collection', None) if payment else None
+    can_collect_cod = bool(
+        payment
+        and payment.method == PaymentMethod.COD
+        and payment.status == PaymentStatus.UNPAID
+        and order.order_status in (OrderStatus.SHIPPING, OrderStatus.DELIVERED)
+        and cod_collection is None
+    )
+    if cod_collection_form is None:
+        cod_collection_form = CODCollectionForm(initial={'amount': payment.expected_amount} if can_collect_cod else None)
+
     context = {
         'order': order,
         'payment': payment,
@@ -1164,6 +1177,9 @@ def order_management_detail_view(request, pk, confirmation_form=None, ship_form=
         'can_deliver': can_deliver,
         'ineligible_deliver_reason': ineligible_deliver_reason,
         'deliver_form': deliver_form,
+        'cod_collection': cod_collection,
+        'can_collect_cod': can_collect_cod,
+        'cod_collection_form': cod_collection_form,
         'inventory_transactions': order.inventory_transactions.all().order_by('created_at', 'id'),
         'active_nav': 'order_pending_confirmation',
         'is_sales_staff': is_sales_staff(request.user),
@@ -1171,6 +1187,31 @@ def order_management_detail_view(request, pk, confirmation_form=None, ship_form=
         'title': f"Quản lý Đơn hàng #{order.order_code} — Quốc Hùng Mobile",
     }
     return render(request, 'orders/management/order_management_detail.html', context)
+
+
+@role_required(ROLE_SALES_STAFF, ROLE_ADMIN)
+@require_POST
+def collect_cod_action_view(request, pk):
+    order = get_object_or_404(Order.objects.select_related('payment'), pk=pk)
+    form = CODCollectionForm(request.POST)
+    if not form.is_valid():
+        return order_management_detail_view(request, pk, cod_collection_form=form)
+    try:
+        receipt = record_cod_collection(
+            order.payment.pk,
+            request.user,
+            form.cleaned_data['amount'],
+            form.cleaned_data['reference'],
+            form.cleaned_data.get('note', ''),
+        )
+        messages.success(request, f'Đã ghi nhận thu COD với chứng từ {receipt.reference}.')
+        return redirect('orders:management_detail', pk=pk)
+    except ValidationError as error:
+        error_items = error.message_dict.items() if hasattr(error, 'message_dict') else [(None, error.messages)]
+        for field, errors in error_items:
+            for message in errors:
+                form.add_error(field, message)
+        return order_management_detail_view(request, pk, cod_collection_form=form)
 
 
 @role_required(ROLE_SALES_STAFF, ROLE_ADMIN)

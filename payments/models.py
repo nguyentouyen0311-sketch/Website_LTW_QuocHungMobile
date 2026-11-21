@@ -15,6 +15,38 @@ class PaymentMethod(models.TextChoices):
     QR = 'QR', 'Chuyển khoản ngân hàng qua mã QR'
 
 
+class CODCollection(models.Model):
+    """Immutable receipt for a COD collection recorded by staff."""
+
+    payment = models.OneToOneField(
+        'Payment', on_delete=models.PROTECT, related_name='cod_collection'
+    )
+    amount = models.DecimalField(max_digits=14, decimal_places=2)
+    reference = models.CharField(max_length=100, unique=True)
+    collected_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='cod_collections'
+    )
+    collected_at = models.DateTimeField()
+    note = models.CharField(max_length=500, blank=True)
+
+    class Meta:
+        verbose_name = 'Chứng từ thu COD'
+        verbose_name_plural = 'Chứng từ thu COD'
+        constraints = [
+            models.CheckConstraint(condition=models.Q(amount__gt=0), name='cod_collection_positive'),
+        ]
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            raise ValidationError('Chứng từ thu tiền là bản ghi bất biến.')
+        self.reference = str(self.reference or '').strip().upper()
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError('Không được xóa chứng từ thu tiền.')
+
+
 class PaymentStatus(models.TextChoices):
     UNPAID = 'UNPAID', 'Chưa thanh toán'
     PENDING_VERIFY = 'PENDING_VERIFY', 'Chờ xác minh'

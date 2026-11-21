@@ -1,0 +1,31 @@
+{% extends 'admin/management_base.html' %}
+
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<section class="management-panel">
+  <p style="margin:0;color:var(--color-primary-red);font-weight:700;">BACKEND / ĐƠN HÀNG</p>
+  <div style="display:flex;justify-content:space-between;gap:16px;align-items:start;flex-wrap:wrap">
+    <div><h1 style="margin:8px 0;color:#17231d;">Đơn hàng #{{ order.order_code }}</h1><p style="color:var(--text-secondary);margin:0">Tạo lúc {{ order.created_at|date:'H:i, d/m/Y' }} · {{ order.get_order_status_display }}</p></div>
+    <a href="{% url 'orders:pending_orders_list' %}">← Danh sách đơn chờ xử lý</a>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:16px;margin:24px 0">
+    <section style="border:1px solid var(--border-default);border-radius:10px;padding:18px"><h2 style="font-size:1rem;margin-top:0">Khách hàng & giao nhận</h2><p><strong>{{ order.recipient_name }}</strong><br>{{ order.recipient_phone }}<br>{{ order.shipping_address }}</p></section>
+    <section style="border:1px solid var(--border-default);border-radius:10px;padding:18px"><h2 style="font-size:1rem;margin-top:0">Thanh toán</h2>{% if payment %}<p>{{ payment.get_method_display }}<br>Trạng thái: <strong>{{ payment.get_status_display }}</strong><br>Tổng: <strong>{{ payment.expected_amount_formatted }}</strong></p>{% else %}<p>Chưa có bản ghi thanh toán.</p>{% endif %}</section>
+  </div>
+
+  <section style="border:1px solid var(--border-default);border-radius:10px;padding:18px;margin:20px 0"><h2 style="font-size:1rem;margin-top:0">Sản phẩm & giữ kho</h2><div style="overflow:auto"><table class="management-table"><thead><tr><th>Sản phẩm</th><th>SKU</th><th>SL</th><th>Thành tiền</th><th>Kho</th></tr></thead><tbody>{% for item in order_items %}<tr><td>{{ item.product_name_snapshot }}<br><small>{{ item.variant_snapshot }}</small></td><td>{{ item.sku_snapshot }}</td><td>{{ item.quantity }}</td><td>{{ item.line_total_formatted }}</td><td>{% if item.has_valid_reservation %}Hợp lệ ({{ item.reservation_display_state }}){% else %}<span style="color:#c91f1b">Cần rà soát</span>{% endif %}</td></tr>{% endfor %}</tbody></table></div></section>
+
+  {% if can_confirm %}<section style="border:1px solid var(--border-default);border-radius:10px;padding:18px;margin:20px 0"><h2 style="font-size:1rem;margin-top:0">Xác nhận đơn</h2><form method="post" action="{% url 'orders:confirm_order' order.pk %}">{% csrf_token %}{{ confirmation_form.confirmation_note }}<button type="submit">Xác nhận đơn hàng</button></form></section>{% endif %}
+  {% if can_ship %}<section style="border:1px solid var(--border-default);border-radius:10px;padding:18px;margin:20px 0"><h2 style="font-size:1rem;margin-top:0">Xuất kho & giao hàng</h2><form method="post" action="{% url 'orders:ship_order' order.pk %}">{% csrf_token %}{{ ship_form.shipping_note }}<button type="submit">Bắt đầu giao hàng</button></form></section>{% endif %}
+  {% if can_deliver %}<section style="border:1px solid var(--border-default);border-radius:10px;padding:18px;margin:20px 0"><h2 style="font-size:1rem;margin-top:0">Hoàn tất giao hàng</h2><form method="post" action="{% url 'orders:deliver_order' order.pk %}">{% csrf_token %}{{ deliver_form.delivery_note }}<button type="submit">Xác nhận đã giao</button></form></section>{% endif %}
+
+  <section style="border:1px solid var(--border-default);border-radius:10px;padding:18px;margin:20px 0">
+    <h2 style="font-size:1rem;margin-top:0">Thu tiền COD</h2>
+    {% if cod_collection %}<p style="color:#23865c">Đã thu {{ cod_collection.amount }} đ · Chứng từ <strong>{{ cod_collection.reference }}</strong> · {{ cod_collection.collected_at|date:'H:i, d/m/Y' }}</p>
+    {% elif can_collect_cod %}<form method="post" action="{% url 'orders:collect_cod' order.pk %}" style="display:grid;gap:10px;max-width:520px">{% csrf_token %}{% for field in cod_collection_form %}<div><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{{ field.errors }}</div>{% endfor %}<button type="submit">Ghi nhận đã thu COD</button></form>
+    {% elif payment and payment.method == 'COD' %}<p>COD chỉ được ghi nhận sau khi đơn ở trạng thái đang giao hoặc đã giao.</p>
+    {% else %}<p>Không áp dụng cho phương thức thanh toán này.</p>{% endif %}
+  </section>
+</section>
+{% endblock %}
