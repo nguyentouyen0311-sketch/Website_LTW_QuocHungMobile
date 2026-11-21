@@ -666,9 +666,6 @@ def customer_orders_list_view(request):
         login_url = resolve_url(settings.LOGIN_URL)
         return redirect(f"{login_url}?next={request.get_full_path()}")
 
-    if not is_customer(request.user):
-        raise PermissionDenied("Chỉ tài khoản Khách hàng mới có quyền xem đơn hàng cá nhân.")
-
     orders = (
         Order.objects.filter(customer=request.user)
         .select_related('payment')
@@ -700,9 +697,6 @@ def order_detail_view(request, pk, cancel_form=None):
     if not request.user.is_authenticated:
         login_url = resolve_url(settings.LOGIN_URL)
         return redirect(f"{login_url}?next={request.get_full_path()}")
-
-    if not is_customer(request.user):
-        raise PermissionDenied("Bạn không có quyền truy cập trang này. Chỉ tài khoản Khách hàng mới có quyền xem đơn hàng của mình.")
 
     if request.method == 'POST' and cancel_form is None:
         return order_notify_transfer_view(request, pk)
@@ -797,9 +791,6 @@ def customer_order_cancel_view(request, pk):
     if not request.user.is_authenticated:
         login_url = resolve_url(settings.LOGIN_URL)
         return redirect(f"{login_url}?next={request.get_full_path()}")
-
-    if not is_customer(request.user):
-        raise PermissionDenied("Bạn không có quyền thực hiện chức năng này. Chỉ tài khoản Khách hàng mới có quyền hủy đơn hàng của mình.")
 
     order = get_object_or_404(Order, pk=pk, customer=request.user)
 
