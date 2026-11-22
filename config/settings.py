@@ -51,6 +51,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'accounts.context_processors.auth_roles',
+                'accounts.context_processors.management_notifications',
                 'cart.context_processors.cart_badge',
                 'catalog.context_processors.site_branding',
                 'catalog.storefront_context.storefront_account',

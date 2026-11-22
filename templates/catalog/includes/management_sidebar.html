@@ -132,15 +132,21 @@
                         <path d="M9 14l2 2 4-4"></path>
                     </svg>
                     <span>Quản lý đơn hàng</span>
+                    {% if pending_orders_count > 0 %}
+                    <span class="dashboard-nav-badge" aria-label="{{ pending_orders_count }} đơn hàng chờ xác nhận">{{ pending_orders_count }}</span>
+                    {% endif %}
                 </a>
             </div>
 
             <div class="qhm-sidebar-item dashboard-nav-item">
-                <a href="{% url 'orders:return_request_management' %}"
+                <a href="{% if return_notification_target == 'inventory:returned_stock_list' %}{% url 'inventory:returned_stock_list' %}{% else %}{% url 'orders:return_request_management' %}{% endif %}"
                     class="qhm-sidebar-link dashboard-nav-link {% if active_nav == 'return_requests' %}active{% endif %}"
                     id="side-nav-returns">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M7 7h10v10H7z"></path><path d="M4 12a8 8 0 0 0 14 5M20 12A8 8 0 0 0 6 7"></path></svg>
                     <span>Yêu cầu đổi/trả</span>
+                    {% if pending_return_requests_count > 0 %}
+                    <span class="dashboard-nav-badge" aria-label="{{ pending_return_requests_count }} yêu cầu đổi trả cần xử lý">{{ pending_return_requests_count }}</span>
+                    {% endif %}
                 </a>
             </div>
 

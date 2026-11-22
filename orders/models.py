@@ -552,6 +552,15 @@ class ReturnRequest(models.Model):
     )
     review_note = models.TextField(blank=True, max_length=3000, verbose_name='Ghi chú duyệt')
     reviewed_at = models.DateTimeField(null=True, blank=True, verbose_name='Thời điểm duyệt')
+    completed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='completed_return_requests',
+        verbose_name='Người xác nhận hoàn tất',
+    )
+    completed_at = models.DateTimeField(null=True, blank=True, verbose_name='Thời điểm hoàn tất')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Thời điểm tạo')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='Thời điểm cập nhật')
 

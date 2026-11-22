@@ -23,6 +23,7 @@ from accounts.permissions import (
 from catalog.models import Category, ProductReview
 from catalog.utils import format_vnd
 from cart.models import Cart
+from cart.services import add_to_cart, parse_strictly_positive_int
 from inventory.models import InventoryReservationStatus
 from orders.checkout_helpers import (
     QuoteUnavailable,
@@ -116,7 +117,13 @@ def _save_pending_checkout_data(request, db_available=True):
 
 def _get_initial_checkout_data(request, cart=None, checkout_token='', quote_token='', db_available=True):
     initial_data = {
-        'recipient_name': request.user.get_full_name() or request.user.username,
+        # Django's default get_full_name() returns "first_name last_name".
+        # Our account model stores Vietnamese given name in first_name and
+        # family/middle names in last_name, so checkout must render surname
+        # first instead of reversing the customer's name on new orders.
+        'recipient_name': ' '.join(
+            part for part in (request.user.last_name, request.user.first_name) if part
+        ) or request.user.username,
         'payment_method': PaymentMethod.COD,
         'checkout_token': checkout_token,
         'quote_token': quote_token,
@@ -226,6 +233,27 @@ def _render_checkout(request, context):
         return _render_safe_checkout(request, context)
 
 
+@require_POST
+def buy_now_view(request):
+    if not request.user.is_authenticated:
+        login_url = resolve_url(settings.LOGIN_URL)
+        return redirect(f"{login_url}?next={request.path}")
+    if not is_customer(request.user):
+        raise PermissionDenied("Chỉ tài khoản Khách hàng mới có thể đặt hàng.")
+    try:
+        variant_id = int(request.POST.get('variant_id', ''))
+        quantity = parse_strictly_positive_int(request.POST.get('quantity', '1'))
+        Cart.objects.filter(user=request.user, is_direct_checkout=True).delete()
+        direct_cart = Cart.objects.create(user=request.user, is_direct_checkout=True)
+        add_to_cart(direct_cart, variant_id, quantity)
+        request.session['_qhm_direct_checkout_cart_id'] = direct_cart.id
+        request.session.modified = True
+    except (ValueError, ValidationError) as error:
+        messages.error(request, getattr(error, 'message', str(error)))
+        return redirect(request.META.get('HTTP_REFERER') or 'catalog:public_catalog')
+    return redirect('orders:checkout')
+
+
 def checkout_view(request):
     if not request.user.is_authenticated:
         login_url = resolve_url(settings.LOGIN_URL)
@@ -237,7 +265,15 @@ def checkout_view(request):
     cart = None
     cart_lookup_locked = False
     try:
-        cart = Cart.objects.filter(user=request.user).first()
+        direct_cart_id = request.session.get('_qhm_direct_checkout_cart_id')
+        if direct_cart_id:
+            cart = Cart.objects.filter(
+                id=direct_cart_id, user=request.user, is_direct_checkout=True
+            ).first()
+            if cart is None:
+                request.session.pop('_qhm_direct_checkout_cart_id', None)
+        if cart is None:
+            cart = Cart.objects.filter(user=request.user, is_direct_checkout=False).first()
     except OperationalError as oe:
         if not _is_sqlite_lock_error(oe):
             raise
@@ -698,6 +734,9 @@ def checkout_view(request):
 
     if created_order is not None:
         clear_pending_order_code(request, cart)
+        if cart and cart.is_direct_checkout:
+            request.session.pop('_qhm_direct_checkout_cart_id', None)
+            cart.delete()
         if is_replay:
             messages.info(request, f"Đơn hàng #{created_order.order_code} đã được đặt trước đó.")
         else:

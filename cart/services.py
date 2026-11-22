@@ -83,7 +83,7 @@ def _get_or_create_user_cart(user, max_retries=10):
 
     for attempt in range(max_retries):
         try:
-            cart = Cart.objects.filter(user=user).first()
+            cart = Cart.objects.filter(user=user, is_direct_checkout=False).first()
             if cart:
                 return cart
             with transaction.atomic():
@@ -91,20 +91,20 @@ def _get_or_create_user_cart(user, max_retries=10):
         except IntegrityError:
             time.sleep(0.02 * (attempt + 1) + random.uniform(0.01, 0.03))
             try:
-                cart = Cart.objects.filter(user=user).first()
+                cart = Cart.objects.filter(user=user, is_direct_checkout=False).first()
                 if cart:
                     return cart
             except OperationalError:
                 pass
             if attempt == max_retries - 1:
-                return Cart.objects.get(user=user)
+                return Cart.objects.get(user=user, is_direct_checkout=False)
             continue
         except OperationalError as exc:
             err_msg = str(exc).lower()
             if 'busy' in err_msg or 'locked' in err_msg:
                 time.sleep(0.03 * (attempt + 1) + random.uniform(0.01, 0.04))
                 try:
-                    cart = Cart.objects.filter(user=user).first()
+                    cart = Cart.objects.filter(user=user, is_direct_checkout=False).first()
                     if cart:
                         return cart
                 except OperationalError:
@@ -116,7 +116,7 @@ def _get_or_create_user_cart(user, max_retries=10):
                     )
                 continue
             raise
-    return Cart.objects.get(user=user)
+    return Cart.objects.get(user=user, is_direct_checkout=False)
 
 
 def _get_or_create_session_cart(session_key, max_retries=10):
@@ -176,7 +176,7 @@ def resolve_cart(request=None, create_if_empty=False, user=None, session_key=Non
 
         if create_if_empty:
             return _get_or_create_user_cart(user)
-        return Cart.objects.filter(user=user).first()
+        return Cart.objects.filter(user=user, is_direct_checkout=False).first()
 
     if session_key is None and request is not None:
         session = getattr(request, 'session', None)

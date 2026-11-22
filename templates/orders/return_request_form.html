@@ -1,9 +1,72 @@
 {% extends 'storefront/base_storefront.html' %}
+
+{% load static %}
+
 {% block title %}{{ title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/orders.css' %}">
+<style>
+  .qhm-return-form-grid { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:18px; }
+  .qhm-return-form-group { min-width:0; }
+  .qhm-return-form-group--full { grid-column:1 / -1; }
+  .qhm-return-form-label { display:block; margin-bottom:7px; color:var(--color-forest-charcoal, #283630); font-size:14px; font-weight:700; }
+  .qhm-return-form select, .qhm-return-form input, .qhm-return-form textarea { width:100%; box-sizing:border-box; border:1px solid #d6dfda; border-radius:9px; background:#fff; color:#283630; font:inherit; padding:11px 12px; transition:border-color .18s ease, box-shadow .18s ease; }
+  .qhm-return-form select { min-height:44px; }
+  .qhm-return-form textarea { min-height:112px; resize:vertical; }
+  .qhm-return-form select:focus, .qhm-return-form input:focus, .qhm-return-form textarea:focus { outline:0; border-color:var(--color-primary-red, #e92722); box-shadow:0 0 0 3px rgba(233,39,34,.12); }
+  .qhm-return-help { margin:7px 0 0; color:#68766f; font-size:13px; line-height:1.45; }
+  .qhm-return-error { margin:7px 0 0; color:#c82322; font-size:13px; font-weight:600; }
+  .qhm-return-notice { display:flex; gap:12px; margin:20px 0 24px; padding:15px 16px; border:1px solid #f0d0cf; border-radius:10px; background:#fff8f8; color:#6d302e; line-height:1.5; }
+  .qhm-return-notice strong { color:#c91f1b; }
+  @media (max-width:640px) { .qhm-return-form-grid { grid-template-columns:1fr; } .qhm-return-form-group--full { grid-column:auto; } }
+</style>
+{% endblock %}
+
 {% block content %}
-<main class="sf-page" style="max-width:760px;margin:40px auto;padding:0 24px">
-  <p><a href="{% url 'orders:order_detail' order.pk %}">← Quay lại đơn hàng #{{ order.order_code }}</a></p>
-  <section style="background:#fff;border:1px solid #e1e8e4;border-radius:12px;padding:28px"><h1>Yêu cầu đổi/trả</h1><p>Đơn hàng #{{ order.order_code }} đã giao thành công. Mỗi sản phẩm chỉ có một yêu cầu đang xử lý.</p>
-  <form method="post" style="display:grid;gap:16px">{% csrf_token %}{% for field in form %}<div><label for="{{ field.id_for_label }}" style="display:block;font-weight:700;margin-bottom:6px">{{ field.label }}</label>{{ field }}{% for error in field.errors %}<p style="color:#c82322">{{ error }}</p>{% endfor %}</div>{% endfor %}{% for error in form.non_field_errors %}<p style="color:#c82322">{{ error }}</p>{% endfor %}<button class="sf-button" type="submit">Gửi yêu cầu</button></form></section>
+<main class="sf-page" style="max-width:860px;margin:40px auto;padding:0 24px">
+  <p>
+    <a class="qhm-order-back-link" href="{% url 'orders:order_detail' order.pk %}">
+      <span aria-hidden="true">←</span> Quay lại đơn hàng #{{ order.order_code }}
+    </a>
+  </p>
+
+  <section style="background:#fff;border:1px solid #e1e8e4;border-radius:12px;padding:28px;box-shadow:0 3px 12px rgba(24,45,35,.06)">
+    <h1 style="margin:0">Yêu cầu đổi/trả</h1>
+    <p style="margin:8px 0 0;color:#68766f;line-height:1.55">Gửi yêu cầu cho đơn hàng <strong>#{{ order.order_code }}</strong>. CSKH sẽ kiểm tra và phản hồi sớm nhất.</p>
+
+    <div style="margin:20px 0;padding:16px;background:#f7faf8;border:1px solid #e1e8e4;border-radius:10px">
+      <strong>{{ order.recipient_name }}</strong>
+      <p style="margin:6px 0 0;color:#68766f">Đơn hàng đã giao thành công. Mỗi sản phẩm chỉ có một yêu cầu đang được xử lý.</p>
+    </div>
+
+    <div class="qhm-return-notice" role="note">
+      <span aria-hidden="true">ⓘ</span>
+      <div><strong>Lưu ý:</strong> Hãy chọn đúng sản phẩm, hình thức xử lý và mô tả tình trạng để yêu cầu được tiếp nhận nhanh chóng.</div>
+    </div>
+
+    <form method="post" class="qhm-return-form">
+      {% csrf_token %}
+      {% if form.non_field_errors %}
+        {% for error in form.non_field_errors %}<p class="qhm-return-error">{{ error }}</p>{% endfor %}
+      {% endif %}
+
+      <div class="qhm-return-form-grid">
+        {% for field in form %}
+          <div class="qhm-return-form-group {% if field.name == 'description' %}qhm-return-form-group--full{% endif %}">
+            <label class="qhm-return-form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+            {% if field.help_text %}<p class="qhm-return-help">{{ field.help_text }}</p>{% endif %}
+            {% for error in field.errors %}<p class="qhm-return-error">{{ error }}</p>{% endfor %}
+          </div>
+        {% endfor %}
+      </div>
+
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:24px">
+        <button class="qhm-order-action qhm-order-action--primary" type="submit">Gửi yêu cầu đổi/trả</button>
+        <a class="qhm-order-action qhm-order-action--secondary" href="{% url 'orders:order_detail' order.pk %}">Quay lại đơn hàng</a>
+      </div>
+    </form>
+  </section>
 </main>
 {% endblock %}

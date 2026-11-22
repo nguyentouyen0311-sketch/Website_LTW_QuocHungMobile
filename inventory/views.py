@@ -12,18 +12,11 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 
 from accounts.permissions import is_inventory_staff, is_admin, is_sales_staff
-from inventory.models import (
-    Inventory,
-    InventoryTransaction,
-    InventoryAdjustment,
-    ReturnedStock,
-    ReturnedStockCondition,
-)
+from inventory.models import Inventory, InventoryTransaction, InventoryAdjustment
 from inventory.forms import (
     InventoryThresholdForm,
     PurchaseReceivingForm,
     StocktakeAdjustmentForm,
-    ReturnedStockInspectionForm,
 )
 from inventory.services import (
     generate_receiving_token,
@@ -31,8 +24,6 @@ from inventory.services import (
     generate_adjustment_token,
     adjust_inventory,
     confirm_return_receipt,
-    record_returned_stock_condition,
-    restock_eligible_returned_product,
 )
 
 
@@ -650,14 +641,11 @@ def inventory_adjust_view(request, inventory_id):
 
 def returned_stock_list_view(request):
     """
-    Giao diện Quản lý Hàng đổi trả trong kho dành cho Nhân viên kho & Admin (Requirement 1, 2, 5).
+    Giao diện hoàn tất đổi/trả dành cho Nhân viên kho & Admin.
     - Phân quyền: Nhân viên kho (Inventory Staff) và Quản trị viên (Admin).
     - Khách hàng và Sales Staff (không có quyền kho): Bị chặn 403 Forbidden.
-    - Hiển thị danh sách hàng đổi trả phân loại theo 3 tình trạng:
-      + WAITING_INSPECTION (Chờ kiểm định)
-      + ELIGIBLE_FOR_RESALE (Đủ điều kiện bán lại)
-      + NOT_ELIGIBLE_FOR_RESALE (Không đủ điều kiện bán lại)
-    - Đồng thời hiển thị danh sách các yêu cầu đổi trả đã duyệt (APPROVED) đang chờ kho xác nhận tiếp nhận.
+    - Các yêu cầu đã duyệt được xác nhận hoàn tất trực tiếp.
+    - Hàng nhận về không được kiểm định, không tạo lô hàng trả và không được nhập lại kho bán.
     """
     if not request.user.is_authenticated:
         return redirect(f"{reverse('accounts:login')}?next={request.path}")
@@ -665,11 +653,8 @@ def returned_stock_list_view(request):
     if not is_inventory_staff(request.user):
         return HttpResponseForbidden("Bạn không có quyền truy cập chức năng này. Chỉ Nhân viên kho hoặc Quản trị viên mới được phép quản lý hàng đổi trả.")
 
-    tab = request.GET.get('tab', 'all').strip()
-
     from orders.models import ReturnRequest, ReturnRequestStatus
 
-    # Các yêu cầu APPROVED đang chờ tiếp nhận vào kho
     pending_receipt_requests = (
         ReturnRequest.objects
         .filter(status=ReturnRequestStatus.APPROVED)
@@ -677,51 +662,25 @@ def returned_stock_list_view(request):
         .order_by('-updated_at')
     )
 
-    base_rs = (
-        ReturnedStock.objects
-        .select_related('return_request', 'return_request__order', 'variant', 'received_by', 'inspected_by', 'transaction')
-        .order_by('-received_at')
+    completed_requests = (
+        ReturnRequest.objects.filter(status=ReturnRequestStatus.COMPLETED)
+        .select_related('order', 'order_item', 'customer', 'replacement_variant')
+        .order_by('-updated_at')[:20]
     )
 
-    count_waiting = base_rs.filter(condition=ReturnedStockCondition.WAITING_INSPECTION).count()
-    count_eligible = base_rs.filter(condition=ReturnedStockCondition.ELIGIBLE_FOR_RESALE).count()
-    count_not_eligible = base_rs.filter(condition=ReturnedStockCondition.NOT_ELIGIBLE_FOR_RESALE).count()
-    count_pending_receipt = pending_receipt_requests.count()
-
-    if tab == 'waiting':
-        qs = base_rs.filter(condition=ReturnedStockCondition.WAITING_INSPECTION)
-    elif tab == 'eligible':
-        qs = base_rs.filter(condition=ReturnedStockCondition.ELIGIBLE_FOR_RESALE)
-    elif tab == 'not_eligible':
-        qs = base_rs.filter(condition=ReturnedStockCondition.NOT_ELIGIBLE_FOR_RESALE)
-    elif tab == 'pending_receipt':
-        qs = base_rs.none()
-    else:
-        qs = base_rs
-
-    paginator = Paginator(qs, 20)
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
-
     context = {
-        'page_obj': page_obj,
         'pending_receipt_requests': pending_receipt_requests,
-        'tab': tab,
-        'count_waiting': count_waiting,
-        'count_eligible': count_eligible,
-        'count_not_eligible': count_not_eligible,
-        'count_pending_receipt': count_pending_receipt,
+        'completed_requests': completed_requests,
         'active_nav': 'returned_stock',
         'is_inventory_staff': True,
-        'title': "Quản lý Hàng đổi trả kho — Quốc Hùng Mobile",
+        'title': "Hoàn tất đổi/trả — Quốc Hùng Mobile",
     }
     return render(request, 'inventory/returned_stock_list.html', context)
 
 
 def confirm_receipt_action_view(request, pk):
     """
-    Xác nhận tiếp nhận hàng đổi trả vào kho (Chuyển trạng thái sang RECEIVED, tạo ReturnedStock(WAITING_INSPECTION)).
-    - Không làm tăng available stock (Requirement 1, 2).
+    Xác nhận hoàn tất đổi/trả. Hàng nhận về không được đưa vào kiểm định hoặc tồn kho bán.
     """
     if not request.user.is_authenticated:
         return redirect(f"{reverse('accounts:login')}?next={request.path}")
@@ -733,76 +692,9 @@ def confirm_receipt_action_view(request, pk):
         return HttpResponseNotAllowed(['POST'])
 
     try:
-        rs = confirm_return_receipt(return_request_id=pk, actor=request.user)
-        messages.success(request, f"Đã tiếp nhận hàng đổi/trả cho yêu cầu #{pk} thành công! Hàng đang ở trạng thái 'Chờ kiểm định' và CHƯA được cộng vào tồn bán.")
+        confirm_return_receipt(return_request_id=pk, actor=request.user)
+        messages.success(request, f"Đã hoàn tất yêu cầu đổi/trả #{pk}. Sản phẩm nhận về không được nhập lại vào kho bán.")
     except (ValidationError, PermissionDenied) as e:
         messages.error(request, str(e.message if hasattr(e, 'message') else e))
 
     return redirect('inventory:returned_stock_list')
-
-
-def inspect_condition_view(request, pk):
-    """
-    Kiểm định và phân loại tình trạng hàng đổi trả trong kho (Requirement 1, 2).
-    """
-    if not request.user.is_authenticated:
-        return redirect(f"{reverse('accounts:login')}?next={request.path}")
-
-    if not is_inventory_staff(request.user):
-        return HttpResponseForbidden("Bạn không có quyền kiểm định hàng đổi trả.")
-
-    returned_stock = get_object_or_404(
-        ReturnedStock.objects.select_related('return_request', 'variant', 'variant__product'),
-        pk=pk
-    )
-
-    if request.method == 'POST':
-        form = ReturnedStockInspectionForm(request.POST, instance=returned_stock)
-        if form.is_valid():
-            condition = form.cleaned_data['condition']
-            notes = form.cleaned_data.get('inspection_notes', '')
-            try:
-                record_returned_stock_condition(
-                    returned_stock_id=pk,
-                    condition=condition,
-                    inspection_notes=notes,
-                    actor=request.user
-                )
-                messages.success(request, f"Đã cập nhật kết quả kiểm định cho sản phẩm #{returned_stock.pk} ({returned_stock.get_condition_display()}).")
-                return redirect('inventory:returned_stock_list')
-            except (ValidationError, PermissionDenied) as e:
-                messages.error(request, str(e.message if hasattr(e, 'message') else e))
-    else:
-        form = ReturnedStockInspectionForm(instance=returned_stock)
-
-    context = {
-        'returned_stock': returned_stock,
-        'form': form,
-        'active_nav': 'returned_stock',
-        'is_inventory_staff': True,
-        'title': f"Kiểm định hàng đổi trả #{returned_stock.pk} — Quốc Hùng Mobile",
-    }
-    return render(request, 'inventory/returned_stock_inspect.html', context)
-
-
-def restock_returned_product_action_view(request, pk):
-    """
-    Nhập hàng đổi trả đủ điều kiện vào tồn kho bán được (physical_sellable += qty, ghi sổ cái RETURN_RESTOCK) (Requirement 2 & 6).
-    """
-    if not request.user.is_authenticated:
-        return redirect(f"{reverse('accounts:login')}?next={request.path}")
-
-    if not is_inventory_staff(request.user):
-        return HttpResponseForbidden("Bạn không có quyền nhập hàng trả vào kho bán.")
-
-    if request.method != 'POST':
-        return HttpResponseNotAllowed(['POST'])
-
-    try:
-        tx, rs = restock_eligible_returned_product(returned_stock_id=pk, actor=request.user)
-        messages.success(request, f"Đã nhập {rs.quantity} sản phẩm ({rs.variant.sku}) vào tồn thực tế bán được thành công! Giao dịch kho #{tx.id} đã được ghi nhận.")
-    except (ValidationError, PermissionDenied) as e:
-        messages.error(request, str(e.message if hasattr(e, 'message') else e))
-
-    return redirect('inventory:returned_stock_list')
-

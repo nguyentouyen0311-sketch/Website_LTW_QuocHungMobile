@@ -1,21 +1,103 @@
 {% extends 'storefront/base_storefront.html' %}
 
+{% load static %}
+
 {% block title %}{{ title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/orders.css' %}">
+<style>
+  .qhm-checkout-shell { max-width:1120px; margin:40px auto; padding:0 24px; }
+  .qhm-checkout-header { display:flex; justify-content:space-between; align-items:end; gap:16px; flex-wrap:wrap; }
+  .qhm-checkout-eyebrow { margin:0; color:#77837d; font-size:14px; font-weight:700; }
+  .qhm-checkout-title { margin:5px 0 0; color:#283630; }
+  .qhm-checkout-grid-new { display:grid; grid-template-columns:minmax(0,1.2fr) minmax(310px,.8fr); gap:24px; align-items:start; margin-top:24px; }
+  .qhm-checkout-card-new { background:#fff; border:1px solid #e1e8e4; border-radius:12px; padding:28px; box-shadow:0 3px 12px rgba(24,45,35,.06); }
+  .qhm-checkout-card-new h2 { margin:0; color:#283630; font-size:20px; }
+  .qhm-checkout-subtitle { margin:7px 0 22px; color:#68766f; line-height:1.5; }
+  .qhm-checkout-fields { display:grid; gap:18px; }
+  .qhm-checkout-field label { display:block; margin-bottom:7px; color:#283630; font-size:14px; font-weight:700; }
+  .qhm-checkout-field input:not([type='radio']), .qhm-checkout-field select, .qhm-checkout-field textarea { width:100%; box-sizing:border-box; border:1px solid #d6dfda; border-radius:9px; background:#fff; color:#283630; font:inherit; padding:11px 12px; }
+  .qhm-checkout-field textarea { min-height:98px; resize:vertical; }
+  .qhm-checkout-field input:focus, .qhm-checkout-field select:focus, .qhm-checkout-field textarea:focus { outline:0; border-color:var(--color-primary-red, #e92722); box-shadow:0 0 0 3px rgba(233,39,34,.12); }
+  .qhm-checkout-field ul { display:grid; gap:10px; margin:0; padding:0; list-style:none; }
+  .qhm-checkout-field li label { display:flex; align-items:center; gap:9px; margin:0; padding:12px 14px; border:1px solid #d6dfda; border-radius:9px; font-weight:600; cursor:pointer; }
+  .qhm-checkout-field input[type='radio'] { accent-color:var(--color-primary-red, #e92722); width:17px; height:17px; }
+  .qhm-checkout-help { display:block; margin-top:7px; color:#68766f; font-size:13px; line-height:1.45; }
+  .qhm-checkout-error { margin:7px 0 0; color:#c82322; font-size:13px; font-weight:600; }
+  .qhm-summary-lines { display:grid; gap:0; margin-top:18px; }
+  .qhm-summary-line { padding:15px 0; border-bottom:1px solid #edf1ee; }
+  .qhm-summary-line strong { color:#283630; }
+  .qhm-summary-line small { display:block; margin-top:5px; color:#68766f; line-height:1.4; }
+  .qhm-summary-price { margin-top:7px; font-weight:700; color:#283630; }
+  .qhm-summary-total-row { display:flex; justify-content:space-between; gap:16px; padding-top:14px; color:#68766f; }
+  .qhm-summary-total-row strong { color:#283630; }
+  .qhm-summary-grand-total { display:flex; justify-content:space-between; gap:16px; margin-top:15px; padding-top:18px; border-top:1px solid #edf1ee; color:#283630; font-size:18px; font-weight:800; }
+  .qhm-summary-grand-total strong { color:var(--color-primary-red, #e92722); font-size:22px; }
+  .qhm-checkout-actions { display:grid; gap:10px; margin-top:24px; }
+  .qhm-checkout-actions .qhm-order-action { width:100%; box-sizing:border-box; }
+  .qhm-checkout-note { margin-top:14px; padding:12px 14px; border:1px solid #f0d0cf; border-radius:9px; background:#fff8f8; color:#a52a27; font-size:13px; line-height:1.45; }
+  @media (max-width:800px) { .qhm-checkout-grid-new { grid-template-columns:1fr; } .qhm-checkout-card-new { padding:22px; } }
+</style>
+{% endblock %}
+
 {% block content %}
-<main class="sf-page" style="max-width:1120px;margin:40px auto;padding:0 24px">
-  <div style="display:flex;justify-content:space-between;align-items:end;gap:16px;flex-wrap:wrap"><div><p style="margin:0;color:#77837d">Thanh toán an toàn</p><h1 style="margin:5px 0">Xác nhận đặt hàng</h1></div><a href="{% url 'cart:cart_detail' %}">← Quay lại giỏ hàng</a></div>
+<main class="sf-page qhm-checkout-shell">
+  <header class="qhm-checkout-header">
+    <div>
+      <p class="qhm-checkout-eyebrow">Thanh toán an toàn</p>
+      <h1 class="qhm-checkout-title">Xác nhận đặt hàng</h1>
+    </div>
+    <a class="qhm-order-back-link" href="{% url 'cart:cart_detail' %}"><span aria-hidden="true">←</span> Quay lại giỏ hàng</a>
+  </header>
+
   {% if not form %}
-    <section style="background:#fff;border:1px solid #e1e8e4;border-radius:12px;padding:32px;margin-top:24px;text-align:center"><h2>Giỏ hàng đang trống</h2><p>Hãy chọn sản phẩm trước khi đặt hàng.</p><a class="sf-button" href="{% url 'catalog:public_catalog' %}">Tiếp tục mua sắm</a></section>
-  {% else %}
-  <form method="post" style="display:grid;grid-template-columns:minmax(0,1.5fr) minmax(280px,.8fr);gap:24px;margin-top:24px">{% csrf_token %}
-    <section style="background:#fff;border:1px solid #e1e8e4;border-radius:12px;padding:24px">
-      <h2>Thông tin nhận hàng</h2>
-      {% for hidden in form.hidden_fields %}{{ hidden }}{% endfor %}
-      {% for field in form.visible_fields %}<div style="margin:16px 0"><label for="{{ field.id_for_label }}" style="display:block;font-weight:700;margin-bottom:6px">{{ field.label }}</label>{{ field }}{% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}{% for error in field.errors %}<p style="color:#c82322;margin:5px 0">{{ error }}</p>{% endfor %}</div>{% endfor %}
-      {% for error in form.non_field_errors %}<p style="color:#c82322">{{ error }}</p>{% endfor %}
+    <section class="qhm-checkout-card-new" style="margin-top:24px;text-align:center">
+      <h2>Giỏ hàng đang trống</h2>
+      <p class="qhm-checkout-subtitle">Hãy chọn sản phẩm trước khi đặt hàng.</p>
+      <a class="qhm-order-action qhm-order-action--primary" href="{% url 'catalog:public_catalog' %}">Tiếp tục mua sắm</a>
     </section>
-    <aside style="background:#fff;border:1px solid #e1e8e4;border-radius:12px;padding:24px;height:max-content"><h2>Đơn hàng của bạn</h2>{% for line in quote.lines %}<div style="padding:12px 0;border-bottom:1px solid #edf1ee"><strong>{{ line.product_name }}</strong><br><small>{{ line.attrs_display }} · SL: {{ line.quantity }}</small><div style="margin-top:5px">{{ line.line_total_formatted }}</div></div>{% endfor %}<p>Tạm tính: <strong>{{ quote.subtotal_formatted }}</strong></p>{% if quote.discount_total %}<p>Giảm giá: <strong>-{{ quote.discount_total_formatted }}</strong></p>{% endif %}<p style="font-size:1.2rem;border-top:1px solid #edf1ee;padding-top:12px">Tổng thanh toán: <strong style="color:#df2727">{{ quote.grand_total_formatted }}</strong></p>{% if quote.coupon_error %}<p style="color:#c82322">{{ quote.coupon_error }}</p>{% endif %}<button class="sf-button" type="submit" name="action" value="preview" style="width:100%;margin:5px 0">Kiểm tra đơn hàng</button><button class="sf-button" type="submit" name="action" value="place" style="width:100%;margin:5px 0">Đặt hàng</button></aside>
-  </form>
+  {% else %}
+    <form method="post" class="qhm-checkout-grid-new">
+      {% csrf_token %}
+      <section class="qhm-checkout-card-new">
+        <h2>Thông tin nhận hàng</h2>
+        <p class="qhm-checkout-subtitle">Thông tin này được dùng để giao hàng và liên hệ xác nhận đơn.</p>
+        {% for hidden in form.hidden_fields %}{{ hidden }}{% endfor %}
+        {% if form.non_field_errors %}{% for error in form.non_field_errors %}<p class="qhm-checkout-error">{{ error }}</p>{% endfor %}{% endif %}
+        <div class="qhm-checkout-fields">
+          {% for field in form.visible_fields %}
+            <div class="qhm-checkout-field">
+              <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+              {{ field }}
+              {% if field.help_text %}<small class="qhm-checkout-help">{{ field.help_text }}</small>{% endif %}
+              {% for error in field.errors %}<p class="qhm-checkout-error">{{ error }}</p>{% endfor %}
+            </div>
+          {% endfor %}
+        </div>
+      </section>
+
+      <aside class="qhm-checkout-card-new">
+        <h2>Đơn hàng của bạn</h2>
+        <div class="qhm-summary-lines">
+          {% for line in quote.lines %}
+            <div class="qhm-summary-line">
+              <strong>{{ line.product_name }}</strong>
+              <small>{{ line.attrs_display }} · SL: {{ line.quantity }}</small>
+              <div class="qhm-summary-price">{{ line.line_total_formatted }}</div>
+            </div>
+          {% endfor %}
+        </div>
+        <div class="qhm-summary-total-row"><span>Tạm tính</span><strong>{{ quote.subtotal_formatted }}</strong></div>
+        {% if quote.discount_total %}<div class="qhm-summary-total-row"><span>Giảm giá</span><strong>-{{ quote.discount_total_formatted }}</strong></div>{% endif %}
+        <div class="qhm-summary-grand-total"><span>Tổng thanh toán</span><strong>{{ quote.grand_total_formatted }}</strong></div>
+        {% if quote.coupon_error %}<p class="qhm-checkout-note">{{ quote.coupon_error }}</p>{% endif %}
+        <div class="qhm-checkout-actions">
+          <button class="qhm-order-action qhm-order-action--secondary" type="submit" name="action" value="preview">Kiểm tra đơn hàng</button>
+          <button class="qhm-order-action qhm-order-action--primary" type="submit" name="action" value="place">Đặt hàng</button>
+        </div>
+      </aside>
+    </form>
   {% endif %}
 </main>
 {% endblock %}

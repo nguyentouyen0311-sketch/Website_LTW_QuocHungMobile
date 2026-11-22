@@ -1,0 +1,50 @@
+{% extends 'storefront/base_storefront.html' %}
+
+{% load static %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/orders.css' %}">
+{% endblock %}
+
+{% block content %}
+<main class="sf-page" style="max-width:760px;margin:40px auto;padding:0 24px">
+  <p>
+    <a class="qhm-order-back-link" href="{% url 'orders:order_detail' order.pk %}">
+      <span aria-hidden="true">←</span> Quay lại đơn hàng #{{ order.order_code }}
+    </a>
+  </p>
+
+  <section style="background:#fff;border:1px solid #e1e8e4;border-radius:12px;padding:28px;box-shadow:0 3px 12px rgba(24,45,35,.06)">
+    <h1 style="margin-top:0">Yêu cầu hủy đơn hàng</h1>
+    <p style="color:#68766f">Đơn hàng <strong>#{{ order.order_code }}</strong> sẽ được hủy trước khi xuất kho. Giữ chỗ tồn kho sẽ được giải phóng sau khi yêu cầu được xác nhận.</p>
+
+    <div style="margin:20px 0;padding:16px;background:#f7faf8;border:1px solid #e1e8e4;border-radius:10px">
+      <strong>{{ order.recipient_name }}</strong>
+      <p style="margin:6px 0 0;color:#68766f">Tổng thanh toán: <strong>{{ order.grand_total_formatted }}</strong></p>
+      {% if payment %}
+        <p style="margin:6px 0 0;color:#68766f">{{ payment.get_method_display }} · {{ payment.get_status_display }}</p>
+      {% endif %}
+    </div>
+
+    <form method="post" style="display:grid;gap:16px">
+      {% csrf_token %}
+      {% for field in cancel_form %}
+        <div>
+          <label for="{{ field.id_for_label }}" style="display:block;font-weight:700;margin-bottom:6px">{{ field.label }}</label>
+          {{ field }}
+          {% if field.help_text %}<p style="margin:6px 0 0;color:#68766f;font-size:.9rem">{{ field.help_text }}</p>{% endif %}
+          {% for error in field.errors %}<p style="margin:6px 0 0;color:#c82322">{{ error }}</p>{% endfor %}
+        </div>
+      {% endfor %}
+      {% for error in cancel_form.non_field_errors %}<p style="margin:0;color:#c82322">{{ error }}</p>{% endfor %}
+
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:4px">
+        <button class="qhm-order-action qhm-order-action--primary" type="submit">Xác nhận hủy đơn</button>
+        <a class="qhm-order-action qhm-order-action--secondary" href="{% url 'orders:order_detail' order.pk %}">Giữ lại đơn hàng</a>
+      </div>
+    </form>
+  </section>
+</main>
+{% endblock %}

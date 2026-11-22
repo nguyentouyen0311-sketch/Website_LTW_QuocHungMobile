@@ -554,14 +554,14 @@ def adjust_inventory(
 def confirm_return_receipt(
     return_request_id: int,
     actor,
-) -> ReturnedStock:
+):
     """
-    Nhân viên kho (Inventory Staff / Admin) xác nhận đã nhận hàng đổi/trả về kho (Requirement 1 & 4).
+    Nhân viên kho (Inventory Staff / Admin) xác nhận đã hoàn tất đổi/trả.
     - Phân quyền: Inventory Staff / Admin (Người khác: PermissionDenied).
     - Yêu cầu đổi trả phải ở trạng thái APPROVED.
-    - Tạo bản ghi ReturnedStock với condition = WAITING_INSPECTION.
-    - Cập nhật ReturnRequest sang RECEIVED.
-    - TUYỆT ĐỐI KHÔNG làm tăng tồn khả dụng hoặc tồn thực tế (physical_sellable bất biến).
+    - Đây là điểm kết thúc của luồng đổi/trả: cập nhật ReturnRequest sang COMPLETED.
+    - Không tạo ReturnedStock, không có bước kiểm định và tuyệt đối không làm tăng
+      tồn khả dụng hay tồn thực tế (physical_sellable bất biến).
     """
     if not actor or not actor.is_authenticated or not actor.is_active:
         raise PermissionDenied("Yêu cầu đăng nhập tài khoản.")
@@ -575,37 +575,21 @@ def confirm_return_receipt(
         raise ValidationError("Yêu cầu đổi/trả không tồn tại.", code='not_found')
 
     if return_req.status != ReturnRequestStatus.APPROVED:
-        # Nếu đã nhận rồi -> Idempotent trả về bản ghi hiện có
-        if return_req.status in (ReturnRequestStatus.RECEIVED, ReturnRequestStatus.COMPLETED):
-            existing_rs = getattr(return_req, 'returned_stock', None)
-            if existing_rs:
-                return existing_rs
+        # Lặp lại thao tác đã hoàn tất phải an toàn và không được tác động tồn kho.
+        if return_req.status == ReturnRequestStatus.COMPLETED:
+            return return_req
         raise ValidationError(
             f"Yêu cầu đổi/trả đang ở trạng thái '{return_req.get_status_display()}', chỉ yêu cầu đã được duyệt (APPROVED) mới được nhận vào kho.",
             code='invalid_status'
         )
 
     with transaction.atomic():
-        now = timezone.now()
-        returned_stock, created = ReturnedStock.objects.get_or_create(
-            return_request=return_req,
-            defaults={
-                'variant': return_req.order_item.variant,
-                'quantity': return_req.quantity,
-                'condition': ReturnedStockCondition.WAITING_INSPECTION,
-                'received_by': actor,
-                'received_at': now,
-            }
-        )
-        if not created and not returned_stock.received_at:
-            returned_stock.received_by = actor
-            returned_stock.received_at = now
-            returned_stock.save(update_fields=['received_by', 'received_at'])
+        return_req.status = ReturnRequestStatus.COMPLETED
+        return_req.completed_by = actor
+        return_req.completed_at = timezone.now()
+        return_req.save(update_fields=['status', 'completed_by', 'completed_at', 'updated_at'])
 
-        return_req.status = ReturnRequestStatus.RECEIVED
-        return_req.save(update_fields=['status', 'updated_at'])
-
-    return returned_stock
+    return return_req
 
 
 def record_returned_stock_condition(
@@ -622,10 +606,10 @@ def record_returned_stock_condition(
     - Quy tắc: Cả WAITING_INSPECTION và NOT_ELIGIBLE_FOR_RESALE đều KHÔNG làm tăng tồn khả dụng.
       Chỉ ghi nhận phân loại, physical_sellable bất biến, không ghi sổ cái InventoryTransaction.
     """
-    if not actor or not actor.is_authenticated or not actor.is_active:
-        raise PermissionDenied("Yêu cầu đăng nhập tài khoản.")
-    if not is_inventory_staff(actor):
-        raise PermissionDenied("Chỉ Nhân viên kho hoặc Quản trị viên mới có quyền kiểm định tình trạng hàng trả.")
+    raise ValidationError(
+        "Chức năng kiểm định hàng đổi/trả đã ngừng theo chính sách vận hành hiện tại.",
+        code='return_inspection_disabled',
+    )
 
     if condition not in ReturnedStockCondition.values:
         raise ValidationError(f"Phân loại tình trạng '{condition}' không hợp lệ.", code='invalid_condition')
@@ -663,10 +647,10 @@ def restock_eligible_returned_product(
     - Cập nhật return_request.status sang COMPLETED.
     - Idempotent: Nếu đã restocked, trả về bản ghi giao dịch cũ mà không tăng tồn lần 2.
     """
-    if not actor or not actor.is_authenticated or not actor.is_active:
-        raise PermissionDenied("Yêu cầu đăng nhập tài khoản.")
-    if not is_inventory_staff(actor):
-        raise PermissionDenied("Chỉ Nhân viên kho hoặc Quản trị viên mới có quyền nhập hàng trả vào kho bán.")
+    raise ValidationError(
+        "Hàng đổi/trả không được nhập lại kho bán theo chính sách vận hành hiện tại.",
+        code='return_restock_disabled',
+    )
 
     try:
         returned_stock = ReturnedStock.objects.select_related('return_request', 'variant', 'transaction').get(pk=returned_stock_id)

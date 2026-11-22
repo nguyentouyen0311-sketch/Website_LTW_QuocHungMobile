@@ -3,10 +3,23 @@ from types import SimpleNamespace
 from django.test import SimpleTestCase
 
 from orders.forms import CheckoutForm
-from orders.views import _refresh_quote_token
+from orders.views import _get_initial_checkout_data, _refresh_quote_token
 
 
 class CheckoutQuoteTokenTests(SimpleTestCase):
+    def test_checkout_prefills_vietnamese_name_in_family_name_first_order(self):
+        request = SimpleNamespace(
+            user=SimpleNamespace(
+                first_name='A',
+                last_name='Nguyễn Văn',
+                username='khach_hang',
+            )
+        )
+
+        initial_data = _get_initial_checkout_data(request, db_available=False)
+
+        self.assertEqual(initial_data['recipient_name'], 'Nguyễn Văn A')
+
     def test_refreshes_hidden_quote_token_on_bound_form(self):
         form = CheckoutForm(data={
             'recipient_name': 'Khách hàng',

@@ -7,6 +7,8 @@ from django.db.models import Q, Sum
 
 class Cart(models.Model):
 
+    is_direct_checkout = models.BooleanField(default=False, db_index=True)
+
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -44,7 +46,7 @@ class Cart(models.Model):
             ),
             models.UniqueConstraint(
                 fields=['user'],
-                condition=Q(user__isnull=False),
+                condition=Q(user__isnull=False, is_direct_checkout=False),
                 name='unique_active_user_cart',
             ),
             models.UniqueConstraint(

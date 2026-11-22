@@ -4,6 +4,7 @@ from orders import views
 app_name = 'orders'
 
 urlpatterns = [
+    path('buy-now/', views.buy_now_view, name='buy_now'),
     path('checkout/', views.checkout_view, name='checkout'),
     path('', views.customer_orders_list_view, name='customer_orders_list'),
     path('management/returns/', views.return_request_management_view, name='return_request_management'),
