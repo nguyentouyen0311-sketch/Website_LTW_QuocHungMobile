@@ -6,9 +6,7 @@ from django.urls import reverse
 
 from accounts.permissions import is_customer
 from catalog.models import Category
-from catalog.utils import format_vnd
-from coupons.evaluation import evaluate_coupon_for_cart
-from cart.forms import AddToCartForm, UpdateCartItemQuantityForm, SwitchCartItemVariantForm, CouponPreviewForm
+from cart.forms import AddToCartForm, UpdateCartItemQuantityForm, SwitchCartItemVariantForm
 from cart.services import (
     resolve_cart,
     add_to_cart,
@@ -89,7 +87,7 @@ def _render_cart(request, cart, has_pending_guest_cart=None, quantity_inputs=Non
         'title': 'Giỏ hàng — Quốc Hùng Mobile',
         'has_pending_guest_cart': has_pending_guest_cart,
     }
-    return render(request, 'storefront/cart_detail.html', context)
+    return render(request, 'cart/detail.html', context)
 
 
 from urllib.parse import urlparse, urlunparse, parse_qsl, urlencode
@@ -337,93 +335,3 @@ def cart_sync_guest_cart_view(request):
         )
 
     return redirect('cart:cart_detail')
-def cart_coupon_preview_view(request):
-
-    if request.method != 'POST':
-        return HttpResponseNotAllowed(['POST'], "Phương thức yêu cầu không hợp lệ. Vui lòng gửi yêu cầu POST.")
-
-    is_allowed, error_msg = _check_cart_authorization(request)
-    if not is_allowed:
-        return HttpResponseForbidden(error_msg)
-
-    has_pending_guest_cart = False
-    if request.user.is_authenticated and hasattr(request, 'session') and request.session.get('_pending_guest_cart_session_key'):
-        has_pending_guest_cart = True
-
-    categories = Category.objects.filter(is_visible=True).order_by('name')
-    raw_code = request.POST.get('code', '').strip()
-
-    try:
-        cart = resolve_cart(request, create_if_empty=False)
-    except ValidationError:
-        cart = None
-
-    evaluation = get_cart_evaluation(cart)
-    purchasable_lines = [line for line in evaluation.get('lines', []) if line.get('is_available')]
-
-    if not cart or not purchasable_lines:
-        form = CouponPreviewForm(request.POST)
-        context = {
-            'cart': cart,
-            'evaluation': evaluation,
-            'categories': categories,
-            'active_nav': 'cart',
-            'title': 'Giỏ hàng — Quốc Hùng Mobile',
-            'has_pending_guest_cart': has_pending_guest_cart,
-            'coupon_form': form,
-            'coupon_error': 'Giỏ hàng của bạn đang trống hoặc không có sản phẩm khả dụng.',
-            'raw_coupon_code': raw_code,
-        }
-        return render(request, 'storefront/cart_detail.html', context)
-
-    form = CouponPreviewForm(request.POST)
-    if not form.is_valid():
-        error_message = form.errors['code'][0] if 'code' in form.errors else "Mã giảm giá không hợp lệ."
-        context = {
-            'cart': cart,
-            'evaluation': evaluation,
-            'categories': categories,
-            'active_nav': 'cart',
-            'title': 'Giỏ hàng — Quốc Hùng Mobile',
-            'has_pending_guest_cart': has_pending_guest_cart,
-            'coupon_form': form,
-            'coupon_error': error_message,
-            'raw_coupon_code': raw_code,
-        }
-        return render(request, 'storefront/cart_detail.html', context)
-
-    cleaned_code = form.cleaned_data['code']
-    try:
-        quote = evaluate_coupon_for_cart(cart, cleaned_code)
-        quote['discount_amount_formatted'] = format_vnd(quote['discount_amount'])
-        quote['total_after_discount_formatted'] = format_vnd(quote['total_after_discount'])
-        quote['eligible_subtotal_formatted'] = format_vnd(quote['eligible_subtotal'])
-        quote['cart_subtotal_formatted'] = format_vnd(quote['cart_subtotal'])
-
-        context = {
-            'cart': cart,
-            'evaluation': evaluation,
-            'categories': categories,
-            'active_nav': 'cart',
-            'title': 'Giỏ hàng — Quốc Hùng Mobile',
-            'has_pending_guest_cart': has_pending_guest_cart,
-            'coupon_form': form,
-            'coupon_quote': quote,
-            'coupon_applied': True,
-            'raw_coupon_code': cleaned_code,
-        }
-        return render(request, 'storefront/cart_detail.html', context)
-    except ValidationError as exc:
-        context = {
-            'cart': cart,
-            'evaluation': evaluation,
-            'categories': categories,
-            'active_nav': 'cart',
-            'title': 'Giỏ hàng — Quốc Hùng Mobile',
-            'has_pending_guest_cart': has_pending_guest_cart,
-            'coupon_form': form,
-            'coupon_error': exc.message,
-            'raw_coupon_code': cleaned_code,
-        }
-        return render(request, 'storefront/cart_detail.html', context)
-
