@@ -28,6 +28,7 @@ from orders.checkout_helpers import (
     QuoteUnavailable,
     calculate_server_quote,
     clear_pending_order_code,
+    get_eligible_public_coupon_choices,
     get_or_create_pending_order_code,
     make_checkout_token,
     map_validation_error_to_form,
@@ -169,6 +170,17 @@ def _refresh_quote_token(form, quote):
         form.data = form_data
 
 
+def _build_checkout_form(*args, cart=None, **kwargs):
+    """Create a checkout form whose voucher choices match the live cart."""
+    try:
+        choices = get_eligible_public_coupon_choices(cart) if cart else []
+    except OperationalError as exc:
+        if not _is_sqlite_lock_error(exc):
+            raise
+        choices = []
+    return CheckoutForm(*args, eligible_coupon_choices=choices, **kwargs)
+
+
 def _render_safe_checkout(request, context):
     from django.template.loader import get_template
     from django.template import Context
@@ -245,11 +257,11 @@ def checkout_view(request):
         quote = QuoteUnavailable(coupon_code=raw_coupon)
         if request.method == 'POST':
             _save_pending_checkout_data(request)
-            form = CheckoutForm(request.POST)
+            form = _build_checkout_form(request.POST)
             form.add_error(None, 'Hệ thống đang bận xử lý giao dịch. Vui lòng thử lại sau giây lát.')
         else:
             initial_data = _get_initial_checkout_data(request, db_available=False)
-            form = CheckoutForm(initial=initial_data)
+            form = _build_checkout_form(initial=initial_data)
         context = {
             'form': form,
             'quote': quote,
@@ -302,7 +314,7 @@ def checkout_view(request):
 
         initial_data['quote_token'] = getattr(quote, 'quote_token', '')
 
-        form = CheckoutForm(initial=initial_data)
+        form = _build_checkout_form(initial=initial_data, cart=cart)
         context = {
             'form': form,
             'quote': quote,
@@ -320,7 +332,7 @@ def checkout_view(request):
     action = request.POST.get('action', 'place')
     if action not in ('preview', 'place'):
         _save_pending_checkout_data(request)
-        form = CheckoutForm(request.POST)
+        form = _build_checkout_form(request.POST, cart=cart)
         form.add_error(None, "Thao tác không được hỗ trợ.")
         try:
             quote = calculate_server_quote(cart, coupon_code=request.POST.get('coupon_code', ''))
@@ -339,7 +351,7 @@ def checkout_view(request):
         }
         return _render_checkout(request, context)
 
-    form = CheckoutForm(request.POST)
+    form = _build_checkout_form(request.POST, cart=cart)
     raw_coupon = request.POST.get('coupon_code', '').strip().upper()
 
     if not form.is_valid():

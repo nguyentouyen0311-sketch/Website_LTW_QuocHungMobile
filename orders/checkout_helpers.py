@@ -6,11 +6,13 @@ from typing import NamedTuple, Optional, List, Dict, Any
 
 from django.core import signing
 from django.core.exceptions import ValidationError
+from django.db.models import F
 from django.utils import timezone
 
 from catalog.utils import format_vnd
 from cart.services import get_cart_evaluation
 from coupons.evaluation import evaluate_coupon_for_cart
+from coupons.models import Coupon
 from orders.models import Order
 
 
@@ -58,6 +60,33 @@ class QuoteUnavailable:
         self.fingerprint = ""
         self.quote_token = ""
         self.is_unavailable = True
+
+
+def get_eligible_public_coupon_choices(cart, at=None):
+    """Return public coupons that can be applied to the current cart."""
+    if not cart:
+        return []
+
+    check_at = at or timezone.now()
+    candidates = Coupon.objects.filter(
+        is_public=True,
+        is_active=True,
+        starts_at__lte=check_at,
+        ends_at__gt=check_at,
+        max_uses__gt=F('used_count') + F('reserved_count'),
+    ).order_by('ends_at', 'code')
+
+    choices = []
+    for coupon in candidates:
+        try:
+            quote = evaluate_coupon_for_cart(cart, coupon.code, at=check_at)
+        except ValidationError:
+            continue
+        discount_amount = quote.get('discount_amount')
+        if not discount_amount or discount_amount <= Decimal('0.00'):
+            continue
+        choices.append((coupon.code, f"{coupon.code} — Giảm {format_vnd(discount_amount)}"))
+    return choices
 
 
 def generate_order_code() -> str:

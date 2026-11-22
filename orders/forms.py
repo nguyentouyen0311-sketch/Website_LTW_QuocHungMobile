@@ -58,15 +58,13 @@ class CheckoutForm(forms.Form):
         }
     )
 
-    coupon_code = forms.CharField(
-        max_length=40,
+    coupon_code = forms.ChoiceField(
+        choices=[('', 'Không áp dụng mã giảm giá')],
         required=False,
         label="Mã giảm giá",
-        widget=forms.TextInput(attrs={
+        widget=forms.Select(attrs={
             'class': 'qhm-form-input qhm-input-coupon',
             'id': 'id_coupon_code',
-            'placeholder': 'Nhập mã giảm giá (nếu có)',
-            'maxlength': '40',
         }),
     )
 
@@ -98,8 +96,12 @@ class CheckoutForm(forms.Form):
         required=False,
     )
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, eligible_coupon_choices=None, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields['coupon_code'].choices = [
+            ('', 'Không áp dụng mã giảm giá'),
+            *(eligible_coupon_choices or []),
+        ]
         choices = [(PaymentMethod.COD, 'Thanh toán khi nhận hàng (COD)')]
         if is_qr_transfer_available():
             choices.append((PaymentMethod.QR, 'Chuyển khoản ngân hàng qua mã QR'))
@@ -127,13 +129,7 @@ class CheckoutForm(forms.Form):
         return address
 
     def clean_coupon_code(self):
-        code = self.cleaned_data.get('coupon_code', '')
-        if code and str(code).strip():
-            cleaned = str(code).strip().upper()
-            if len(cleaned) > 40:
-                raise ValidationError('Mã giảm giá không hợp lệ (vượt quá 40 ký tự).')
-            return cleaned
-        return ''
+        return str(self.cleaned_data.get('coupon_code') or '').strip().upper()
 
     def clean_payment_method(self):
         method = self.cleaned_data.get('payment_method')
