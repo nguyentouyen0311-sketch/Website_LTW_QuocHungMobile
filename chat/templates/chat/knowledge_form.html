@@ -1,0 +1,5 @@
+{% extends 'chat/admin_base.html' %}
+{% block content %}
+<section class="chat-panel chat-editor"><div class="chat-section-head"><div><h2>{% if faq %}Chỉnh sửa nội dung{% else %}Thêm nội dung tri thức{% endif %}</h2><p class="chat-muted">Nhập thông tin đã được xác minh. Bỏ chọn công bố để lưu bản nháp.</p></div><a class="chat-button" href="{% url 'chat:knowledge_list' %}">← Danh sách</a></div>
+<form method="post">{% csrf_token %}{{ form.non_field_errors }}{% for field in form %}<div class="chat-field {% if field.name == 'is_active' %}chat-checkbox-field{% endif %}">{% if field.name == 'is_active' %}{{ field }} {{ field.label_tag }}{% else %}{{ field.label_tag }}{{ field }}{% endif %}{% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}{{ field.errors }}</div>{% endfor %}<div class="chat-actions"><button class="chat-button chat-primary">Lưu nội dung</button><a class="chat-button" href="{% url 'chat:knowledge_list' %}">Hủy</a></div></form></section>
+{% endblock %}

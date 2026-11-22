@@ -1,0 +1,18 @@
+{# Header dùng chung cho toàn bộ khu vực quản trị. #}
+<header class="backend-header" role="banner">
+  <div class="backend-header__left">
+    <button type="button" class="backend-header__menu" id="qhm-sidebar-toggle" aria-label="Mở menu điều hướng" aria-expanded="false" onclick="if (typeof toggleQhmSidebar === 'function') toggleQhmSidebar()">☰</button>
+    <nav class="backend-header__breadcrumb" aria-label="Đường dẫn trang">
+      <span>{{ backend_section|default:'Quản trị hệ thống' }}</span>
+      <b>/</b>
+      <strong>{{ backend_title|default:'Quản lý' }}</strong>
+    </nav>
+  </div>
+  <div class="backend-header__right">
+    <form class="backend-header__search" method="get" action="{{ backend_search_action|default:'' }}">
+      <label class="backend-header__search-icon" for="backend-quick-search">⌕</label>
+      <input id="backend-quick-search" type="search" name="{{ backend_search_name|default:'q' }}" value="{{ backend_search_value|default:'' }}" placeholder="{{ backend_search_placeholder|default:'Tìm kiếm nhanh...' }}">
+    </form>
+    <span class="backend-header__role">{% if is_admin %}ADMINISTRATOR{% else %}NHÂN VIÊN{% endif %}</span>
+  </div>
+</header>

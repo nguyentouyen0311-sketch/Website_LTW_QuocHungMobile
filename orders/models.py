@@ -471,3 +471,135 @@ class OrderCancellation(models.Model):
         raise ValidationError('Bản ghi hủy đơn hàng là bất biến (append-only), không thể xóa.')
 
 
+class ReturnRequestStatus(models.TextChoices):
+    PENDING = 'PENDING', 'Chờ duyệt'
+    APPROVED = 'APPROVED', 'Đã duyệt'
+    REJECTED = 'REJECTED', 'Từ chối'
+    RECEIVED = 'RECEIVED', 'Kho đã tiếp nhận'
+    COMPLETED = 'COMPLETED', 'Hoàn tất'
+    CANCELLED = 'CANCELLED', 'Đã hủy'
+
+
+class ReturnRequestType(models.TextChoices):
+    EXCHANGE = 'EXCHANGE', 'Đổi sản phẩm'
+    RETURN = 'RETURN', 'Trả hàng và hoàn tiền'
+
+
+class ReturnReasonCode(models.TextChoices):
+    TECHNICAL_DEFECT = 'TECHNICAL_DEFECT', 'Sản phẩm lỗi kỹ thuật'
+    DAMAGED_ON_ARRIVAL = 'DAMAGED_ON_ARRIVAL', 'Sản phẩm hư hỏng khi giao nhận'
+    WRONG_ITEM = 'WRONG_ITEM', 'Giao sai sản phẩm'
+    NOT_AS_DESCRIBED = 'NOT_AS_DESCRIBED', 'Sản phẩm không đúng mô tả'
+    NOT_SUITABLE = 'NOT_SUITABLE', 'Sản phẩm không phù hợp nhu cầu'
+    CHANGE_COLOR_CAPACITY = 'CHANGE_COLOR_CAPACITY', 'Muốn đổi màu hoặc dung lượng'
+    OTHER = 'OTHER', 'Lý do khác'
+
+
+class ReturnRequest(models.Model):
+    """Yêu cầu đổi/trả cho một dòng hàng, là nguồn dữ liệu cho quy trình kho."""
+
+    order = models.ForeignKey(
+        'orders.Order',
+        on_delete=models.PROTECT,
+        related_name='return_requests',
+        verbose_name='Đơn hàng',
+    )
+    order_item = models.ForeignKey(
+        'orders.OrderItem',
+        on_delete=models.PROTECT,
+        related_name='return_requests',
+        verbose_name='Dòng đơn hàng',
+    )
+    customer = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name='return_requests',
+        verbose_name='Khách hàng',
+    )
+    request_type = models.CharField(
+        max_length=16,
+        choices=ReturnRequestType.choices,
+        verbose_name='Loại yêu cầu',
+    )
+    reason_code = models.CharField(
+        max_length=24,
+        choices=ReturnReasonCode.choices,
+        verbose_name='Lý do đổi trả',
+    )
+    description = models.TextField(blank=True, max_length=3000, verbose_name='Mô tả chi tiết')
+    quantity = models.PositiveIntegerField(verbose_name='Số lượng đổi trả')
+    replacement_variant = models.ForeignKey(
+        'catalog.ProductVariant',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='replacement_return_requests',
+        verbose_name='Biến thể thay thế',
+    )
+    status = models.CharField(
+        max_length=16,
+        choices=ReturnRequestStatus.choices,
+        default=ReturnRequestStatus.PENDING,
+        verbose_name='Trạng thái',
+    )
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='reviewed_return_requests',
+        verbose_name='Người duyệt',
+    )
+    review_note = models.TextField(blank=True, max_length=3000, verbose_name='Ghi chú duyệt')
+    reviewed_at = models.DateTimeField(null=True, blank=True, verbose_name='Thời điểm duyệt')
+    completed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='completed_return_requests',
+        verbose_name='Người xác nhận hoàn tất',
+    )
+    completed_at = models.DateTimeField(null=True, blank=True, verbose_name='Thời điểm hoàn tất')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Thời điểm tạo')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Thời điểm cập nhật')
+
+    class Meta:
+        verbose_name = 'Yêu cầu đổi trả'
+        verbose_name_plural = 'Yêu cầu đổi trả'
+        ordering = ['-updated_at', '-id']
+        constraints = [
+            models.CheckConstraint(condition=models.Q(quantity__gt=0), name='return_request_quantity_gt_0'),
+            models.UniqueConstraint(
+                fields=['order_item'],
+                condition=models.Q(status__in=[
+                    ReturnRequestStatus.PENDING,
+                    ReturnRequestStatus.APPROVED,
+                    ReturnRequestStatus.RECEIVED,
+                ]),
+                name='one_open_return_request_per_order_item',
+            ),
+        ]
+
+    def __str__(self):
+        return f'Yêu cầu đổi trả #{self.pk} — {self.order.order_code}'
+
+    def clean(self):
+        super().clean()
+        errors = {}
+        if self.order_item_id and self.order_id and self.order_item.order_id != self.order_id:
+            errors['order_item'] = 'Dòng đơn hàng phải thuộc đúng đơn hàng được chọn.'
+        if self.customer_id and self.order_id and self.order.customer_id != self.customer_id:
+            errors['customer'] = 'Khách hàng phải là người tạo đơn hàng.'
+        if self.quantity and self.order_item_id and self.quantity > self.order_item.quantity:
+            errors['quantity'] = 'Số lượng đổi trả không được vượt quá số lượng đã mua.'
+        if self.request_type == ReturnRequestType.EXCHANGE and not self.replacement_variant_id:
+            errors['replacement_variant'] = 'Yêu cầu đổi sản phẩm phải chọn biến thể thay thế.'
+        if self.request_type == ReturnRequestType.RETURN and self.replacement_variant_id:
+            errors['replacement_variant'] = 'Yêu cầu hoàn tiền không được chọn biến thể thay thế.'
+        if self.reason_code == ReturnReasonCode.OTHER and not self.description.strip():
+            errors['description'] = 'Vui lòng mô tả chi tiết khi chọn lý do "Lý do khác".'
+        if errors:
+            raise ValidationError(errors)
+
+

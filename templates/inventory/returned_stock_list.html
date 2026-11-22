@@ -1,0 +1,32 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <link rel="stylesheet" href="{% static 'css/dashboard.css' %}?v=20261122">
+    <link rel="stylesheet" href="{% static 'css/inventory.css' %}?v=20261122">
+</head>
+<body class="qhm-dashboard-page qhm-inv-portal">
+<div class="qhm-dashboard-shell">
+    {% include 'catalog/includes/management_sidebar.html' with active_nav='returned_stock' %}
+    <main class="dashboard-main" role="main">
+        <header class="dashboard-topbar" role="banner">
+            <div class="dashboard-topbar-left"><nav class="dashboard-breadcrumb" aria-label="Đường dẫn trang"><a href="{% url 'dashboard:index' %}">Tổng quan</a><span class="sep">&gt;</span><a href="{% url 'inventory:inventory_list' %}">Quản lý tồn kho</a><span class="sep">&gt;</span><span class="current">Hoàn tất đổi/trả</span></nav></div>
+        </header>
+        <div class="dashboard-content" style="padding:28px 32px;max-width:1400px;margin:0 auto;width:100%">
+            {% if messages %}{% for message in messages %}<div style="margin-bottom:12px;padding:12px 18px;border-radius:8px;background:#ecfdf5;color:#047857;border:1px solid #a7f3d0">{{ message }}</div>{% endfor %}{% endif %}
+            <div class="qhm-inv-header"><div class="qhm-inv-header-left"><h1 class="qhm-inv-title">Hoàn tất đổi/trả</h1><p class="qhm-inv-desc">Xác nhận việc đổi hoặc trả hàng đã hoàn thành với khách hàng.</p></div><a href="{% url 'inventory:inventory_list' %}" class="qhm-btn-secondary">Về Quản lý tồn kho</a></div>
+            <section class="qhm-returns-notice-card" aria-label="Chính sách hàng đổi trả"><div class="qhm-returns-notice-title"><strong>Chính sách hiện hành: kết thúc tại đây, không tái nhập kho bán</strong></div><p style="margin:8px 0 0;color:var(--inv-text-secondary)">Sau khi xác nhận hoàn tất, sản phẩm đổi/trả không đi qua bước kiểm định, không được tạo thành hàng tồn và không làm tăng số lượng có thể bán.</p></section>
+            <section class="qhm-table-card" style="margin-top:24px"><div style="padding:16px 20px;border-bottom:1px solid var(--inv-border);font-weight:700">Yêu cầu đã duyệt chờ xác nhận hoàn tất ({{ pending_receipt_requests|length }})</div><div class="qhm-table-wrap"><table class="qhm-inv-table"><thead><tr><th>MÃ YC</th><th>LOẠI YÊU CẦU</th><th>ĐƠN HÀNG</th><th>KHÁCH HÀNG</th><th>SẢN PHẨM</th><th>SỐ LƯỢNG</th><th>THAO TÁC</th></tr></thead><tbody>
+                {% for req in pending_receipt_requests %}<tr><td><span class="inv-code-badge">#{{ req.pk }}</span></td><td>{% if req.request_type == 'EXCHANGE' %}Đổi hàng{% else %}Trả hàng{% endif %}</td><td>{{ req.order.order_code }}</td><td>{{ req.customer.username }}</td><td>{{ req.order_item.product_name_snapshot }}</td><td>{{ req.quantity }}</td><td><form method="post" action="{% url 'inventory:confirm_receipt' req.pk %}">{% csrf_token %}<button type="submit" class="qhm-btn-primary" onclick="return confirm('Xác nhận hoàn tất yêu cầu này? Sản phẩm sẽ không được nhập lại kho bán.')">Xác nhận hoàn tất</button></form></td></tr>{% empty %}<tr><td colspan="7" class="inv-table-empty">Không có yêu cầu nào chờ xác nhận.</td></tr>{% endfor %}
+            </tbody></table></div></section>
+            <section class="qhm-table-card" style="margin-top:24px"><div style="padding:16px 20px;border-bottom:1px solid var(--inv-border);font-weight:700">20 yêu cầu hoàn tất gần nhất</div><div class="qhm-table-wrap"><table class="qhm-inv-table"><thead><tr><th>MÃ YC</th><th>LOẠI</th><th>ĐƠN HÀNG</th><th>SẢN PHẨM</th><th>SỐ LƯỢNG</th><th>HOÀN TẤT LÚC</th></tr></thead><tbody>
+                {% for req in completed_requests %}<tr><td>#{{ req.pk }}</td><td>{{ req.get_request_type_display }}</td><td>{{ req.order.order_code }}</td><td>{{ req.order_item.product_name_snapshot }}</td><td>{{ req.quantity }}</td><td>{{ req.completed_at|default:req.updated_at|date:"H:i d/m/Y" }}</td></tr>{% empty %}<tr><td colspan="6" class="inv-table-empty">Chưa có yêu cầu đổi/trả hoàn tất.</td></tr>{% endfor %}
+            </tbody></table></div></section>
+        </div>
+    </main>
+</div>
+</body>
+</html>

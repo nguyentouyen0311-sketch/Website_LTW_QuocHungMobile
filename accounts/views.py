@@ -8,6 +8,7 @@ from django.http import HttpResponseNotAllowed, HttpResponseForbidden, HttpRespo
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
+from django.utils.dateparse import parse_date
 
 from accounts.forms import (
     CustomerRegistrationForm,
@@ -40,7 +41,9 @@ from cart.services import merge_guest_cart_to_user, retry_on_db_lock
 def get_post_login_redirect_url(user, next_url=None, request=None):
 
     login_url = reverse('accounts:login')
-    landing_url = reverse('accounts:landing')
+    # Khi không có trang đích hợp lệ (ví dụ từ trang cần đăng nhập),
+    # người dùng quay về trang chủ sau khi đăng nhập thành công.
+    landing_url = reverse('home')
 
     if next_url:
         next_clean = next_url.strip()
@@ -213,21 +216,59 @@ def landing_view(request):
     return render(request, 'accounts/landing.html', context)
 
 
+def backend_dashboard_view(request):
+    """Trang vào backend dành cho các tài khoản nội bộ."""
+    if not request.user.is_authenticated:
+        return redirect(f"{reverse('accounts:login')}?next={request.path}")
+
+    if not (is_admin(request.user) or is_sales_staff(request.user) or is_inventory_staff(request.user)):
+        return HttpResponseForbidden("Bạn không có quyền truy cập khu vực quản lý.")
+
+    context = {
+        'user': request.user,
+        'roles': sorted(get_user_roles(request.user)),
+        'is_admin': is_admin(request.user),
+        'is_sales_staff': is_sales_staff(request.user),
+        'is_inventory_staff': is_inventory_staff(request.user),
+        'is_customer': is_customer(request.user),
+    }
+    return render(request, 'accounts/landing.html', context)
+
+
 def profile_view(request):
 
     if not request.user.is_authenticated:
         return redirect(f"{reverse('accounts:login')}?next={request.path}")
 
-    if not is_customer(request.user):
-        return HttpResponseForbidden("Bạn không có quyền truy cập chức năng này.")
-
     profile = getattr(request.user, 'customer_profile', None)
     if profile is None:
         profile = CustomerProfile.objects.filter(user=request.user).first()
 
+    if request.method == 'POST':
+        if not is_customer(request.user):
+            return HttpResponseForbidden('Bạn không có quyền cập nhật hồ sơ này.')
+        form = CustomerProfileForm(request.POST, user=request.user)
+        if form.is_valid():
+            _, profile = form.save()
+            profile.date_of_birth = parse_date(request.POST.get('date_of_birth', ''))
+            profile.gender = request.POST.get('gender', '') if request.POST.get('gender', '') in ('male', 'female', 'other') else ''
+            if not form.errors:
+                profile.save()
+                messages.success(request, 'Cập nhật thông tin cá nhân thành công!')
+                return redirect('accounts:profile')
+    else:
+        form = CustomerProfileForm(user=request.user)
+
+    from orders.models import Order
+    total_orders = Order.objects.filter(customer=request.user).count()
+    full_name = request.user.get_full_name().strip() or request.user.username
+    initials = ''.join(part[0] for part in full_name.split()[:2]).upper() or 'KH'
     context = {
         'user': request.user,
         'profile': profile,
+        'can_edit_profile': is_customer(request.user),
+        'role_labels': ', '.join(sorted(get_user_roles(request.user))) or 'Tài khoản đã đăng nhập',
+        'form': form, 'total_orders': total_orders, 'full_name': full_name, 'initials': initials,
     }
     return render(request, 'accounts/profile.html', context)
 

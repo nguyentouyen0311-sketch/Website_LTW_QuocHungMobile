@@ -13,7 +13,9 @@ def cart_badge(request):
                 'cart_item_count': 0,
                 'can_use_cart': False,
             }
-        cart = Cart.objects.filter(user=user).first()
+        # Direct-checkout carts are temporary order workspaces, never the
+        # customer's persistent shopping cart or its header badge.
+        cart = Cart.objects.filter(user=user, is_direct_checkout=False).first()
         if cart:
             total = cart.items.aggregate(total=Sum('quantity'))['total']
             return {

@@ -1,0 +1,1055 @@
+{% load static %}
+{% load dashboard_tags %}
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ page_title }} — Quốc Hùng Mobile</title>
+    <meta name="description" content="Dashboard Thống kê & Báo cáo Kinh doanh toàn diện hệ thống Quốc Hùng Mobile.">
+
+    <!-- Google Fonts: Inter & Plus Jakarta Sans (Yêu cầu 1) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- CSS Dashboard Chuyên biệt -->
+    <link rel="stylesheet" href="{% static 'css/dashboard.css' %}?v=20261119d">
+
+    <!-- Chart.js CDN (Tải biểu đồ nếu có mạng; có sẵn cơ chế SVG Fallback an toàn nếu offline) -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+
+<body class="qhm-dashboard-page">
+
+    <div class="qhm-dashboard-shell">
+        <!-- Sidebar Backdrop & Sidebar Quản trị chia sẻ (Single Source of Truth) -->
+        {% include 'catalog/includes/management_sidebar.html' with active_nav='dashboard' %}
+
+        <!-- ======================================================================
+             MAIN WORKSPACE (Yêu cầu 3 & 4)
+             ====================================================================== -->
+        <main class="dashboard-main" role="main">
+            <!-- Top Header (Yêu cầu 4) -->
+            {% include 'admin/includes/backend_header.html' with backend_section='Tổng quan' backend_title='Dashboard thống kê kinh doanh' backend_search_placeholder='Tìm kiếm SKU, đơn hàng, khách hàng...' %}
+
+            <!-- Dashboard Content Container -->
+            <div class="dashboard-content">
+
+                <!-- Tiêu đề trang (Yêu cầu 5) -->
+                <div class="dashboard-page-header">
+                    <h1 class="dashboard-page-title">Dashboard Thống kê & Báo cáo Kinh doanh</h1>
+                    <p class="dashboard-page-subtitle">Tổng hợp doanh thu, hiệu suất sản phẩm, tỷ lệ đơn hàng và cảnh báo tồn kho thời gian thực</p>
+                </div>
+
+                <!-- Messages Framework -->
+                {% if messages %}
+                <div style="margin-bottom: 20px;">
+                    {% for message in messages %}
+                    <div style="padding: 12px 18px; border-radius: 8px; margin-bottom: 8px; font-size: 13px; background: {% if message.tags == 'error' %}var(--dashboard-primary-soft); color: var(--dashboard-primary); border: 1px solid var(--dashboard-border);{% else %}var(--dashboard-success-background); color: var(--dashboard-success); border: 1px solid var(--dashboard-border);{% endif %}">
+                        {{ message }}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                <!-- ======================================================================
+                     SECTION A: TIME FILTERS & COMPARISON (Yêu cầu 5)
+                     ====================================================================== -->
+                <div class="dashboard-filter-card">
+                    <form method="get" action="{% url 'dashboard:index' %}" id="dash-filter-form">
+                        <!-- Giữ lại các query parameters đang có -->
+                        <input type="hidden" name="period" id="filter-period-val" value="{{ current_period }}">
+                        <input type="hidden" name="product_view" value="{{ product_view }}">
+                        <input type="hidden" name="quantity_type" value="{{ quantity_type }}">
+
+                        <div class="dashboard-filter-row">
+                            <!-- 4-Option Segmented Control -->
+                            <div class="dashboard-segmented-control" role="group" aria-label="Bộ lọc thời gian">
+                                <a href="?period=today&compare_to={{ compare_to }}&product_view={{ product_view }}&quantity_type={{ quantity_type }}"
+                                    class="dashboard-segment-btn {% if current_period == 'today' %}active{% endif %}"
+                                    id="filter-btn-today">
+                                    Hôm nay
+                                </a>
+                                <a href="?period=last_7_days&compare_to={{ compare_to }}&product_view={{ product_view }}&quantity_type={{ quantity_type }}"
+                                    class="dashboard-segment-btn {% if current_period == 'last_7_days' %}active{% endif %}"
+                                    id="filter-btn-last-7">
+                                    7 ngày qua
+                                </a>
+                                <a href="?period=this_month&compare_to={{ compare_to }}&product_view={{ product_view }}&quantity_type={{ quantity_type }}"
+                                    class="dashboard-segment-btn {% if current_period == 'this_month' %}active{% endif %}"
+                                    id="filter-btn-this-month">
+                                    Tháng này
+                                </a>
+                                <button type="button"
+                                    class="dashboard-segment-btn {% if current_period == 'custom' %}active{% endif %}"
+                                    id="filter-btn-custom"
+                                    onclick="toggleCustomDateRange(true)">
+                                    Tùy chọn ngày
+                                </button>
+                            </div>
+
+                            <!-- So sánh đối chiếu Selector -->
+                            <div class="dashboard-date-group">
+                                <label for="select-compare-to" style="font-size: 13px; font-weight: 500;">So sánh:</label>
+                                <select id="select-compare-to" name="compare_to" class="dashboard-date-input" onchange="document.getElementById('dash-filter-form').submit();">
+                                    <option value="previous_period" {% if compare_to == 'previous_period' %}selected{% endif %}>
+                                        Kỳ trước liền kề ({{ date_range.duration_days }} ngày)
+                                    </option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Vùng nhập ngày tùy chọn (Tự động mở khi period=custom hoặc ấn nút) -->
+                        <div class="dashboard-custom-range-box {% if current_period == 'custom' %}open{% endif %}" id="qhm-custom-date-section">
+                            <div class="dashboard-date-group">
+                                <label for="input-start-date">Từ ngày:</label>
+                                <input type="date" id="input-start-date" name="start_date" class="dashboard-date-input" value="{{ start_date_val }}" required>
+                            </div>
+                            <div class="dashboard-date-group">
+                                <label for="input-end-date">Đến ngày:</label>
+                                <input type="date" id="input-end-date" name="end_date" class="dashboard-date-input" value="{{ end_date_val }}" required>
+                            </div>
+                            <button type="submit" class="dashboard-btn-apply" id="btn-apply-filter">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+                                </svg>
+                                <span>Áp dụng lọc</span>
+                            </button>
+                        </div>
+                    </form>
+
+                    <!-- Active Filter Banner & Comparison Notice -->
+                    <div class="dashboard-period-banner">
+                        <div>
+                            <span>Đang hiển thị dữ liệu: </span>
+                            <span class="dashboard-period-badge" id="active-period-label">
+                                {{ date_range.period_label }} ({{ date_range.duration_days }} ngày)
+                            </span>
+                        </div>
+                        <div style="font-size: 12px; color: var(--dashboard-text-secondary);">
+                            <span>Kỳ đối chiếu: </span>
+                            <strong style="color: var(--dashboard-text);">{{ date_range.comparison_label }}</strong>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ======================================================================
+                     SECTION B: FOUR OVERVIEW KPI CARDS (Yêu cầu 6)
+                     ====================================================================== -->
+                <div class="dashboard-kpi-grid">
+                    <!-- KPI 1: Tổng doanh thu -->
+                    <div class="dashboard-kpi-card" id="kpi-card-revenue">
+                        <div class="dashboard-kpi-header">
+                            <span class="dashboard-kpi-title">Tổng doanh thu</span>
+                            <div class="dashboard-kpi-icon">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <line x1="12" y1="1" x2="12" y2="23"></line>
+                                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="dashboard-kpi-value" id="kpi-val-revenue">
+                            {{ overview.total_revenue|vn_currency }}
+                        </div>
+                        <div class="dashboard-kpi-footer">
+                            <div>
+                                {% if overview.revenue_growth > 0 %}
+                                <span class="dashboard-growth-badge positive">↑ +{{ overview.revenue_growth }}%</span>
+                                {% elif overview.revenue_growth < 0 %}
+                                <span class="dashboard-growth-badge negative">↓ {{ overview.revenue_growth }}%</span>
+                                {% else %}
+                                <span class="dashboard-growth-badge neutral">— 0%</span>
+                                {% endif %}
+                                <span style="margin-left: 4px;">so kỳ trước</span>
+                            </div>
+                            <div>
+                                TB: <strong>{{ overview.avg_daily_revenue|vn_currency }}/ngày</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- KPI 2: Tổng sản phẩm bán ra -->
+                    <div class="dashboard-kpi-card" id="kpi-card-products-sold">
+                        <div class="dashboard-kpi-header">
+                            <span class="dashboard-kpi-title">Tổng Sản phẩm bán ra</span>
+                            <div class="dashboard-kpi-icon">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+                                    <line x1="3" y1="6" x2="21" y2="6"></line>
+                                    <path d="M16 10a4 4 0 0 1-8 0"></path>
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="dashboard-kpi-value" id="kpi-val-sold">
+                            {{ overview.total_products_sold|vn_number }} <small style="font-size: 15px; font-weight: 500;">sản phẩm</small>
+                        </div>
+                        <div class="dashboard-kpi-footer">
+                            <div>
+                                {% if overview.products_sold_growth > 0 %}
+                                <span class="dashboard-growth-badge positive">↑ +{{ overview.products_sold_growth }}%</span>
+                                {% elif overview.products_sold_growth < 0 %}
+                                <span class="dashboard-growth-badge negative">↓ {{ overview.products_sold_growth }}%</span>
+                                {% else %}
+                                <span class="dashboard-growth-badge neutral">— 0%</span>
+                                {% endif %}
+                                <span style="margin-left: 4px;">so kỳ trước</span>
+                            </div>
+                            <div>
+                                Gộp: <strong>{{ overview.gross_products_sold|vn_number }}</strong>
+                                {% if overview.returned_products_qty > 0 %}
+                                <span style="color: var(--dashboard-primary);">(-{{ overview.returned_products_qty|vn_number }})</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- KPI 3: Tổng đơn hàng -->
+                    <div class="dashboard-kpi-card" id="kpi-card-orders">
+                        <div class="dashboard-kpi-header">
+                            <span class="dashboard-kpi-title">Tổng đơn hàng</span>
+                            <div class="dashboard-kpi-icon">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                    <polyline points="14 2 14 8 20 8"></polyline>
+                                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="dashboard-kpi-value" id="kpi-val-orders">
+                            {{ overview.total_orders|vn_number }} <small style="font-size: 15px; font-weight: 500;">đơn</small>
+                        </div>
+                        <div class="dashboard-kpi-footer">
+                            <div>
+                                {% if overview.orders_growth > 0 %}
+                                <span class="dashboard-growth-badge positive">↑ +{{ overview.orders_growth }}%</span>
+                                {% elif overview.orders_growth < 0 %}
+                                <span class="dashboard-growth-badge negative">↓ {{ overview.orders_growth }}%</span>
+                                {% else %}
+                                <span class="dashboard-growth-badge neutral">— 0%</span>
+                                {% endif %}
+                                <span style="margin-left: 4px;">so kỳ trước</span>
+                            </div>
+                            <div>
+                                Giao đạt: <strong>{{ overview.successful_delivery_rate }}%</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- KPI 4: Biến thể đang kinh doanh -->
+                    <div class="dashboard-kpi-card" id="kpi-card-variants">
+                        <div class="dashboard-kpi-header">
+                            <span class="dashboard-kpi-title">Biến thể đang kinh doanh</span>
+                            <div class="dashboard-kpi-icon">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                                    <line x1="8" y1="21" x2="16" y2="21"></line>
+                                    <line x1="12" y1="17" x2="12" y2="21"></line>
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="dashboard-kpi-value" id="kpi-val-variants">
+                            {{ overview.managed_variants_count|vn_number }} <small style="font-size: 15px; font-weight: 500;">SKU</small>
+                        </div>
+                        <div class="dashboard-kpi-footer">
+                            <div>
+                                <span>Cảnh báo tồn kho:</span>
+                            </div>
+                            <div>
+                                {% if overview.low_stock_variants_count > 0 %}
+                                <span class="status-pill danger">
+                                    {{ overview.low_stock_variants_count }} biến thể sắp hết
+                                </span>
+                                {% else %}
+                                <span class="status-pill success">
+                                    ✓ Đủ hàng
+                                </span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ======================================================================
+                     SECTION C: REVENUE AND CATEGORY CHARTS (Yêu cầu 7)
+                     ====================================================================== -->
+                <div class="dashboard-charts-grid">
+                    <!-- Biểu đồ Doanh thu theo Ngày (Left Line Chart) -->
+                    <div class="dashboard-card" style="margin-bottom: 0;">
+                        <div class="dashboard-card-header">
+                            <div>
+                                <h2 class="dashboard-card-title">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                                    </svg>
+                                    <span>Biểu đồ doanh thu theo ngày & So sánh kỳ trước</span>
+                                </h2>
+                                <p class="dashboard-card-subtitle">So sánh doanh thu thuần từng ngày giữa kỳ hiện tại và kỳ trước</p>
+                            </div>
+                            <div style="font-size: 12px; color: var(--dashboard-text-secondary); display: flex; align-items: center; gap: 14px;">
+                                <span><span style="display: inline-block; width: 14px; height: 3px; background: #E62E2D; vertical-align: middle; margin-right: 4px; border-radius: 2px;"></span> Kỳ này</span>
+                                <span><span style="display: inline-block; width: 14px; height: 3px; background: #6B7280; border-top: 2px dashed #6B7280; vertical-align: middle; margin-right: 4px;"></span> Kỳ trước</span>
+                            </div>
+                        </div>
+
+                        <!-- Khung biểu đồ đảm bảo chiều cao tối thiểu (min-height: 300px) -->
+                        <div class="chart-container" id="revenue-chart-wrapper">
+                            <canvas id="revenueByDayChart"></canvas>
+                        </div>
+
+                        <!-- Hộp tóm tắt chênh lệch doanh thu -->
+                        <div class="dashboard-chart-summary">
+                            <div class="dashboard-chart-stat-item">
+                                <div>Tổng kỳ này</div>
+                                <div class="val" style="color: var(--dashboard-primary);">
+                                    {{ revenue_by_day.current_total|vn_currency }}
+                                </div>
+                            </div>
+                            <div class="dashboard-chart-stat-item">
+                                <div>Tổng kỳ trước</div>
+                                <div class="val" style="color: var(--dashboard-text-secondary);">
+                                    {{ revenue_by_day.previous_total|vn_currency }}
+                                </div>
+                            </div>
+                            <div class="dashboard-chart-stat-item">
+                                <div>Chênh lệch</div>
+                                <div class="val" style="{% if revenue_by_day.difference_total >= 0 %}color: var(--dashboard-success);{% else %}color: var(--dashboard-primary);{% endif %}">
+                                    {% if revenue_by_day.difference_total >= 0 %}+{% endif %}{{ revenue_by_day.difference_total|vn_currency }}
+                                    <span style="font-size: 12px; font-weight: normal;">
+                                        ({% if revenue_by_day.difference_percent >= 0 %}+{% endif %}{{ revenue_by_day.difference_percent }}%)
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Biểu đồ Tỷ trọng Doanh thu theo Danh mục (Right Donut Chart) -->
+                    <div class="dashboard-card" style="margin-bottom: 0;">
+                        <div class="dashboard-card-header">
+                            <div>
+                                <h2 class="dashboard-card-title">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path>
+                                        <path d="M22 12A10 10 0 0 0 12 2v10z"></path>
+                                    </svg>
+                                    <span>Tỷ trọng doanh thu theo danh mục</span>
+                                </h2>
+                                <p class="dashboard-card-subtitle">Tỷ trọng đóng góp từ các danh mục sản phẩm</p>
+                            </div>
+                            <!-- Badge 100% KPI Đạt (Yêu cầu 7) -->
+                            {% if category_revenue.categories and category_revenue.total_revenue > 0 %}
+                            <div>
+                                <span class="qhm-kpi-achieved-badge">100% KPI Đạt</span>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Donut Container -->
+                        <div class="chart-container" id="category-chart-wrapper">
+                            {% if category_revenue.categories and category_revenue.total_revenue > 0 %}
+                            <canvas id="categoryRevenueChart"></canvas>
+                            <div class="qhm-dash-donut-center" id="donut-center-overlay">
+                                <div style="font-size: 11px; color: var(--dashboard-text-secondary); text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">Tổng doanh thu</div>
+                                <div style="font-size: 16px; font-weight: 800; color: var(--dashboard-text); margin-top: 2px;">{{ category_revenue.total_revenue|vn_currency }}</div>
+                            </div>
+                            {% else %}
+                            <div class="qhm-dash-empty-state">
+                                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="1.5">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <path d="M12 2a10 10 0 0 1 10 10H12V2z"></path>
+                                </svg>
+                                <p>Chưa có dữ liệu doanh thu danh mục trong khoảng thời gian này.</p>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Danh sách danh mục & Tỷ lệ % Legend -->
+                        <div class="dashboard-cat-list" id="category-legend-list">
+                            {% for cat in category_revenue.categories %}
+                            <div class="dashboard-cat-row">
+                                <div class="dashboard-cat-info">
+                                    <span class="qhm-dash-cat-dot" data-cat-idx="{{ forloop.counter0 }}"></span>
+                                    <strong>{{ cat.name }}</strong>
+                                    <small style="color: var(--dashboard-text-secondary);">({{ cat.quantity }} sản phẩm)</small>
+                                </div>
+                                <div>
+                                    <strong style="color: var(--dashboard-text);">{{ cat.revenue|vn_currency }}</strong>
+                                    <span style="display: inline-block; width: 48px; text-align: right; color: var(--dashboard-primary); font-weight: 700;">
+                                        {{ cat.percentage }}%
+                                    </span>
+                                </div>
+                            </div>
+                            {% empty %}
+                            <div style="text-align: center; font-size: 12px; color: var(--dashboard-text-muted); padding: 12px;">
+                                Không có phát sinh doanh thu danh mục.
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ======================================================================
+                     SECTION D: PRODUCT PERFORMANCE SECTION (Yêu cầu 8)
+                     ====================================================================== -->
+                <div class="dashboard-card" style="margin-top: 24px;">
+                    <div class="dashboard-card-header">
+                        <div>
+                            <h2 class="dashboard-card-title">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                                </svg>
+                                <span>Thống kê hiệu suất sản phẩm</span>
+                            </h2>
+                            <p class="dashboard-card-subtitle">Bảng xếp hạng bán chạy và bán chậm tính trên các đơn hàng giao thành công (DELIVERED), phân bổ doanh thu thuần sau hoàn tiền.</p>
+                        </div>
+                    </div>
+
+                    <!-- Exactly two horizontal cards on the same row (Yêu cầu 8) -->
+                    <div class="product-summary-grid">
+                        <div class="product-summary-card">
+                            <div class="product-summary-title">Tổng số sản phẩm đang bán</div>
+                            <div class="product-summary-val">{{ product_metrics.total_active_products|vn_number }}</div>
+                            <div class="product-summary-sub">Sản phẩm đang kích hoạt kinh doanh trên toàn hệ thống</div>
+                        </div>
+                        <div class="product-summary-card">
+                            <div class="product-summary-title">Tổng số biến thể kinh doanh</div>
+                            <div class="product-summary-val">{{ product_metrics.total_managed_variants|vn_number }}</div>
+                            <div class="product-summary-sub">Mã SKU biến thể màu sắc & dung lượng đang vận hành</div>
+                        </div>
+                    </div>
+
+                    <!-- Tabs chọn xem Top Bán Chạy vs Top Bán Chậm -->
+                    <div class="dashboard-tabs">
+                        <button type="button" class="dashboard-tab-btn active" id="tab-btn-best-selling" onclick="switchProductTab('best')">
+                            Top sản phẩm bán chạy
+                        </button>
+                        <button type="button" class="dashboard-tab-btn" id="tab-btn-slowest-selling" onclick="switchProductTab('slowest')">
+                            Top sản phẩm bán chậm / ế
+                        </button>
+                    </div>
+
+                    <!-- Bảng 1: Top bán chạy -->
+                    <div id="product-tab-best" class="dashboard-table-wrapper">
+                        <table class="dashboard-table" id="table-best-selling">
+                            <thead>
+                                <tr>
+                                    <th style="width: 50px; text-align: center;">Hạng</th>
+                                    <th>Sản phẩm & Biến thể</th>
+                                    <th>Mã SKU</th>
+                                    <th>Thuộc tính</th>
+                                    <th style="text-align: right;">SL Bán thuần</th>
+                                    <th style="text-align: right;">SL Gộp (Đã giao)</th>
+                                    <th style="text-align: right;">Đổi trả trừ</th>
+                                    <th style="text-align: right;">Tăng trưởng</th>
+                                    <th style="text-align: right;" title="Doanh thu thuần đã phân bổ sau khi trừ hoàn tiền hoàn tất">Doanh thu thuần (VNĐ)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in product_metrics.best_selling %}
+                                <tr>
+                                    <td style="text-align: center;">
+                                        <span class="rank-badge {% if item.rank == 1 %}top-1{% elif item.rank == 2 %}top-2{% else %}top-other{% endif %}">
+                                            {{ item.rank }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <strong>{{ item.product_name }}</strong>
+                                    </td>
+                                    <td>
+                                        <span class="sku-pill">{{ item.sku }}</span>
+                                    </td>
+                                    <td>
+                                        <span style="color: var(--dashboard-text-secondary);">{{ item.attributes }}</span>
+                                    </td>
+                                    <td style="text-align: right;">
+                                        <strong style="color: var(--dashboard-primary); font-size: 14px;">{{ item.net_quantity|vn_number }}</strong>
+                                    </td>
+                                    <td style="text-align: right; color: var(--dashboard-text-secondary);">
+                                        {{ item.gross_quantity|vn_number }}
+                                    </td>
+                                    <td style="text-align: right;">
+                                        {% if item.returned_quantity > 0 %}
+                                        <span style="color: var(--dashboard-primary); font-weight: 600;">-{{ item.returned_quantity|vn_number }}</span>
+                                        {% else %}
+                                        <span style="color: var(--dashboard-text-muted);">0</span>
+                                        {% endif %}
+                                    </td>
+                                    <td style="text-align: right;">
+                                        {% if item.growth_percent > 0 %}
+                                        <span class="dashboard-growth-badge positive">+{{ item.growth_percent }}%</span>
+                                        {% elif item.growth_percent < 0 %}
+                                        <span class="dashboard-growth-badge negative">{{ item.growth_percent }}%</span>
+                                        {% else %}
+                                        <span class="dashboard-growth-badge neutral">0%</span>
+                                        {% endif %}
+                                    </td>
+                                    <td style="text-align: right; font-weight: 700; color: var(--dashboard-text);">
+                                        {{ item.revenue|vn_currency }}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="9" style="text-align: center; padding: 28px; color: var(--dashboard-text-muted);">
+                                        Chưa có dữ liệu bán hàng cho các sản phẩm trong kỳ này.
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Bảng 2: Top bán chậm -->
+                    <div id="product-tab-slowest" class="dashboard-table-wrapper" style="display: none;">
+                        <table class="dashboard-table" id="table-slowest-selling">
+                            <thead>
+                                <tr>
+                                    <th style="width: 50px; text-align: center;">Thứ tự</th>
+                                    <th>Sản phẩm & Biến thể</th>
+                                    <th>Mã SKU</th>
+                                    <th>Thuộc tính</th>
+                                    <th style="text-align: right;">SL Bán thuần</th>
+                                    <th style="text-align: right;">SL Kỳ trước</th>
+                                    <th style="text-align: right;" title="Doanh thu thuần đã phân bổ sau khi trừ hoàn tiền hoàn tất">Doanh thu thuần (VNĐ)</th>
+                                    <th style="text-align: center;">Tình trạng</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in product_metrics.slowest_selling %}
+                                <tr>
+                                    <td style="text-align: center;">
+                                        <span class="rank-badge top-other">{{ item.rank }}</span>
+                                    </td>
+                                    <td>
+                                        <strong>{{ item.product_name }}</strong>
+                                    </td>
+                                    <td>
+                                        <span class="sku-pill">{{ item.sku }}</span>
+                                    </td>
+                                    <td>
+                                        <span style="color: var(--dashboard-text-secondary);">{{ item.attributes }}</span>
+                                    </td>
+                                    <td style="text-align: right; font-weight: 700;">
+                                        {{ item.net_quantity|vn_number }}
+                                    </td>
+                                    <td style="text-align: right; color: var(--dashboard-text-secondary);">
+                                        {{ item.prev_quantity|vn_number }}
+                                    </td>
+                                    <td style="text-align: right; font-weight: 600;">
+                                        {{ item.revenue|vn_currency }}
+                                    </td>
+                                    <td style="text-align: center;">
+                                        {% if item.net_quantity == 0 %}
+                                        <span class="status-pill danger">Không có lượt mua</span>
+                                        {% else %}
+                                        <span class="status-pill warning">Tiêu thụ chậm</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="8" style="text-align: center; padding: 28px; color: var(--dashboard-text-muted);">
+                                        Không có dữ liệu biến thể.
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- ======================================================================
+                     SECTION E: ORDER FULFILLMENT SECTION (Yêu cầu 9)
+                     ====================================================================== -->
+                <div class="dashboard-card">
+                    <div class="dashboard-card-header">
+                        <div>
+                            <h2 class="dashboard-card-title">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+                                    <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+                                    <path d="M9 14l2 2 4-4"></path>
+                                </svg>
+                                <span>Thống kê Đơn Hàng Chi Tiết</span>
+                            </h2>
+                            <p class="dashboard-card-subtitle">Thống kê đơn hàng chi tiết theo toàn bộ vòng đời tiếp nhận, vận hành và phân phối</p>
+                        </div>
+                        <div>
+                            <span class="order-badge-live">● Thời gian thực</span>
+                        </div>
+                    </div>
+
+                    <!-- Hàng 1: Hai thẻ bằng nhau (Yêu cầu 9) -->
+                    <div class="order-row-group-2">
+                        <div class="order-mini-card">
+                            <span class="label">Tổng số đơn hàng phát sinh (Tổng số đơn hàng)</span>
+                            <div class="val">{{ order_metrics.total_orders|vn_number }} <small style="font-size: 15px; font-weight: 500;">đơn</small></div>
+                            <div class="sub">Toàn bộ đơn hàng được tạo trong kỳ báo cáo</div>
+                        </div>
+                        <div class="order-mini-card">
+                            <span class="label">Tỷ lệ giao hàng thành công</span>
+                            <div class="val" style="color: var(--dashboard-success);">{{ order_metrics.delivery_success_rate }}<small style="font-size: 15px; font-weight: 500;">%</small></div>
+                            <div class="sub">Tỷ lệ giao hàng thành công = Số đơn giao thành công / Tổng số đơn được tạo × 100%</div>
+                        </div>
+                    </div>
+
+                    <!-- Hàng 2: Bốn thẻ bằng nhau (Đang xử lý) -->
+                    <div style="font-size: 13px; font-weight: 700; color: var(--dashboard-text); margin: 18px 0 10px 0;">Đơn hàng trong tiến trình tiếp nhận:</div>
+                    <div class="order-row-group-4">
+                        <div class="order-mini-card">
+                            <span class="label">Số đơn chờ thanh toán</span>
+                            <div class="val" style="color: var(--dashboard-warning);">{{ order_metrics.pending_payment|vn_number }} <small style="font-size: 14px; font-weight: 500;">đơn</small></div>
+                        </div>
+                        <div class="order-mini-card">
+                            <span class="label">Số đơn chờ đối soát</span>
+                            <div class="val" style="color: var(--dashboard-warning);">{{ order_metrics.pending_reconciliation|vn_number }} <small style="font-size: 14px; font-weight: 500;">đơn</small></div>
+                        </div>
+                        <div class="order-mini-card">
+                            <span class="label">Số đơn chờ xác nhận</span>
+                            <div class="val" style="color: var(--dashboard-info);">{{ order_metrics.pending_confirmation|vn_number }} <small style="font-size: 14px; font-weight: 500;">đơn</small></div>
+                        </div>
+                        <div class="order-mini-card">
+                            <span class="label">Số đơn đã xác nhận</span>
+                            <div class="val" style="color: var(--dashboard-info);">{{ order_metrics.confirmed|vn_number }} <small style="font-size: 14px; font-weight: 500;">đơn</small></div>
+                        </div>
+                    </div>
+
+                    <!-- Hàng 3: Bốn thẻ bằng nhau (Vận hành & Kết thúc) -->
+                    <div style="font-size: 13px; font-weight: 700; color: var(--dashboard-text); margin: 18px 0 10px 0;">Vận chuyển & Kết quả hoàn tất:</div>
+                    <div class="order-row-group-4">
+                        <div class="order-mini-card">
+                            <span class="label">Số đơn đang giao</span>
+                            <div class="val" style="color: var(--dashboard-warning);">{{ order_metrics.shipping|vn_number }} <small style="font-size: 14px; font-weight: 500;">đơn</small></div>
+                        </div>
+                        <div class="order-mini-card">
+                            <span class="label">Số đơn giao thành công</span>
+                            <div class="val" style="color: var(--dashboard-success);">{{ order_metrics.delivered|vn_number }} <small style="font-size: 14px; font-weight: 500;">đơn</small></div>
+                        </div>
+                        <div class="order-mini-card">
+                            <span class="label">Số đơn đã hủy</span>
+                            <div class="val" style="color: var(--dashboard-primary);">{{ order_metrics.cancelled|vn_number }} <small style="font-size: 14px; font-weight: 500;">đơn</small></div>
+                        </div>
+                        <div class="order-mini-card">
+                            <span class="label">Số đơn hết hạn thanh toán (Hết hạn thanh toán)</span>
+                            <div class="val" style="color: var(--dashboard-text-secondary);">{{ order_metrics.expired|vn_number }} <small style="font-size: 14px; font-weight: 500;">đơn</small></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ======================================================================
+                     SECTION F: INVENTORY OVERVIEW SECTION (Yêu cầu 10)
+                     ====================================================================== -->
+                <div class="dashboard-card">
+                    <div class="dashboard-card-header">
+                        <div>
+                            <h2 class="dashboard-card-title">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                                    <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                                    <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                                </svg>
+                                <span>Thống kê Tồn Kho Toàn Diện</span>
+                            </h2>
+                            <p class="dashboard-card-subtitle">Kiểm soát dòng hàng tồn, cân bằng nhu cầu giữ chỗ và định mức tối thiểu</p>
+                        </div>
+                        <div>
+                            <a href="{% url 'dashboard:inventory_export_csv' %}" class="dashboard-btn-site" id="btn-export-inventory-csv">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                    <polyline points="7 10 12 15 17 10"></polyline>
+                                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                                </svg>
+                                <span>Xuất file tồn kho</span>
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Hàng 1: Ba thẻ bằng nhau (Yêu cầu 10) -->
+                    <div class="inv-row-group-3">
+                        <div class="inv-kpi-card">
+                            <div class="title">Tổng tồn thực tế</div>
+                            <div class="desc">Hiện diện vật lý tại chuỗi kho</div>
+                            <div class="val">{{ inventory_metrics.total_physical|vn_number }}</div>
+                        </div>
+                        <div class="inv-kpi-card">
+                            <div class="title">Tổng tồn đã giữ (Reserved)</div>
+                            <div class="desc">Đã được khách đặt, chờ giao hàng</div>
+                            <div class="val" style="color: var(--dashboard-warning);">{{ inventory_metrics.total_reserved|vn_number }}</div>
+                        </div>
+                        <div class="inv-kpi-card">
+                            <div class="title">Tổng tồn có thể bán (Available)</div>
+                            <div class="desc">Sẵn sàng mở bán trên các kênh</div>
+                            <div class="val" style="color: var(--dashboard-success);">{{ inventory_metrics.total_available|vn_number }}</div>
+                        </div>
+                    </div>
+
+                    <!-- Formula: Hiển thị cả công thức chữ và số liệu động (Yêu cầu 10) -->
+                    <div style="margin: 14px 0 20px 0; display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
+                        <span class="inventory-formula-badge">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <line x1="12" y1="16" x2="12" y2="12"></line>
+                                <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                            </svg>
+                            <span>Công thức: Tồn có thể bán = Tổng tồn thực tế - Tồn đã giữ</span>
+                            <span style="color: var(--dashboard-text-muted);">|</span>
+                            <span>Tổng tồn thực tế = Tồn đã giữ + Tồn có thể bán</span>
+                        </span>
+                        <span class="inventory-formula-badge" style="background-color: var(--dashboard-primary-soft); border-color: var(--dashboard-border); color: var(--dashboard-primary);">
+                            <span>Số liệu: {{ inventory_metrics.total_available|vn_number }} = {{ inventory_metrics.total_physical|vn_number }} - {{ inventory_metrics.total_reserved|vn_number }}</span>
+                        </span>
+                    </div>
+
+                    <!-- Bảng cảnh báo biến thể sắp hết hàng (Yêu cầu 10: Product name, Variant name, SKU, Current available, Min threshold, Status) -->
+                    <div style="margin-top: 10px; margin-bottom: 12px;">
+                        <h3 style="font-size: 15px; font-weight: 700; color: var(--dashboard-text); margin: 0 0 4px 0;">
+                            Cảnh báo biến thể sắp hết hàng
+                        </h3>
+                        <p style="font-size: 13px; color: var(--dashboard-text-secondary); margin: 0;">
+                            Ưu tiên nhập hàng cho {{ inventory_metrics.total_warning_count }} biến thể dưới định mức an toàn
+                        </p>
+                    </div>
+
+                    <div class="dashboard-table-wrapper">
+                        <table class="dashboard-table" id="table-warning-variants">
+                            <thead>
+                                <tr>
+                                    <th>Tên sản phẩm</th>
+                                    <th>Tên biến thể / Thuộc tính</th>
+                                    <th>Mã SKU</th>
+                                    <th style="text-align: right; width: 140px;">Tồn hiện tại</th>
+                                    <th style="text-align: right; width: 140px;">Định mức Min</th>
+                                    <th style="text-align: center; width: 140px;">Trạng thái</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in inventory_metrics.warning_variants %}
+                                <tr>
+                                    <td>
+                                        <div style="font-weight: 600; color: var(--dashboard-text);">{{ item.product_name }}</div>
+                                    </td>
+                                    <td>
+                                        <span style="color: var(--dashboard-text-secondary);">{{ item.attributes|default:"Mặc định" }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="sku-pill">{{ item.sku }}</span>
+                                    </td>
+                                    <td style="text-align: right; font-weight: 700; font-size: 14px; {% if item.available <= 0 %}color: var(--dashboard-primary);{% else %}color: var(--dashboard-warning);{% endif %}">
+                                        {{ item.available|vn_number }}
+                                    </td>
+                                    <td style="text-align: right; color: var(--dashboard-text); font-size: 14px;">
+                                        {{ item.min_threshold|vn_number }}
+                                    </td>
+                                    <td style="text-align: center;">
+                                        {% if item.status_label == 'Hết hàng' %}
+                                        <span class="status-pill danger">{{ item.status_label }}</span>
+                                        {% else %}
+                                        <span class="status-pill warning">{{ item.status_label }}</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="6" style="text-align: center; padding: 28px; color: var(--dashboard-success); font-weight: 500;">
+                                        ✓ Toàn bộ các biến thể trong kho hiện đang đủ hàng, không có cảnh báo tồn kho thấp.
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- ======================================================================
+                     SECTION G: CANCELLATION SECTION (Yêu cầu 11)
+                     ====================================================================== -->
+                <div class="dashboard-card">
+                    <div class="dashboard-card-header">
+                        <div>
+                            <h2 class="dashboard-card-title">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <line x1="15" y1="9" x2="9" y2="15"></line>
+                                    <line x1="9" y1="9" x2="15" y2="15"></line>
+                                </svg>
+                                <span>Thống kê hủy đơn hàng</span>
+                            </h2>
+                            <p class="dashboard-card-subtitle">Kiểm soát tỷ lệ và phân tích chi tiết các nguyên nhân dẫn đến hủy đơn hàng</p>
+                        </div>
+                    </div>
+
+                    <!-- 4 Thẻ KPI bằng nhau (Yêu cầu 11) -->
+                    <div class="cancellation-kpi-grid">
+                        <div class="inv-kpi-card">
+                            <div class="title">Tổng số đơn bị hủy</div>
+                            <div class="val" style="color: var(--dashboard-primary);">{{ cancellation_metrics.total_cancelled|vn_number }} <small style="font-size: 15px; font-weight: 500;">đơn</small></div>
+                            <div class="desc">Khách hủy + Hết hạn QR</div>
+                        </div>
+                        <div class="inv-kpi-card">
+                            <div class="title">Tỷ lệ hủy đơn</div>
+                            <div class="val" style="color: var(--dashboard-primary);">{{ cancellation_metrics.cancellation_rate }}<small style="font-size: 15px; font-weight: 500;">%</small></div>
+                            <div class="desc">Trên tổng đơn tạo trong kỳ</div>
+                        </div>
+                        <div class="inv-kpi-card">
+                            <div class="title">Số đơn khách tự hủy</div>
+                            <div class="val" style="color: var(--dashboard-warning);">{{ cancellation_metrics.customer_cancelled_count|vn_number }} <small style="font-size: 15px; font-weight: 500;">đơn</small></div>
+                            <div class="desc">Khách hàng chủ động hủy</div>
+                        </div>
+                        <div class="inv-kpi-card">
+                            <div class="title">Hủy nội bộ / Hết hạn</div>
+                            <div class="val" style="color: var(--dashboard-text-secondary);">{{ cancellation_metrics.expired_cancelled_count|vn_number }} <small style="font-size: 15px; font-weight: 500;">đơn</small></div>
+                            <div class="desc">Hết hạn thanh toán qua mã QR</div>
+                        </div>
+                    </div>
+
+                    <!-- Công thức hủy đơn -->
+                    <div style="margin: 14px 0 20px 0;">
+                        <span class="inventory-formula-badge" style="background-color: var(--dashboard-primary-soft); border-color: var(--dashboard-border); color: var(--dashboard-primary);">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <line x1="12" y1="16" x2="12" y2="12"></line>
+                                <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                            </svg>
+                            <span>Tỷ lệ hủy = Số đơn bị hủy / Tổng số đơn được tạo × 100%.</span>
+                        </span>
+                    </div>
+
+                    <!-- Nguyên nhân hủy đơn hàng với thanh tiến trình tỷ lệ (Yêu cầu 11) -->
+                    <div style="border-top: 1px solid var(--dashboard-border); padding-top: 18px;">
+                        <h3 style="font-size: 15px; font-weight: 700; color: var(--dashboard-text); margin: 0 0 14px 0;">
+                            Nguyên nhân hủy đơn hàng
+                        </h3>
+                        <div id="cancellation-reasons-list">
+                            {% for r in cancellation_metrics.reasons_breakdown %}
+                            <div class="cancellation-reason-row">
+                                <div class="reason-header">
+                                    <span class="reason-name">{{ r.label }}</span>
+                                    <span class="reason-value">{{ r.count|vn_number }} đơn ({{ r.percentage }}%)</span>
+                                </div>
+                                <div class="progress-track">
+                                    <div class="progress-fill" style="width: {{ r.percentage|css_pct }}%; background-color: {{ r.color }};"></div>
+                                </div>
+                            </div>
+                            {% empty %}
+                            <div class="qhm-dash-empty-state">
+                                <p>Không có đơn hàng nào bị hủy trong khoảng thời gian này.</p>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ======================================================================
+                     SECTION H: RETURN AND EXCHANGE SECTION (Yêu cầu 12)
+                     ====================================================================== -->
+                <div class="dashboard-card">
+                    <div class="dashboard-card-header">
+                        <div>
+                            <h2 class="dashboard-card-title">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="1 4 1 10 7 10"></polyline>
+                                    <polyline points="23 20 23 14 17 14"></polyline>
+                                    <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"></path>
+                                </svg>
+                                <span>Thống kê Đổi & Trả hàng</span>
+                            </h2>
+                            <p class="dashboard-card-subtitle">Kiểm soát tỷ lệ và tiến độ xử lý yêu cầu đổi trả trên tập đơn hàng giao thành công (DELIVERED)</p>
+                        </div>
+                        <div>
+                            <button type="button" class="dashboard-btn-site" onclick="toggleReturnDetailsModal(true)">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                    <circle cx="12" cy="12" r="3"></circle>
+                                </svg>
+                                <span>Xem chi tiết mô tả khách hàng (Admin)</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Hàng 1: Hai thẻ Tỷ lệ (Yêu cầu 12) -->
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 16px;">
+                        <div class="inv-kpi-card" style="background-color: var(--dashboard-surface-muted); border-color: var(--dashboard-border);">
+                            <div class="title" style="color: var(--dashboard-info); font-weight: 700;">Tỷ lệ yêu cầu đổi hàng</div>
+                            <div class="val" style="color: var(--dashboard-info); margin: 6px 0;">
+                                {{ return_exchange_metrics.exchange_request_rate }}<small style="font-size: 16px; font-weight: 500;">%</small>
+                            </div>
+                            <div style="font-size: 12px; color: var(--dashboard-text-secondary); line-height: 1.4;">
+                                Tỷ lệ đổi hàng = Số đơn giao thành công có ít nhất một yêu cầu đổi hàng / Tổng số đơn giao thành công × 100%.
+                            </div>
+                        </div>
+
+                        <div class="inv-kpi-card" style="background-color: var(--dashboard-primary-soft); border-color: var(--dashboard-border);">
+                            <div class="title" style="color: var(--dashboard-primary); font-weight: 700;">Tỷ lệ yêu cầu trả hàng</div>
+                            <div class="val" style="color: var(--dashboard-primary); margin: 6px 0;">
+                                {{ return_exchange_metrics.return_request_rate }}<small style="font-size: 16px; font-weight: 500;">%</small>
+                            </div>
+                            <div style="font-size: 12px; color: var(--dashboard-text-secondary); line-height: 1.4;">
+                                Tỷ lệ trả hàng = Số đơn giao thành công có ít nhất một yêu cầu trả hàng / Tổng số đơn giao thành công × 100%.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Hàng 2: Hai thẻ Tổng số yêu cầu (Yêu cầu 12) -->
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 24px;">
+                        <div class="inv-kpi-card">
+                            <div class="title">Tổng yêu cầu đổi hàng</div>
+                            <div class="val" style="margin: 6px 0;">
+                                {{ return_exchange_metrics.total_exchange_requests|vn_number }} <small style="font-size: 15px; font-weight: 500;">yêu cầu</small>
+                            </div>
+                            <div class="desc">Từ {{ return_exchange_metrics.exchange_orders_count|vn_number }} đơn hàng giao thành công</div>
+                        </div>
+
+                        <div class="inv-kpi-card">
+                            <div class="title">Tổng yêu cầu trả hàng hoàn tiền</div>
+                            <div class="val" style="margin: 6px 0;">
+                                {{ return_exchange_metrics.total_return_requests|vn_number }} <small style="font-size: 15px; font-weight: 500;">yêu cầu</small>
+                            </div>
+                            <div class="desc">Từ {{ return_exchange_metrics.return_orders_count|vn_number }} đơn hàng giao thành công</div>
+                        </div>
+                    </div>
+
+                    <!-- Hai panels bằng nhau trên cùng một hàng (Yêu cầu 12) -->
+                    <div class="return-panels-grid">
+                        <!-- Left Panel: Trạng thái xử lý Đổi/Trả (4 Giai đoạn chuẩn) -->
+                        <div class="return-panel">
+                            <h3 class="return-panel-title">Trạng thái xử lý Đổi/Trả (Trạng thái xử lý đổi/trả)</h3>
+
+                            {% for stage in return_exchange_metrics.processing_stages %}
+                            <div class="return-stage-item">
+                                <div class="return-stage-header">
+                                    <span style="font-weight: 700; color: var(--dashboard-text);">{{ stage.step }}. {{ stage.label }}</span>
+                                    <span style="font-size: 12px; font-weight: 600; color: var(--dashboard-text-secondary);">
+                                        Đổi: <strong>{{ stage.exchange_count|vn_number }}</strong> | Trả: <strong>{{ stage.return_count|vn_number }}</strong>
+                                    </span>
+                                </div>
+                                <div class="processing-stage-bars">
+                                    <div class="processing-stage-col">
+                                        <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 3px; color: var(--dashboard-text-secondary);">
+                                            <span>Đổi hàng</span>
+                                            <span>{{ stage.exchange_count|vn_number }} ({{ stage.exchange_pct }}%)</span>
+                                        </div>
+                                        <div class="processing-bar-track">
+                                            <div class="processing-bar-fill" style="width: {{ stage.exchange_pct|css_pct }}%; background: {{ stage.exchange_color }};"></div>
+                                        </div>
+                                    </div>
+                                    <div class="processing-stage-col">
+                                        <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 3px; color: var(--dashboard-text-secondary);">
+                                            <span>Trả hàng</span>
+                                            <span>{{ stage.return_count|vn_number }} ({{ stage.return_pct }}%)</span>
+                                        </div>
+                                        <div class="processing-bar-track">
+                                            <div class="processing-bar-fill" style="width: {{ stage.return_pct|css_pct }}%; background: {{ stage.return_color }};"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+
+                        <!-- Right Panel: Nguyên nhân Đổi/Trả (Yêu cầu 12) -->
+                        <div class="return-panel">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+                                <h3 class="return-panel-title" style="margin: 0;">Nguyên nhân Đổi/Trả (Nguyên nhân đổi trả)</h3>
+                                <span style="font-size: 12px; font-weight: 700; color: var(--dashboard-text-secondary);">Tổng: 100%</span>
+                            </div>
+
+                            <div id="return-reasons-list">
+                                {% for r in return_exchange_metrics.reasons_breakdown %}
+                                <div class="return-reason-row">
+                                    <div class="reason-header">
+                                        <span class="reason-label">{{ forloop.counter }}. {{ r.label }}</span>
+                                        <span class="reason-count">{{ r.count|vn_number }} lượt ({{ r.percentage }}%)</span>
+                                    </div>
+                                    <div class="progress-track">
+                                        <div class="progress-fill" style="width: {{ r.percentage|css_pct }}%; background-color: {{ r.color }};"></div>
+                                    </div>
+                                </div>
+                                {% empty %}
+                                <div class="qhm-dash-empty-state">
+                                    <p>Không có yêu cầu đổi trả nào trong kỳ này.</p>
+                                </div>
+                                {% endfor %}
+                            </div>
+
+                            <!-- Bottom Benchmark Badge (Yêu cầu 12) -->
+                            <div style="border-top: 1px dashed var(--dashboard-border); margin-top: 16px; padding-top: 12px; text-align: center;">
+                                <div class="return-benchmark-badge" style="background-color: var(--dashboard-success-background); color: var(--dashboard-success); border: 1px solid var(--dashboard-border);">
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                        <polyline points="20 6 9 17 4 12"></polyline>
+                                    </svg>
+                                    <span>Tỷ lệ đổi trả dưới 2.5% (Tốt)</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ======================================================================
+                     MODAL: CHI TIẾT MÔ TẢ ĐỔI TRẢ (Admin Only)
+                     ====================================================================== -->
+                <div id="qhm-return-details-modal" style="display: none; position: fixed; inset: 0; background-color: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; padding: 20px; backdrop-filter: blur(2px);">
+                    <div style="background-color: #FFFFFF; border-radius: 16px; max-width: 960px; width: 100%; max-height: 85vh; overflow-y: auto; padding: 24px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.2); border: 1px solid var(--dashboard-border);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; border-bottom: 1px solid var(--dashboard-border); padding-bottom: 12px;">
+                            <h3 style="margin: 0; font-size: 18px; font-weight: 700; color: var(--dashboard-text);">
+                                Chi tiết Diễn giải & Mô tả Đổi / Trả của Khách hàng
+                            </h3>
+                            <button type="button" onclick="toggleReturnDetailsModal(false)" style="background: none; border: none; font-size: 22px; cursor: pointer; color: var(--dashboard-text-secondary); line-height: 1;">
+                                ✕
+                            </button>
+                        </div>
+                        <div class="dashboard-table-wrapper">
+                            <table class="dashboard-table">
+                                <thead>
+                                    <tr>
+                                        <th>Mã đơn</th>
+                                        <th>Loại</th>
+                                        <th>Khách hàng</th>
+                                        <th>Sản phẩm</th>
+                                        <th>Nhóm phân loại</th>
+                                        <th>Lý do / Mô tả chi tiết</th>
+                                        <th>Trạng thái</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in return_exchange_metrics.other_requests_details %}
+                                    <tr>
+                                        <td><strong>{{ item.order_code }}</strong></td>
+                                        <td>{{ item.request_type }}</td>
+                                        <td>{{ item.customer_username }}</td>
+                                        <td>{{ item.product_name }}</td>
+                                        <td><span class="sku-pill">{{ item.category_group }}</span></td>
+                                        <td style="max-width: 250px; word-break: break-word;">{{ item.reason }}</td>
+                                        <td><span class="status-pill warning">{{ item.status }}</span></td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="7" style="text-align: center; padding: 28px; color: var(--dashboard-text-muted);">
+                                            Không có yêu cầu đổi trả nào trong kỳ này.
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        <div style="margin-top: 20px; text-align: right;">
+                            <button type="button" class="dashboard-btn-site" onclick="toggleReturnDetailsModal(false)">
+                                Đóng lại
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- Dữ liệu Biểu đồ JSON an toàn từ Backend qua thẻ json_script (Yêu cầu 7 & Test 17) -->
+    {{ revenue_by_day|json_script:"revenue-by-day-data" }}
+    {{ category_revenue|json_script:"category-revenue-data" }}
+
+    <!-- Script điều khiển Dashboard -->
+    <script src="{% static 'js/dashboard.js' %}?v=20261119d"></script>
+</body>
+
+</html>

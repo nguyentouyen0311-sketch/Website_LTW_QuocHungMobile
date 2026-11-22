@@ -5,239 +5,319 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sổ cái Lịch sử biến động kho — Quốc Hùng Mobile</title>
-    <meta name="description" content="Sổ cái lịch sử ghi nhận toàn bộ các biến động kho hàng (PURCHASE_IN) theo thời gian thực — Quốc Hùng Mobile.">
-    <link rel="stylesheet" href="{% static 'css/catalog.css' %}">
-    <style>.qhm-badge-status {
-            display: inline-flex;
-            align-items: center;
-            padding: 3px 8px;
-            font-size: 11px;
-            font-weight: 700;
-            border-radius: 4px;
-        }
-        .badge-success {
-            background-color: #dcfce7;
-            color: #166534;
-            border: 1px solid #86efac;
-        }
-        .badge-info {
-            background-color: #e0f2fe;
-            color: #0369a1;
-            border: 1px solid #bae6fd;
-        }
-        .qhm-stock-num {
-            font-family: monospace, monospace;
-            font-weight: 700;
-            font-size: 14px;
-        }
-</style>
+    <meta name="description" content="Sổ cái kiểm toán lịch sử ghi nhận toàn bộ các biến động kho hàng (Nhập hàng, Xuất kho, Điều chỉnh kiểm kê, Nhập hàng đổi trả) theo thời gian thực — Quốc Hùng Mobile.">
+
+    <!-- Google Fonts: Inter & Plus Jakarta Sans -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Design Tokens & CSS -->
+    <link rel="stylesheet" href="{% static 'css/dashboard.css' %}?v=20261119">
+    <link rel="stylesheet" href="{% static 'css/inventory.css' %}?v=20261119">
 </head>
-<body class="qhm-catalog-body">
 
+<body class="qhm-dashboard-page qhm-inv-portal">
 
-    {% include 'catalog/includes/management_header.html' %}
+    <div class="qhm-dashboard-shell">
+        <!-- 1. Fixed Left Sidebar -->
+        {% include 'catalog/includes/management_sidebar.html' with active_nav='inventory_history' %}
 
-    <div class="qhm-mgmt-layout">
+        <!-- 2. Main Workspace -->
+        <main class="dashboard-main" role="main">
+            <!-- Top Header -->
+            <header class="dashboard-topbar" role="banner">
+                <div class="dashboard-topbar-left">
+                    <button type="button" class="dashboard-menu-toggle" id="qhm-sidebar-toggle" aria-label="Mở menu quản trị" onclick="toggleQhmSidebar()">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <line x1="3" y1="12" x2="21" y2="12"></line>
+                            <line x1="3" y1="6" x2="21" y2="6"></line>
+                            <line x1="3" y1="18" x2="21" y2="18"></line>
+                        </svg>
+                    </button>
+                    <nav class="dashboard-breadcrumb" aria-label="Đường dẫn trang">
+                        <a href="{% url 'dashboard:index' %}">Tổng quan</a>
+                        <span class="sep">&gt;</span>
+                        <a href="{% url 'inventory:inventory_list' %}">Quản lý tồn kho</a>
+                        <span class="sep">&gt;</span>
+                        <span class="current">Sổ cái lịch sử biến động</span>
+                    </nav>
+                </div>
 
-        {% include 'catalog/includes/management_sidebar.html' %}
+                <div class="dashboard-topbar-right">
+                    <span class="dashboard-admin-badge" title="Tài khoản Quản trị viên">
+                        <span class="dashboard-admin-badge-dot" aria-hidden="true"></span>
+                        ADMINISTRATOR
+                    </span>
+                </div>
+            </header>
 
+            <!-- Main Content Container -->
+            <div class="dashboard-content" style="padding: 28px 32px; max-width: 1600px; margin: 0 auto; width: 100%;">
 
-        <main class="qhm-mgmt-main" id="main-content" role="main">
-            <div class="qhm-content-container">
+                <!-- Messages Framework -->
+                {% if messages %}
+                <div style="margin-bottom: 20px;">
+                    {% for message in messages %}
+                    <div style="padding: 12px 18px; border-radius: 8px; margin-bottom: 8px; font-size: 13.5px; background: {% if message.tags == 'error' %}var(--inv-danger-bg); color: var(--inv-danger-dark); border: 1px solid var(--inv-danger-border);{% else %}var(--inv-success-bg); color: var(--inv-success); border: 1px solid var(--inv-success-border);{% endif %}">
+                        {{ message }}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
 
-
-                <nav class="qhm-breadcrumb" aria-label="Đường dẫn điều hướng" style="margin-bottom: 16px; font-size: 13px;">
-                    <a href="{% url 'inventory:inventory_list' %}" style="color: #64748b; text-decoration: none;">Quản lý kho</a>
-                    <span style="margin: 0 6px; color: #94a3b8;">/</span>
-                    <span style="color: #1e3a8a; font-weight: 600;">Sổ cái lịch sử biến động</span>
-                </nav>
-
-
-                <div class="qhm-page-header" style="margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
-                    <div>
-                        <h1 class="qhm-page-title" id="page-title" style="font-size: 22px; font-weight: 800; color: #0f172a; margin: 0 0 4px 0;">
-                            Sổ cái Lịch sử biến động kho
-                        </h1>
-                        <p class="qhm-page-sub" style="font-size: 13px; color: #64748b; margin: 0;">
-                            Ghi nhận minh bạch toàn bộ các giao dịch nhập hàng theo thứ tự thời gian. Dữ liệu lịch sử chỉ đọc, không thể sửa đổi hoặc xóa bỏ.
+                <!-- Page Header -->
+                <div class="qhm-inv-header">
+                    <div class="qhm-inv-header-left">
+                        <h1 class="qhm-inv-title">Sổ cái Lịch sử biến động kho</h1>
+                        <p class="qhm-inv-desc">
+                            Ghi nhận minh bạch toàn bộ các giao dịch nhập hàng, xuất kho giao hàng, kiểm kê điều chỉnh và nhập hàng đổi trả theo thời gian thực. Sổ cái bất biến, không thể sửa đổi hoặc xóa.
                         </p>
                     </div>
-                    <div>
-                        <a href="{% url 'inventory:inventory_list' %}" class="qhm-btn-secondary" style="padding: 9px 16px; font-size: 13px; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
-                            <span>← Về Quản lý tồn kho</span>
+                    <div class="qhm-inv-header-actions">
+                        <a href="{% url 'inventory:inventory_list' %}" class="qhm-btn-secondary" id="btn-back-to-inv">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <line x1="19" y1="12" x2="5" y2="12"></line>
+                                <polyline points="12 19 5 12 12 5"></polyline>
+                            </svg>
+                            <span>Về Quản lý tồn kho</span>
                         </a>
                     </div>
                 </div>
 
+                <!-- Filter Bar: Transaction Type Pills & Search Field -->
+                <div class="qhm-filter-bar">
+                    <div class="qhm-filter-pills" role="tablist" aria-label="Lọc theo loại giao dịch kho">
+                        <a href="?type=ALL{% if q %}&q={{ q|urlencode }}{% endif %}" class="qhm-filter-pill {% if tx_type == 'ALL' %}active{% endif %}" id="pill-tx-all">
+                            <span>Tất cả</span>
+                            <span class="qhm-filter-count">{{ total_tx_count }}</span>
+                        </a>
+                        <a href="?type=PURCHASE_IN{% if q %}&q={{ q|urlencode }}{% endif %}" class="qhm-filter-pill {% if tx_type == 'PURCHASE_IN' %}active{% endif %}" id="pill-tx-purchase">
+                            <span>Nhập hàng</span>
+                            <span class="qhm-filter-count">{{ count_purchase }}</span>
+                        </a>
+                        <a href="?type=SHIP{% if q %}&q={{ q|urlencode }}{% endif %}" class="qhm-filter-pill {% if tx_type == 'SHIP' %}active{% endif %}" id="pill-tx-ship">
+                            <span>Xuất kho giao hàng</span>
+                            <span class="qhm-filter-count">{{ count_ship }}</span>
+                        </a>
+                        <a href="?type=ADJUSTMENT{% if q %}&q={{ q|urlencode }}{% endif %}" class="qhm-filter-pill {% if tx_type == 'ADJUSTMENT' %}active{% endif %}" id="pill-tx-adjust">
+                            <span>Điều chỉnh kiểm kê</span>
+                            <span class="qhm-filter-count">{{ count_adjust }}</span>
+                        </a>
+                        <a href="?type=RETURN_RESTOCK{% if q %}&q={{ q|urlencode }}{% endif %}" class="qhm-filter-pill {% if tx_type == 'RETURN_RESTOCK' %}active{% endif %}" id="pill-tx-return">
+                            <span>Nhập hàng đổi trả</span>
+                            <span class="qhm-filter-count">{{ count_return }}</span>
+                        </a>
+                    </div>
 
-                {% if messages %}
-                    {% for message in messages %}
-                        <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %}" role="alert" style="margin-bottom: 20px; padding: 12px 16px; border-radius: 6px; font-size: 14px; {% if message.tags == 'error' %}background: #fee2e2; border: 1px solid #fca5a5; color: #991b1b;{% else %}background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534;{% endif %}">
-                            {{ message }}
-                        </div>
-                    {% endfor %}
-                {% endif %}
-
-
-                <div class="qhm-filter-card" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-                    <form method="get" action="{% url 'inventory:inventory_history' %}" style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
-                        <div style="flex: 1; min-width: 250px;">
-                            <input type="text" name="q" value="{{ q }}" placeholder="Tìm theo SKU, tên sản phẩm, người thực hiện hoặc mã giao dịch..." class="qhm-form-control" id="search-input" autocomplete="off" style="width: 100%; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px;">
-                        </div>
-                        <div style="min-width: 160px;">
-                            <select name="type" class="qhm-form-control" id="filter-type" style="width: 100%; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px;">
-                                <option value="ALL" {% if tx_type == 'ALL' %}selected{% endif %}>Tất cả loại giao dịch</option>
-                                <option value="PURCHASE_IN" {% if tx_type == 'PURCHASE_IN' %}selected{% endif %}>Nhập hàng</option>
-                                <option value="ADJUSTMENT" {% if tx_type == 'ADJUSTMENT' %}selected{% endif %}>Kiểm kê kho</option>
-                            </select>
-                        </div>
-                        <button type="submit" class="qhm-btn-primary" id="btn-search-submit" style="padding: 8px 18px; font-size: 13px;">
-                            Tìm kiếm
-                        </button>
-                        {% if q or tx_type != 'ALL' %}
-                            <a href="{% url 'inventory:inventory_history' %}" class="qhm-btn-secondary" style="padding: 8px 14px; font-size: 13px; text-decoration: none;">
-                                Đặt lại
-                            </a>
-                        {% endif %}
-                    </form>
+                    <div class="qhm-search-container">
+                        <form method="get" action="{% url 'inventory:inventory_history' %}" id="history-search-form">
+                            {% if tx_type != 'ALL' %}<input type="hidden" name="type" value="{{ tx_type }}">{% endif %}
+                            <span class="qhm-search-icon-pos" aria-hidden="true">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <circle cx="11" cy="11" r="8"></circle>
+                                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                                </svg>
+                            </span>
+                            <input type="text" name="q" value="{{ q }}" placeholder="Tìm theo SKU, sản phẩm, người thực hiện, lý do..." class="qhm-search-input" id="search-input" autocomplete="off" aria-label="Tìm kiếm giao dịch">
+                        </form>
+                    </div>
                 </div>
 
-
-                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #1e3a8a; border-radius: 6px; padding: 12px 16px; margin-bottom: 20px; font-size: 12px; color: #475569; line-height: 1.5;">
-                    <strong>Nguyên tắc ghi sổ cái:</strong> Toàn bộ biến động số lượng thực tế được ghi nhận độc lập theo từng lần thao tác. Dữ liệu lịch sử đã ghi nhận không thể sửa đổi hoặc xóa bỏ.
-                </div>
-
-
-                <div class="qhm-table-responsive" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; overflow-x: auto; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-                    <table class="qhm-table" id="transactions-table" style="width: 100%; border-collapse: collapse;">
-                        <thead>
-                            <tr style="background: #f8fafc; border-bottom: 2px solid #e2e8f0; text-align: left; font-size: 12px; color: #475569; text-transform: uppercase;">
-                                <th style="padding: 12px 16px;">Thời gian tạo</th>
-                                <th style="padding: 12px 16px;">Mã SKU &amp; Sản phẩm</th>
-                                <th style="padding: 12px 16px; text-align: center;">Loại giao dịch</th>
-                                <th style="padding: 12px 16px; text-align: right;">Biến động</th>
-                                <th style="padding: 12px 16px; text-align: right;">Tồn trước</th>
-                                <th style="padding: 12px 16px; text-align: right;">Tồn sau</th>
-                                <th style="padding: 12px 16px;">Người thực hiện</th>
-                                <th style="padding: 12px 16px; font-family: monospace;">Mã giao dịch</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for tx in transaction_list %}
-                                <tr style="border-bottom: 1px solid #f1f5f9;" id="tx-row-{{ tx.id }}">
-
-                                    <td style="padding: 12px 16px; font-size: 13px; color: #334155; white-space: nowrap;">
-                                        {{ tx.created_at|date:"d/m/Y H:i:s" }}
+                <!-- Ledger Table Card -->
+                <div class="qhm-table-card qhm-history-card">
+                    <div class="qhm-table-wrap">
+                        <table class="qhm-inv-table" id="history-table">
+                            <thead>
+                                <tr>
+                                    <th scope="col" style="width: 80px;">MÃ GD</th>
+                                    <th scope="col" style="width: 170px;">LOẠI GIAO DỊCH</th>
+                                    <th scope="col">SKU &amp; BIẾN THỂ</th>
+                                    <th scope="col" style="text-align: right; width: 100px;">BIẾN ĐỘNG</th>
+                                    <th scope="col" style="text-align: right; width: 95px;">TỒN TRƯỚC</th>
+                                    <th scope="col" style="text-align: right; width: 95px;">TỒN SAU</th>
+                                    <th scope="col" style="width: 150px;">ĐƠN HÀNG / ĐỔI TRẢ</th>
+                                    <th scope="col" style="width: 140px;">NGƯỜI THỰC HIỆN</th>
+                                    <th scope="col" style="width: 140px;">THỜI GIAN</th>
+                                    <th scope="col">LÝ DO / GHI CHÚ</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for tx in transaction_list %}
+                                <tr id="tx-row-{{ tx.id }}">
+                                    <!-- MÃ GD -->
+                                    <td>
+                                        <span class="inv-code-badge">GD{{ tx.id|stringformat:"04d" }}</span>
                                     </td>
 
-
-                                    <td style="padding: 12px 16px;">
-                                        <div style="font-weight: 700; color: #1e3a8a; font-family: monospace; font-size: 13px;">
-                                            <a href="{% url 'inventory:inventory_detail' tx.inventory.id %}" style="color: #1e3a8a; text-decoration: none;">
-                                                {{ tx.inventory.variant.sku }}
-                                            </a>
-                                        </div>
-                                        <div style="font-size: 12px; color: #1e293b; margin-top: 2px;">
-                                            {{ tx.inventory.variant.product.name }}
-                                        </div>
-                                    </td>
-
-
-                                    <td style="padding: 12px 16px; text-align: center;">
+                                    <!-- LOẠI GIAO DỊCH -->
+                                    <td>
                                         {% if tx.transaction_type == 'PURCHASE_IN' %}
-                                            <span class="qhm-badge-status badge-success" id="tx-type-{{ tx.id }}">
+                                            <span class="qhm-tx-badge tx-purchase">
+                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                                                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                                                </svg>
                                                 Nhập hàng
                                             </span>
+                                        {% elif tx.transaction_type == 'SHIP' %}
+                                            <span class="qhm-tx-badge tx-ship">
+                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                                    <rect x="1" y="3" width="15" height="13"></rect>
+                                                    <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon>
+                                                    <circle cx="5.5" cy="18.5" r="2.5"></circle>
+                                                    <circle cx="18.5" cy="18.5" r="2.5"></circle>
+                                                </svg>
+                                                Xuất kho giao hàng
+                                            </span>
                                         {% elif tx.transaction_type == 'ADJUSTMENT' %}
-                                            <span class="qhm-badge-status badge-warning" id="tx-type-{{ tx.id }}">
-                                                Kiểm kê kho
+                                            <span class="qhm-tx-badge tx-adjustment">
+                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                                    <polyline points="20 6 9 17 4 12"></polyline>
+                                                </svg>
+                                                Điều chỉnh kiểm kê
                                             </span>
-                                            {% if tx.adjustment and tx.adjustment.reason %}
-                                                <div style="font-size: 11px; color: #64748b; margin-top: 4px; max-width: 200px; margin-left: auto; margin-right: auto; word-break: break-word;" title="{{ tx.adjustment.reason }}">
-                                                    <em>Lý do:</em> {{ tx.adjustment.reason }}
-                                                </div>
-                                            {% endif %}
+                                        {% elif tx.transaction_type == 'RETURN_RESTOCK' %}
+                                            <span class="qhm-tx-badge tx-return">
+                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                                    <polyline points="1 4 1 10 7 10"></polyline>
+                                                    <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+                                                </svg>
+                                                Nhập hàng đổi trả
+                                            </span>
                                         {% else %}
-                                            <span class="qhm-badge-status badge-info" id="tx-type-{{ tx.id }}">
-                                                {{ tx.transaction_type_display }}
-                                            </span>
+                                            <span class="qhm-tx-badge">{{ tx.get_transaction_type_display|default:tx.transaction_type }}</span>
                                         {% endif %}
                                     </td>
 
-
-                                    <td style="padding: 12px 16px; text-align: right;">
-                                        <span class="qhm-stock-num" style="color: {% if tx.quantity_delta > 0 %}#15803d{% else %}#b91c1c{% endif %};" id="tx-delta-{{ tx.id }}">
-                                            {% if tx.quantity_delta > 0 %}+{% endif %}{{ tx.quantity_delta }}
-                                        </span>
+                                    <!-- SKU & BIẾN THỂ -->
+                                    <td>
+                                        <div style="font-weight: 600; color: var(--inv-text);">
+                                            {{ tx.inventory.variant.product.name }}
+                                        </div>
+                                        <div style="font-size: 12.5px; color: var(--inv-text-secondary); margin-top: 2px;">
+                                            {% for link in tx.inventory.variant.attribute_values.all %}
+                                                {{ link.attribute_value.value }}{% if not forloop.last %} • {% endif %}
+                                            {% empty %}
+                                                Tiêu chuẩn
+                                            {% endfor %}
+                                        </div>
+                                        <div style="font-family: ui-monospace, monospace; font-size: 11.5px; color: var(--inv-text-muted); margin-top: 2px;">
+                                            {{ tx.inventory.variant.sku }}
+                                        </div>
                                     </td>
 
-
-                                    <td style="padding: 12px 16px; text-align: right;">
-                                        <span class="qhm-stock-num" style="color: #64748b;" id="tx-before-{{ tx.id }}">
-                                            {{ tx.physical_before }}
-                                        </span>
+                                    <!-- BIẾN ĐỘNG (DELTA) -->
+                                    <td style="text-align: right;">
+                                        {% if tx.quantity_delta > 0 %}
+                                            <span class="delta-positive">+{{ tx.quantity_delta }}</span>
+                                        {% elif tx.quantity_delta < 0 %}
+                                            <span class="delta-negative">{{ tx.quantity_delta }}</span>
+                                        {% else %}
+                                            <span style="color: var(--inv-text-secondary); font-weight: 600;">0</span>
+                                        {% endif %}
                                     </td>
 
-
-                                    <td style="padding: 12px 16px; text-align: right;">
-                                        <span class="qhm-stock-num" style="color: #0f172a;" id="tx-after-{{ tx.id }}">
-                                            {{ tx.physical_after }}
-                                        </span>
+                                    <!-- TỒN TRƯỚC -->
+                                    <td style="text-align: right;">
+                                        <span class="inv-num-cell" style="color: var(--inv-text-secondary); font-size: 14px;">{{ tx.physical_before }}</span>
                                     </td>
 
-
-                                    <td style="padding: 12px 16px; font-size: 13px; color: #334155;">
-                                        {{ tx.performed_by.username|default:"Hệ thống" }}
+                                    <!-- TỒN SAU -->
+                                    <td style="text-align: right;">
+                                        <span class="inv-num-cell" style="font-size: 14px;">{{ tx.physical_after }}</span>
                                     </td>
 
+                                    <!-- ĐƠN HÀNG / ĐỔI TRẢ -->
+                                    <td>
+                                        {% if tx.order %}
+                                            <a href="{% url 'orders:management_detail' tx.order.id %}" style="color: var(--inv-info); font-weight: 600; text-decoration: none;" title="Xem chi tiết đơn hàng #{{ tx.order.id }}">
+                                                Đơn #{{ tx.order.id }}
+                                            </a>
+                                        {% elif tx.return_request %}
+                                            <span style="color: var(--inv-warning-dark); font-weight: 600;">
+                                                Đổi trả #{{ tx.return_request.id }}
+                                            </span>
+                                        {% else %}
+                                            <span style="color: var(--inv-text-muted);">—</span>
+                                        {% endif %}
+                                    </td>
 
-                                    <td style="padding: 12px 16px; font-size: 11px; font-family: monospace; color: #64748b;" title="{{ tx.request_key }}">
-                                        {{ tx.request_key }}
+                                    <!-- NGƯỜI THỰC HIỆN -->
+                                    <td>
+                                        <div class="qhm-user-micro">
+                                            <div class="qhm-user-avatar-micro" aria-hidden="true">
+                                                {{ tx.performed_by.username|slice:":2"|upper }}
+                                            </div>
+                                            <span style="font-weight: 500; font-size: 13px;">{{ tx.performed_by.username }}</span>
+                                        </div>
+                                    </td>
+
+                                    <!-- THỜI GIAN -->
+                                    <td style="font-size: 13px; color: var(--inv-text-secondary); white-space: nowrap;">
+                                        {{ tx.created_at|date:"H:i d/m/Y" }}
+                                    </td>
+
+                                    <!-- LÝ DO / GHI CHÚ -->
+                                    <td style="font-size: 13px; color: var(--inv-text);">
+                                        {% if tx.adjustment %}
+                                            <span title="{{ tx.adjustment.reason }}">{{ tx.adjustment.reason|truncatechars:45 }}</span>
+                                        {% elif tx.transaction_type == 'PURCHASE_IN' %}
+                                            <span style="color: var(--inv-text-secondary);">Nhập hàng bổ sung từ kho</span>
+                                        {% elif tx.transaction_type == 'SHIP' %}
+                                            <span style="color: var(--inv-text-secondary);">Xuất kho giao cho đơn hàng</span>
+                                        {% elif tx.transaction_type == 'RETURN_RESTOCK' %}
+                                            <span style="color: var(--inv-text-secondary);">Nhập lại hàng trả đủ điều kiện</span>
+                                        {% else %}
+                                            <span style="color: var(--inv-text-muted);">—</span>
+                                        {% endif %}
                                     </td>
                                 </tr>
-                            {% empty %}
+                                {% empty %}
                                 <tr>
-                                    <td colspan="8" style="padding: 32px 16px; text-align: center; color: #64748b; font-size: 14px;" id="empty-ledger-message">
-                                        <div style="font-size: 15px; font-weight: 600; color: #475569; margin-bottom: 4px;">
-                                            Chưa có giao dịch biến động kho nào
+                                    <td colspan="10" class="inv-table-empty">
+                                        <div class="inv-table-empty-icon" aria-hidden="true">
+                                            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                                <circle cx="12" cy="12" r="10"></circle>
+                                                <line x1="12" y1="8" x2="12" y2="12"></line>
+                                                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                                            </svg>
                                         </div>
-                                        <div style="font-size: 13px;">
-                                            Khi các đợt nhập hàng hoặc kiểm kê điều chỉnh được thực hiện, lịch sử giao dịch sẽ được ghi nhận tại đây.
-                                        </div>
+                                        <div class="inv-table-empty-title">Không tìm thấy giao dịch biến động kho nào</div>
+                                        <p style="margin: 0; font-size: 13.5px;">Thử thay đổi bộ lọc loại giao dịch hoặc từ khóa tìm kiếm.</p>
                                     </td>
                                 </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-
-
-                {% if page_obj.has_other_pages %}
-                    <div class="qhm-pagination" style="display: flex; justify-content: center; gap: 6px; margin-top: 24px;">
-                        {% if page_obj.has_previous %}
-                            <a href="?page={{ page_obj.previous_page_number }}{% if q %}&q={{ q|urlencode }}{% endif %}{% if tx_type %}&type={{ tx_type }}{% endif %}" class="qhm-btn-secondary" style="padding: 6px 12px; font-size: 13px; text-decoration: none;">
-                                « Trước
-                            </a>
-                        {% endif %}
-
-                        <span style="display: inline-flex; align-items: center; padding: 6px 12px; font-size: 13px; color: #475569;">
-                            Trang {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}
-                        </span>
-
-                        {% if page_obj.has_next %}
-                            <a href="?page={{ page_obj.next_page_number }}{% if q %}&q={{ q|urlencode }}{% endif %}{% if tx_type %}&type={{ tx_type }}{% endif %}" class="qhm-btn-secondary" style="padding: 6px 12px; font-size: 13px; text-decoration: none;">
-                                Sau »
-                            </a>
-                        {% endif %}
+                                {% endfor %}
+                            </tbody>
+                        </table>
                     </div>
-                {% endif %}
+
+                    <!-- Pagination -->
+                    {% if page_obj.has_other_pages %}
+                    <div class="inv-pagination">
+                        <div class="inv-pagination-info">
+                            Hiển thị trang {{ page_obj.number }} / {{ page_obj.paginator.num_pages }} (Tổng số {{ filtered_count }} giao dịch)
+                        </div>
+                        <div class="inv-pagination-nav">
+                            {% if page_obj.has_previous %}
+                            <a href="?page={{ page_obj.previous_page_number }}{% if q %}&q={{ q|urlencode }}{% endif %}{% if tx_type != 'ALL' %}&type={{ tx_type }}{% endif %}" class="inv-page-link" aria-label="Trang trước">
+                                &larr; Trang trước
+                            </a>
+                            {% endif %}
+                            <span class="inv-page-link current" aria-current="page">{{ page_obj.number }}</span>
+                            {% if page_obj.has_next %}
+                            <a href="?page={{ page_obj.next_page_number }}{% if q %}&q={{ q|urlencode }}{% endif %}{% if tx_type != 'ALL' %}&type={{ tx_type }}{% endif %}" class="inv-page-link" aria-label="Trang sau">
+                                Trang sau &rarr;
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
 
             </div>
         </main>
     </div>
-
-
-    {% include 'catalog/includes/shared_footer.html' %}
 
 </body>
 </html>

@@ -20,14 +20,16 @@ from accounts.permissions import (
     is_sales_staff,
     role_required,
 )
-from catalog.models import Category
+from catalog.models import Category, ProductReview
 from catalog.utils import format_vnd
 from cart.models import Cart
+from cart.services import add_to_cart, parse_strictly_positive_int
 from inventory.models import InventoryReservationStatus
 from orders.checkout_helpers import (
     QuoteUnavailable,
     calculate_server_quote,
     clear_pending_order_code,
+    get_eligible_public_coupon_choices,
     get_or_create_pending_order_code,
     make_checkout_token,
     map_validation_error_to_form,
@@ -39,9 +41,15 @@ from orders.forms import (
     OrderCancelForm,
     OrderConfirmationForm,
     OrderDeliverForm,
+    ReturnRequestForm,
+    ReturnReviewForm,
+    ReturnRefundConfirmationForm,
     OrderShipForm,
+    PurchasedProductReviewForm,
 )
-from orders.models import Order, OrderCancellation, OrderStatus
+from orders.models import (
+    Order, OrderCancellation, OrderStatus, ReturnRequest, ReturnRequestStatus,
+)
 from orders.services import (
     create_cod_order_from_cart,
     create_cod_order_with_coupon_from_cart,
@@ -59,6 +67,9 @@ from orders.services import (
     _is_sqlite_lock_error,
 )
 from payments.models import Payment, PaymentMethod, PaymentStatus, RefundStatus
+from payments.cod_forms import CODCollectionForm
+from payments.cod_services import record_cod_collection
+from payments.return_refund_services import create_return_refund_request, confirm_return_refund
 from payments.qr import (
     generate_qr_svg,
     generate_vietqr_payload,
@@ -106,7 +117,13 @@ def _save_pending_checkout_data(request, db_available=True):
 
 def _get_initial_checkout_data(request, cart=None, checkout_token='', quote_token='', db_available=True):
     initial_data = {
-        'recipient_name': request.user.get_full_name() or request.user.username,
+        # Django's default get_full_name() returns "first_name last_name".
+        # Our account model stores Vietnamese given name in first_name and
+        # family/middle names in last_name, so checkout must render surname
+        # first instead of reversing the customer's name on new orders.
+        'recipient_name': ' '.join(
+            part for part in (request.user.last_name, request.user.first_name) if part
+        ) or request.user.username,
         'payment_method': PaymentMethod.COD,
         'checkout_token': checkout_token,
         'quote_token': quote_token,
@@ -139,6 +156,36 @@ def _get_initial_checkout_data(request, cart=None, checkout_token='', quote_toke
             if not _is_sqlite_lock_error(oe):
                 raise
     return initial_data
+
+
+def _refresh_quote_token(form, quote):
+    """Keep a bound checkout form aligned with the server-calculated quote.
+
+    Django renders values from ``form.data`` for a bound form, so changing only
+    ``initial`` after a preview/quote mismatch leaves the old hidden token in
+    the HTML.  That made a cart with a restored coupon impossible to submit:
+    every subsequent request compared against the original, coupon-less quote.
+    """
+    quote_token = getattr(quote, 'quote_token', '')
+    if not quote_token:
+        return
+
+    form.initial['quote_token'] = quote_token
+    if form.is_bound:
+        form_data = form.data.copy()
+        form_data['quote_token'] = quote_token
+        form.data = form_data
+
+
+def _build_checkout_form(*args, cart=None, **kwargs):
+    """Create a checkout form whose voucher choices match the live cart."""
+    try:
+        choices = get_eligible_public_coupon_choices(cart) if cart else []
+    except OperationalError as exc:
+        if not _is_sqlite_lock_error(exc):
+            raise
+        choices = []
+    return CheckoutForm(*args, eligible_coupon_choices=choices, **kwargs)
 
 
 def _render_safe_checkout(request, context):
@@ -186,6 +233,27 @@ def _render_checkout(request, context):
         return _render_safe_checkout(request, context)
 
 
+@require_POST
+def buy_now_view(request):
+    if not request.user.is_authenticated:
+        login_url = resolve_url(settings.LOGIN_URL)
+        return redirect(f"{login_url}?next={request.path}")
+    if not is_customer(request.user):
+        raise PermissionDenied("Chỉ tài khoản Khách hàng mới có thể đặt hàng.")
+    try:
+        variant_id = int(request.POST.get('variant_id', ''))
+        quantity = parse_strictly_positive_int(request.POST.get('quantity', '1'))
+        Cart.objects.filter(user=request.user, is_direct_checkout=True).delete()
+        direct_cart = Cart.objects.create(user=request.user, is_direct_checkout=True)
+        add_to_cart(direct_cart, variant_id, quantity)
+        request.session['_qhm_direct_checkout_cart_id'] = direct_cart.id
+        request.session.modified = True
+    except (ValueError, ValidationError) as error:
+        messages.error(request, getattr(error, 'message', str(error)))
+        return redirect(request.META.get('HTTP_REFERER') or 'catalog:public_catalog')
+    return redirect('orders:checkout')
+
+
 def checkout_view(request):
     if not request.user.is_authenticated:
         login_url = resolve_url(settings.LOGIN_URL)
@@ -197,7 +265,15 @@ def checkout_view(request):
     cart = None
     cart_lookup_locked = False
     try:
-        cart = Cart.objects.filter(user=request.user).first()
+        direct_cart_id = request.session.get('_qhm_direct_checkout_cart_id')
+        if direct_cart_id:
+            cart = Cart.objects.filter(
+                id=direct_cart_id, user=request.user, is_direct_checkout=True
+            ).first()
+            if cart is None:
+                request.session.pop('_qhm_direct_checkout_cart_id', None)
+        if cart is None:
+            cart = Cart.objects.filter(user=request.user, is_direct_checkout=False).first()
     except OperationalError as oe:
         if not _is_sqlite_lock_error(oe):
             raise
@@ -217,11 +293,11 @@ def checkout_view(request):
         quote = QuoteUnavailable(coupon_code=raw_coupon)
         if request.method == 'POST':
             _save_pending_checkout_data(request)
-            form = CheckoutForm(request.POST)
+            form = _build_checkout_form(request.POST)
             form.add_error(None, 'Hệ thống đang bận xử lý giao dịch. Vui lòng thử lại sau giây lát.')
         else:
             initial_data = _get_initial_checkout_data(request, db_available=False)
-            form = CheckoutForm(initial=initial_data)
+            form = _build_checkout_form(initial=initial_data)
         context = {
             'form': form,
             'quote': quote,
@@ -255,22 +331,26 @@ def checkout_view(request):
         order_code = get_or_create_pending_order_code(request, cart)
         checkout_token = make_checkout_token(request.user.id, cart.id, order_code)
 
+        initial_data = _get_initial_checkout_data(
+            request,
+            cart=cart,
+            checkout_token=checkout_token,
+            db_available=True,
+        )
+
         try:
-            quote = calculate_server_quote(cart)
+            quote = calculate_server_quote(
+                cart,
+                coupon_code=initial_data.get('coupon_code', ''),
+            )
         except OperationalError as oe:
             if not _is_sqlite_lock_error(oe):
                 raise
             quote = QuoteUnavailable()
 
-        initial_data = _get_initial_checkout_data(
-            request,
-            cart=cart,
-            checkout_token=checkout_token,
-            quote_token=getattr(quote, 'quote_token', ''),
-            db_available=not getattr(quote, 'is_unavailable', False),
-        )
+        initial_data['quote_token'] = getattr(quote, 'quote_token', '')
 
-        form = CheckoutForm(initial=initial_data)
+        form = _build_checkout_form(initial=initial_data, cart=cart)
         context = {
             'form': form,
             'quote': quote,
@@ -288,7 +368,7 @@ def checkout_view(request):
     action = request.POST.get('action', 'place')
     if action not in ('preview', 'place'):
         _save_pending_checkout_data(request)
-        form = CheckoutForm(request.POST)
+        form = _build_checkout_form(request.POST, cart=cart)
         form.add_error(None, "Thao tác không được hỗ trợ.")
         try:
             quote = calculate_server_quote(cart, coupon_code=request.POST.get('coupon_code', ''))
@@ -307,7 +387,7 @@ def checkout_view(request):
         }
         return _render_checkout(request, context)
 
-    form = CheckoutForm(request.POST)
+    form = _build_checkout_form(request.POST, cart=cart)
     raw_coupon = request.POST.get('coupon_code', '').strip().upper()
 
     if not form.is_valid():
@@ -367,6 +447,7 @@ def checkout_view(request):
             _save_pending_checkout_data(request)
             form.add_error(None, 'Hệ thống đang bận xử lý giao dịch. Vui lòng thử lại sau giây lát.')
             quote = QuoteUnavailable(coupon_code=coupon_code or "")
+        _refresh_quote_token(form, quote)
         context = {
             'form': form,
             'quote': quote,
@@ -603,6 +684,7 @@ def checkout_view(request):
 
     except _QuoteMismatch as qm:
         fresh_quote = qm.fresh_quote
+        _refresh_quote_token(form, fresh_quote)
         messages.warning(request, "Thông tin giỏ hàng đã thay đổi, vui lòng kiểm tra và xác nhận lại.")
         context = {
             'form': form,
@@ -652,6 +734,9 @@ def checkout_view(request):
 
     if created_order is not None:
         clear_pending_order_code(request, cart)
+        if cart and cart.is_direct_checkout:
+            request.session.pop('_qhm_direct_checkout_cart_id', None)
+            cart.delete()
         if is_replay:
             messages.info(request, f"Đơn hàng #{created_order.order_code} đã được đặt trước đó.")
         else:
@@ -661,13 +746,141 @@ def checkout_view(request):
     return redirect('orders:checkout')
 
 
-def order_detail_view(request, pk, cancel_form=None):
+def customer_orders_list_view(request):
     if not request.user.is_authenticated:
         login_url = resolve_url(settings.LOGIN_URL)
         return redirect(f"{login_url}?next={request.get_full_path()}")
 
-    if not is_customer(request.user):
-        raise PermissionDenied("Bạn không có quyền truy cập trang này. Chỉ tài khoản Khách hàng mới có quyền xem đơn hàng của mình.")
+    orders = (
+        Order.objects.filter(customer=request.user)
+        .select_related('payment')
+        .prefetch_related('items')
+        .order_by('-created_at', '-id')
+    )
+    status = request.GET.get('status', '').strip()
+    if status in OrderStatus.values:
+        orders = orders.filter(order_status=status)
+    else:
+        status = ''
+
+    paginator = Paginator(orders, 10)
+    page_obj = paginator.get_page(request.GET.get('page'))
+    for order in page_obj:
+        order.grand_total_formatted = format_vnd(order.grand_total)
+        order.item_count = sum(item.quantity for item in order.items.all())
+
+    return render(request, 'orders/my_orders.html', {
+        'page_obj': page_obj,
+        'status': status,
+        'status_choices': OrderStatus.choices,
+        'active_nav': 'orders',
+        'title': 'Đơn hàng của tôi — Quốc Hùng Mobile',
+    })
+
+
+def return_request_create_view(request, pk):
+    if not request.user.is_authenticated:
+        login_url = resolve_url(settings.LOGIN_URL)
+        return redirect(f"{login_url}?next={request.get_full_path()}")
+    order = get_object_or_404(Order.objects.prefetch_related('items__variant__product'), pk=pk, customer=request.user)
+    if order.order_status != OrderStatus.DELIVERED:
+        messages.error(request, 'Chỉ có thể gửi yêu cầu đổi/trả sau khi đơn hàng đã giao thành công.')
+        return redirect('orders:order_detail', pk=order.pk)
+    form = ReturnRequestForm(request.POST or None, order=order)
+    if request.method == 'POST' and form.is_valid():
+        item = form.cleaned_data['order_item']
+        request_obj = ReturnRequest(
+            order=order,
+            order_item=item,
+            customer=request.user,
+            request_type=form.cleaned_data['request_type'],
+            reason_code=form.cleaned_data['reason_code'],
+            description=form.cleaned_data['description'].strip(),
+            quantity=form.cleaned_data['quantity'],
+            replacement_variant=form.cleaned_data.get('replacement_variant'),
+        )
+        try:
+            request_obj.full_clean()
+            request_obj.save()
+            messages.success(request, f'Đã gửi yêu cầu đổi/trả #{request_obj.pk}. CSKH sẽ phản hồi sớm nhất.')
+            return redirect('orders:order_detail', pk=order.pk)
+        except ValidationError as error:
+            for field, errors in error.message_dict.items():
+                for message in errors:
+                    form.add_error(field if field in form.fields else None, message)
+    return render(request, 'orders/return_request_form.html', {'order': order, 'form': form, 'title': 'Yêu cầu đổi/trả — Quốc Hùng Mobile'})
+
+
+@role_required(ROLE_SALES_STAFF, ROLE_ADMIN)
+def return_request_management_view(request):
+    requests = ReturnRequest.objects.select_related(
+        'order', 'order__payment', 'order_item', 'customer', 'replacement_variant__product', 'refund_record'
+    ).order_by('-updated_at')
+    return render(request, 'orders/management/return_request_list.html', {
+        'return_requests': requests,
+        'active_nav': 'return_requests',
+        'title': 'Yêu cầu đổi/trả — Quốc Hùng Mobile',
+    })
+
+
+@role_required(ROLE_SALES_STAFF, ROLE_ADMIN)
+@require_POST
+def return_request_review_view(request, pk):
+    request_obj = get_object_or_404(ReturnRequest, pk=pk)
+    form = ReturnReviewForm(request.POST)
+    if form.is_valid() and request_obj.status == ReturnRequestStatus.PENDING:
+        request_obj.status = form.cleaned_data['decision']
+        request_obj.review_note = form.cleaned_data['review_note'].strip()
+        request_obj.reviewed_by = request.user
+        request_obj.reviewed_at = timezone.now()
+        request_obj.save(update_fields=['status', 'review_note', 'reviewed_by', 'reviewed_at', 'updated_at'])
+        messages.success(request, f'Đã cập nhật yêu cầu #{request_obj.pk}.')
+    elif request_obj.status != ReturnRequestStatus.PENDING:
+        messages.error(request, 'Yêu cầu này đã được xử lý trước đó.')
+    else:
+        messages.error(request, 'Dữ liệu xử lý chưa hợp lệ.')
+    return redirect('orders:return_request_management')
+
+
+@role_required(ROLE_ADMIN)
+@require_POST
+def create_return_refund_view(request, pk):
+    try:
+        refund, created = create_return_refund_request(pk, request.user)
+        if created:
+            messages.success(request, f'Đã lập hồ sơ hoàn tiền #{refund.pk} ({format_vnd(refund.amount)}), đang chờ xử lý.')
+        else:
+            messages.info(request, f'Hồ sơ hoàn tiền #{refund.pk} đã tồn tại.')
+    except ValidationError as error:
+        messages.error(request, '; '.join(error.messages))
+    return redirect('orders:return_request_management')
+
+
+@role_required(ROLE_ADMIN)
+@require_POST
+def confirm_return_refund_view(request, pk):
+    form = ReturnRefundConfirmationForm(request.POST)
+    if form.is_valid():
+        try:
+            refund, confirmed = confirm_return_refund(
+                pk,
+                request.user,
+                form.cleaned_data['bank_reference'],
+                form.cleaned_data['completed_at'],
+                form.cleaned_data['audit_note'],
+            )
+            messages.success(request, f'Đã ghi nhận hoàn tiền #{refund.pk} ({format_vnd(refund.amount)}).')
+        except ValidationError as error:
+            messages.error(request, '; '.join(error.messages))
+    else:
+        messages.error(request, 'Dữ liệu xác nhận hoàn tiền chưa hợp lệ.')
+    return redirect('orders:return_request_management')
+
+
+def order_detail_view(request, pk, cancel_form=None):
+    if not request.user.is_authenticated:
+        login_url = resolve_url(settings.LOGIN_URL)
+        return redirect(f"{login_url}?next={request.get_full_path()}")
 
     if request.method == 'POST' and cancel_form is None:
         return order_notify_transfer_view(request, pk)
@@ -689,6 +902,7 @@ def order_detail_view(request, pk, cancel_form=None):
         item.unit_price_formatted = format_vnd(item.unit_price)
         item.discount_amount_formatted = format_vnd(item.discount_amount)
         item.line_total_formatted = format_vnd(item.line_total)
+        item.review = ProductReview.objects.filter(order_item=item).first()
         order_items.append(item)
 
     if payment:
@@ -755,6 +969,47 @@ def order_detail_view(request, pk, cancel_form=None):
     return render(request, 'orders/order_detail.html', context)
 
 
+def purchased_product_review_view(request, pk, item_pk):
+    if not request.user.is_authenticated:
+        login_url = resolve_url(settings.LOGIN_URL)
+        return redirect(f"{login_url}?next={request.get_full_path()}")
+
+    order = get_object_or_404(Order, pk=pk, customer=request.user)
+    item = get_object_or_404(order.items.select_related('variant__product'), pk=item_pk)
+    if order.order_status != OrderStatus.DELIVERED:
+        messages.error(request, 'Bạn chỉ có thể đánh giá sản phẩm sau khi đơn hàng đã giao thành công.')
+        return redirect('orders:order_detail', pk=order.pk)
+
+    existing_review = ProductReview.objects.filter(order_item=item).first()
+    if existing_review:
+        messages.info(request, 'Bạn đã đánh giá sản phẩm này trong đơn hàng.')
+        return redirect(f"{reverse('catalog:public_product_detail', args=[item.variant.product_id])}#reviews")
+
+    if request.method == 'POST':
+        form = PurchasedProductReviewForm(request.POST)
+        if form.is_valid():
+            ProductReview.objects.create(
+                product=item.variant.product,
+                user=request.user,
+                order_item=item,
+                reviewer_name=request.user.get_full_name().strip() or request.user.username,
+                rating=int(form.cleaned_data['rating']),
+                variant_text=item.variant_snapshot,
+                content=form.cleaned_data['content'],
+                is_verified_purchase=True,
+            )
+            messages.success(request, 'Cảm ơn bạn. Đánh giá đã được đăng trên trang sản phẩm.')
+            return redirect(f"{reverse('catalog:public_product_detail', args=[item.variant.product_id])}#reviews")
+    else:
+        form = PurchasedProductReviewForm()
+
+    return render(request, 'orders/purchased_product_review.html', {
+        'order': order, 'item': item, 'form': form,
+        'categories': Category.objects.filter(is_visible=True).order_by('name'),
+        'active_nav': 'cart', 'title': f'Đánh giá {item.product_name_snapshot} — Quốc Hùng Mobile',
+    })
+
+
 def customer_order_cancel_view(request, pk):
     if request.method not in ('GET', 'POST'):
         return HttpResponseNotAllowed(['GET', 'POST'])
@@ -762,9 +1017,6 @@ def customer_order_cancel_view(request, pk):
     if not request.user.is_authenticated:
         login_url = resolve_url(settings.LOGIN_URL)
         return redirect(f"{login_url}?next={request.get_full_path()}")
-
-    if not is_customer(request.user):
-        raise PermissionDenied("Bạn không có quyền thực hiện chức năng này. Chỉ tài khoản Khách hàng mới có quyền hủy đơn hàng của mình.")
 
     order = get_object_or_404(Order, pk=pk, customer=request.user)
 
@@ -944,7 +1196,7 @@ def pending_orders_list_view(request):
 
 
 @role_required(ROLE_SALES_STAFF, ROLE_ADMIN)
-def order_management_detail_view(request, pk, confirmation_form=None, ship_form=None, deliver_form=None):
+def order_management_detail_view(request, pk, confirmation_form=None, ship_form=None, deliver_form=None, cod_collection_form=None):
     order = get_object_or_404(
         Order.objects.select_related('customer', 'payment').prefetch_related(
             'items', 'items__variant', 'status_history', 'items__reservations', 'inventory_transactions'
@@ -1123,6 +1375,17 @@ def order_management_detail_view(request, pk, confirmation_form=None, ship_form=
     if deliver_form is None:
         deliver_form = OrderDeliverForm()
 
+    cod_collection = getattr(payment, 'cod_collection', None) if payment else None
+    can_collect_cod = bool(
+        payment
+        and payment.method == PaymentMethod.COD
+        and payment.status == PaymentStatus.UNPAID
+        and order.order_status in (OrderStatus.SHIPPING, OrderStatus.DELIVERED)
+        and cod_collection is None
+    )
+    if cod_collection_form is None:
+        cod_collection_form = CODCollectionForm(initial={'amount': payment.expected_amount} if can_collect_cod else None)
+
     context = {
         'order': order,
         'payment': payment,
@@ -1138,6 +1401,9 @@ def order_management_detail_view(request, pk, confirmation_form=None, ship_form=
         'can_deliver': can_deliver,
         'ineligible_deliver_reason': ineligible_deliver_reason,
         'deliver_form': deliver_form,
+        'cod_collection': cod_collection,
+        'can_collect_cod': can_collect_cod,
+        'cod_collection_form': cod_collection_form,
         'inventory_transactions': order.inventory_transactions.all().order_by('created_at', 'id'),
         'active_nav': 'order_pending_confirmation',
         'is_sales_staff': is_sales_staff(request.user),
@@ -1145,6 +1411,31 @@ def order_management_detail_view(request, pk, confirmation_form=None, ship_form=
         'title': f"Quản lý Đơn hàng #{order.order_code} — Quốc Hùng Mobile",
     }
     return render(request, 'orders/management/order_management_detail.html', context)
+
+
+@role_required(ROLE_SALES_STAFF, ROLE_ADMIN)
+@require_POST
+def collect_cod_action_view(request, pk):
+    order = get_object_or_404(Order.objects.select_related('payment'), pk=pk)
+    form = CODCollectionForm(request.POST)
+    if not form.is_valid():
+        return order_management_detail_view(request, pk, cod_collection_form=form)
+    try:
+        receipt = record_cod_collection(
+            order.payment.pk,
+            request.user,
+            form.cleaned_data['amount'],
+            form.cleaned_data['reference'],
+            form.cleaned_data.get('note', ''),
+        )
+        messages.success(request, f'Đã ghi nhận thu COD với chứng từ {receipt.reference}.')
+        return redirect('orders:management_detail', pk=pk)
+    except ValidationError as error:
+        error_items = error.message_dict.items() if hasattr(error, 'message_dict') else [(None, error.messages)]
+        for field, errors in error_items:
+            for message in errors:
+                form.add_error(field, message)
+        return order_management_detail_view(request, pk, cod_collection_form=form)
 
 
 @role_required(ROLE_SALES_STAFF, ROLE_ADMIN)

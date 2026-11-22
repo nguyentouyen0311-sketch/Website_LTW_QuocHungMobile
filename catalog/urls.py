@@ -1,4 +1,5 @@
 from django.urls import path
+from django.views.generic import TemplateView
 from catalog.views import (
     category_list_view,
     category_create_view,
@@ -15,6 +16,7 @@ from catalog.views import (
     product_image_assign_variant_view,
     public_catalog_view,
     public_product_detail_view,
+    storefront_category_view,
     attribute_list_view,
     attribute_create_view,
     attribute_edit_view,
@@ -28,6 +30,9 @@ from catalog.views import (
 app_name = 'catalog'
 
 urlpatterns = [
+    path('phones-preview/', TemplateView.as_view(template_name='storefront/category_phones.html', extra_context={'page_key': 'phones'}), name='phones_preview'),
+    path('product-preview/', TemplateView.as_view(template_name='storefront/product_detail.html', extra_context={'page_key': 'phones'}), name='product_preview'),
+    path('browse/<slug:category_slug>/', storefront_category_view, name='storefront_category'),
     path('', public_catalog_view, name='public_catalog'),
     path('category/<int:category_id>/', public_catalog_view, name='public_category'),
     path('product/<int:product_id>/', public_product_detail_view, name='public_product_detail'),

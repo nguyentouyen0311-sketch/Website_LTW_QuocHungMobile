@@ -28,23 +28,3 @@ class UpdateCartItemQuantityForm(forms.Form):
 
 class SwitchCartItemVariantForm(forms.Form):
     new_variant_id = forms.IntegerField(min_value=1, required=True)
-
-
-class CouponPreviewForm(forms.Form):
-    code = forms.CharField(
-        max_length=40,
-        required=True,
-        strip=True,
-        error_messages={
-            'required': 'Vui lòng nhập mã giảm giá.',
-            'max_length': 'Mã giảm giá không được vượt quá 40 ký tự.',
-        }
-    )
-
-    def clean_code(self):
-        code = self.cleaned_data.get('code', '')
-        normalized = code.strip().upper()
-        if not normalized:
-            raise ValidationError('Vui lòng nhập mã giảm giá.', code='required')
-        return normalized
-

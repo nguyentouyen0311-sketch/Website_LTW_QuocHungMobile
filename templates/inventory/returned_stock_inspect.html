@@ -1,0 +1,192 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kiểm định Hàng đổi trả #{{ returned_stock.pk }} — Quốc Hùng Mobile</title>
+    <meta name="description" content="Kiểm tra chất lượng và phân loại tình trạng hàng đổi trả tại kho Quốc Hùng Mobile.">
+
+    <!-- Google Fonts: Inter & Plus Jakarta Sans -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Design Tokens & CSS -->
+    <link rel="stylesheet" href="{% static 'css/dashboard.css' %}?v=20261119">
+    <link rel="stylesheet" href="{% static 'css/inventory.css' %}?v=20261119">
+</head>
+
+<body class="qhm-dashboard-page qhm-inv-portal">
+
+    <div class="qhm-dashboard-shell">
+        <!-- 1. Fixed Left Sidebar -->
+        {% include 'catalog/includes/management_sidebar.html' with active_nav='returned_stock' %}
+
+        <!-- 2. Main Workspace -->
+        <main class="dashboard-main" role="main">
+            <!-- Top Header -->
+            <header class="dashboard-topbar" role="banner">
+                <div class="dashboard-topbar-left">
+                    <button type="button" class="dashboard-menu-toggle" id="qhm-sidebar-toggle" aria-label="Mở menu quản trị" onclick="toggleQhmSidebar()">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <line x1="3" y1="12" x2="21" y2="12"></line>
+                            <line x1="3" y1="6" x2="21" y2="6"></line>
+                            <line x1="3" y1="18" x2="21" y2="18"></line>
+                        </svg>
+                    </button>
+                    <nav class="dashboard-breadcrumb" aria-label="Đường dẫn trang">
+                        <a href="{% url 'dashboard:index' %}">Tổng quan</a>
+                        <span class="sep">&gt;</span>
+                        <a href="{% url 'inventory:inventory_list' %}">Quản lý tồn kho</a>
+                        <span class="sep">&gt;</span>
+                        <a href="{% url 'inventory:returned_stock_list' %}">Hàng đổi trả</a>
+                        <span class="sep">&gt;</span>
+                        <span class="current">Kiểm định #{{ returned_stock.pk }}</span>
+                    </nav>
+                </div>
+
+                <div class="dashboard-topbar-right">
+                    <span class="dashboard-admin-badge" title="Tài khoản Quản trị viên">
+                        <span class="dashboard-admin-badge-dot" aria-hidden="true"></span>
+                        ADMINISTRATOR
+                    </span>
+                </div>
+            </header>
+
+            <!-- Main Content Container -->
+            <div class="dashboard-content" style="padding: 28px 32px; max-width: 900px; margin: 0 auto; width: 100%;">
+
+                <!-- Messages Framework -->
+                {% if messages %}
+                <div style="margin-bottom: 20px;">
+                    {% for message in messages %}
+                    <div style="padding: 12px 18px; border-radius: 8px; margin-bottom: 8px; font-size: 13.5px; background: {% if message.tags == 'error' %}var(--inv-danger-bg); color: var(--inv-danger-dark); border: 1px solid var(--inv-danger-border);{% else %}var(--inv-success-bg); color: var(--inv-success); border: 1px solid var(--inv-success-border);{% endif %}">
+                        {{ message }}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                <!-- Page Header -->
+                <div class="qhm-inv-header">
+                    <div class="qhm-inv-header-left">
+                        <h1 class="qhm-inv-title">Kiểm định &amp; Phân loại Hàng đổi trả #{{ returned_stock.pk }}</h1>
+                        <p class="qhm-inv-desc">
+                            Đánh giá ngoại quan, phụ kiện và tình trạng kỹ thuật của sản phẩm để quyết định tái nhập kho bán hoặc cách ly thanh lý.
+                        </p>
+                    </div>
+                    <div class="qhm-inv-header-actions">
+                        <a href="{% url 'inventory:returned_stock_list' %}" class="qhm-btn-secondary">
+                            <span>← Danh sách hàng đổi trả</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Card Form -->
+                <div class="qhm-table-card" style="padding: 28px; margin-bottom: 32px;">
+                    <!-- Item Info Box -->
+                    <div class="inv-variant-summary" style="margin-bottom: 24px;">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 12px;">
+                            <div>
+                                <div class="inv-var-title" style="font-size: 16px;">{{ returned_stock.variant.product.name }}</div>
+                                <div class="inv-var-sku">SKU: {{ returned_stock.variant.sku }}</div>
+                                <div class="inv-var-attrs">
+                                    {% for link in returned_stock.variant.attribute_values.all %}
+                                        <span class="inv-var-attr-tag">{{ link.attribute.name }}: {{ link.attribute_value.value }}</span>
+                                    {% empty %}
+                                        <span class="inv-var-attr-tag">Bản tiêu chuẩn</span>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            <div style="text-align: right;">
+                                <div style="font-size: 12px; color: var(--inv-text-muted); text-transform: uppercase; font-weight: 600;">Số lượng trả</div>
+                                <div style="font-size: 22px; font-weight: 800; color: var(--inv-text);">{{ returned_stock.quantity }} SP</div>
+                            </div>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding-top: 12px; border-top: 1px solid var(--inv-border); font-size: 13px;">
+                            <div>
+                                <span style="color: var(--inv-text-secondary);">Yêu cầu đổi/trả:</span>
+                                <strong>#{{ returned_stock.return_request.id }}</strong>
+                            </div>
+                            <div>
+                                <span style="color: var(--inv-text-secondary);">Đơn hàng:</span>
+                                <strong>#{{ returned_stock.return_request.order.id }}</strong>
+                            </div>
+                            <div>
+                                <span style="color: var(--inv-text-secondary);">Tiếp nhận bởi:</span>
+                                <strong>{{ returned_stock.received_by.username|default:"Kho" }}</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Inspection Form -->
+                    <form method="post" action="{% url 'inventory:inspect_condition' returned_stock.pk %}">
+                        {% csrf_token %}
+
+                        <div class="inv-form-group">
+                            <label for="id_condition" class="inv-form-label">
+                                Kết quả phân loại tình trạng <span class="inv-req-star" aria-hidden="true">*</span>
+                            </label>
+                            <select name="condition" id="id_condition" class="inv-form-control" required style="font-weight: 600;">
+                                <option value="WAITING_INSPECTION" {% if returned_stock.condition == 'WAITING_INSPECTION' %}selected{% endif %}>
+                                    Chờ kiểm định (Chưa tính vào tồn bán)
+                                </option>
+                                <option value="ELIGIBLE_FOR_RESALE" {% if returned_stock.condition == 'ELIGIBLE_FOR_RESALE' %}selected{% endif %}>
+                                    Đủ điều kiện bán lại (Được phép nhập lại kho bán)
+                                </option>
+                                <option value="NOT_ELIGIBLE_FOR_RESALE" {% if returned_stock.condition == 'NOT_ELIGIBLE_FOR_RESALE' %}selected{% endif %}>
+                                    Không đủ điều kiện bán lại (Cách ly / Thanh lý riêng)
+                                </option>
+                            </select>
+                            {% if form.condition.errors %}
+                                <div class="inv-field-error">{{ form.condition.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Rule Explanation Alert -->
+                        <div class="qhm-returns-notice-card" style="margin-bottom: 20px; padding: 14px 18px; font-size: 13px;">
+                            <div style="font-weight: 600; margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <line x1="12" y1="16" x2="12" y2="12"></line>
+                                    <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                                </svg>
+                                Lưu ý quan trọng:
+                            </div>
+                            <div style="line-height: 1.5;">
+                                Chọn <strong>"Đủ điều kiện bán lại"</strong> sẽ mở khóa thao tác cho phép nhân viên kho bấm nút tái nhập hàng vào tồn thực tế. Chọn <strong>"Không đủ điều kiện"</strong> sẽ vĩnh viễn không cho phép hàng này tái nhập kho bán để bảo vệ quyền lợi người mua.
+                            </div>
+                        </div>
+
+                        <div class="inv-form-group">
+                            <label for="id_inspection_notes" class="inv-form-label">
+                                Ghi chú kiểm định chi tiết <span style="font-weight: 400; color: var(--inv-text-muted); font-size: 12px;">(tùy chọn)</span>
+                            </label>
+                            <textarea name="inspection_notes" id="id_inspection_notes" class="inv-form-control" rows="4" placeholder="Ghi chú chi tiết về tình trạng ngoại quan (máy mới nguyên seal, trầy xước nhẹ, cấn góc...), tình trạng phụ kiện (đầy đủ cáp sạc, thiếu hộp...) hoặc lỗi chức năng...">{{ form.inspection_notes.value|default:returned_stock.inspection_notes|default:'' }}</textarea>
+                            {% if form.inspection_notes.errors %}
+                                <div class="inv-field-error">{{ form.inspection_notes.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div style="display: flex; gap: 12px; margin-top: 24px;">
+                            <button type="submit" class="qhm-btn-primary" style="padding: 12px 24px; font-size: 14px;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <polyline points="20 6 9 17 4 12"></polyline>
+                                </svg>
+                                <span>Lưu kết quả kiểm định</span>
+                            </button>
+                            <a href="{% url 'inventory:returned_stock_list' %}" class="qhm-btn-secondary" style="padding: 12px 20px;">
+                                <span>Hủy bỏ</span>
+                            </a>
+                        </div>
+                    </form>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+</body>
+</html>

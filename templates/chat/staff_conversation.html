@@ -1,17 +1,8 @@
+{% extends 'admin/management_base.html' %}
 {% load static %}
-<!DOCTYPE html>
-<html lang="vi">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hội thoại #{{ conversation.pk }} — Quốc Hùng Mobile</title>
-    <link rel="stylesheet" href="{% static 'css/auth.css' %}">
-    <link rel="stylesheet" href="{% static 'css/chat.css' %}">
-</head>
-<body class="chat-body">
-{% include 'includes/account_navigation.html' %}
-
-<main class="chat-page">
+{% block title %}Hội thoại #{{ conversation.pk }} | ADMIN PORTAL{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/chat.css' %}">{% endblock %}
+{% block content %}
     <section class="chat-card" aria-labelledby="conv-title">
         <header class="chat-card-head">
             <div>
@@ -71,7 +62,5 @@
             {% endif %}
         </div>
     </section>
-</main>
-{% include 'catalog/includes/shared_footer.html' %}
-</body>
-</html>
+{% endblock %}
+

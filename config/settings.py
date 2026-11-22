@@ -1,17 +1,13 @@
-import os
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
-SECRET_KEY = os.environ.get(
-    'DJANGO_SECRET_KEY',
-    'django-insecure-71jc*2#@_wamqyi!e(*-c@-k&qlyh@x=s913tyt875e6wy--+h'
-)
+SECRET_KEY = 'django-insecure-71jc*2#@_wamqyi!e(*-c@-k&qlyh@x=s913tyt875e6wy--+h'
 
-DEBUG = os.environ.get('DJANGO_DEBUG', 'True').strip().lower() in ('true', '1', 'yes')
+DEBUG = True
 
-ALLOWED_HOSTS = [host.strip() for host in os.environ.get('DJANGO_ALLOWED_HOSTS', '*').split(',') if host.strip()]
+ALLOWED_HOSTS = ['*']
 
 
 INSTALLED_APPS = [
@@ -29,6 +25,7 @@ INSTALLED_APPS = [
     'orders.apps.OrdersConfig',
     'payments.apps.PaymentsConfig',
     'chat.apps.ChatConfig',
+    'dashboard.apps.DashboardConfig',
 ]
 
 MIDDLEWARE = [
@@ -54,7 +51,11 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'accounts.context_processors.auth_roles',
+                'accounts.context_processors.management_notifications',
                 'cart.context_processors.cart_badge',
+                'catalog.context_processors.site_branding',
+                'catalog.storefront_context.storefront_account',
+                'catalog.storefront_context.storefront_navigation',
             ],
         },
     },

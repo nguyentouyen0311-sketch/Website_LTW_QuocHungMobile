@@ -1,7 +1,11 @@
 from django import forms
 from django.core.exceptions import ValidationError
 
-from orders.models import CancellationReasonCode, validate_delivery_phone
+from catalog.models import ProductVariant
+from orders.models import (
+    CancellationReasonCode, ReturnReasonCode, ReturnRequestType, ReturnRequestStatus,
+    validate_delivery_phone,
+)
 from payments.models import PaymentMethod
 from payments.qr import is_qr_transfer_available
 
@@ -54,15 +58,13 @@ class CheckoutForm(forms.Form):
         }
     )
 
-    coupon_code = forms.CharField(
-        max_length=40,
+    coupon_code = forms.ChoiceField(
+        choices=[('', 'Không áp dụng mã giảm giá')],
         required=False,
         label="Mã giảm giá",
-        widget=forms.TextInput(attrs={
+        widget=forms.Select(attrs={
             'class': 'qhm-form-input qhm-input-coupon',
             'id': 'id_coupon_code',
-            'placeholder': 'Nhập mã giảm giá (nếu có)',
-            'maxlength': '40',
         }),
     )
 
@@ -94,8 +96,12 @@ class CheckoutForm(forms.Form):
         required=False,
     )
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, eligible_coupon_choices=None, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields['coupon_code'].choices = [
+            ('', 'Không áp dụng mã giảm giá'),
+            *(eligible_coupon_choices or []),
+        ]
         choices = [(PaymentMethod.COD, 'Thanh toán khi nhận hàng (COD)')]
         if is_qr_transfer_available():
             choices.append((PaymentMethod.QR, 'Chuyển khoản ngân hàng qua mã QR'))
@@ -123,13 +129,7 @@ class CheckoutForm(forms.Form):
         return address
 
     def clean_coupon_code(self):
-        code = self.cleaned_data.get('coupon_code', '')
-        if code and str(code).strip():
-            cleaned = str(code).strip().upper()
-            if len(cleaned) > 40:
-                raise ValidationError('Mã giảm giá không hợp lệ (vượt quá 40 ký tự).')
-            return cleaned
-        return ''
+        return str(self.cleaned_data.get('coupon_code') or '').strip().upper()
 
     def clean_payment_method(self):
         method = self.cleaned_data.get('payment_method')
@@ -237,5 +237,65 @@ class OrderCancelForm(forms.Form):
             if not desc_stripped:
                 self.add_error('description', 'Vui lòng nhập mô tả chi tiết khi chọn lý do "Khác".')
         return cleaned_data
+
+
+class ReturnRequestForm(forms.Form):
+    order_item = forms.ModelChoiceField(queryset=None, label='Sản phẩm cần xử lý')
+    request_type = forms.ChoiceField(choices=ReturnRequestType.choices, label='Hình thức yêu cầu')
+    reason_code = forms.ChoiceField(choices=ReturnReasonCode.choices, label='Lý do')
+    quantity = forms.IntegerField(min_value=1, label='Số lượng')
+    replacement_variant = forms.ModelChoiceField(
+        queryset=None, required=False, label='Biến thể thay thế (chỉ khi đổi sản phẩm)'
+    )
+    description = forms.CharField(required=False, max_length=3000, label='Mô tả chi tiết', widget=forms.Textarea(attrs={'rows': 4}))
+
+    def __init__(self, *args, order, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.order = order
+        open_item_ids = order.return_requests.filter(
+            status__in=[ReturnRequestStatus.PENDING, ReturnRequestStatus.APPROVED, ReturnRequestStatus.RECEIVED]
+        ).values_list('order_item_id', flat=True)
+        self.fields['order_item'].queryset = order.items.exclude(pk__in=open_item_ids).select_related('variant__product')
+        self.fields['replacement_variant'].queryset = ProductVariant.objects.select_related('product').all()
+
+    def clean(self):
+        cleaned = super().clean()
+        item = cleaned.get('order_item')
+        quantity = cleaned.get('quantity')
+        request_type = cleaned.get('request_type')
+        replacement = cleaned.get('replacement_variant')
+        if item and quantity and quantity > item.quantity:
+            self.add_error('quantity', 'Số lượng không được vượt quá số lượng đã mua.')
+        if request_type == ReturnRequestType.EXCHANGE and not replacement:
+            self.add_error('replacement_variant', 'Vui lòng chọn biến thể thay thế khi đổi sản phẩm.')
+        if request_type == ReturnRequestType.RETURN and replacement:
+            self.add_error('replacement_variant', 'Yêu cầu hoàn tiền không chọn biến thể thay thế.')
+        return cleaned
+
+
+class ReturnReviewForm(forms.Form):
+    decision = forms.ChoiceField(choices=[('APPROVED', 'Duyệt yêu cầu'), ('REJECTED', 'Từ chối yêu cầu')], label='Quyết định')
+    review_note = forms.CharField(required=False, max_length=3000, label='Ghi chú xử lý', widget=forms.Textarea(attrs={'rows': 3}))
+
+
+class PurchasedProductReviewForm(forms.Form):
+    rating = forms.ChoiceField(
+        choices=[(value, f'{value} sao') for value in range(5, 0, -1)],
+        label='Mức độ hài lòng', widget=forms.RadioSelect,
+    )
+    content = forms.CharField(
+        label='Nhận xét của bạn', max_length=2000,
+        widget=forms.Textarea(attrs={'rows': 5, 'placeholder': 'Chia sẻ trải nghiệm thực tế của bạn về sản phẩm...'}),
+    )
+
+    def clean_content(self):
+        return self.cleaned_data['content'].strip()
+
+
+class ReturnRefundConfirmationForm(forms.Form):
+    bank_reference = forms.CharField(label='Mã giao dịch ngân hàng', max_length=100)
+    completed_at = forms.DateTimeField(label='Thời điểm hoàn tiền', widget=forms.DateTimeInput(attrs={'type': 'datetime-local'}))
+    audit_note = forms.CharField(label='Ghi chú kiểm toán', min_length=5, max_length=1000, widget=forms.Textarea(attrs={'rows': 2}))
+    confirm = forms.BooleanField(label='Tôi xác nhận giao dịch hoàn tiền đã hoàn tất tại ngân hàng.')
 
 

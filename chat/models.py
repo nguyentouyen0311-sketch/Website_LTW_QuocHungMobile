@@ -1,3 +1,5 @@
+import uuid
+
 from django.conf import settings
 from django.db import models
 from django.db.models import Q
@@ -5,10 +7,14 @@ from django.db.models import Q
 
 class ChatFAQ(models.Model):
 
+    knowledge_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    category = models.CharField('Chủ đề', max_length=80, default='Hỗ trợ chung')
+    priority = models.PositiveSmallIntegerField('Mức ưu tiên', default=0)
+    updated_at = models.DateTimeField('Cập nhật lúc', auto_now=True)
     question = models.TextField('Câu hỏi')
     answer = models.TextField('Câu trả lời')
     keywords = models.CharField(
-        'Từ khóa', max_length=255, null=True, blank=True,
+        'Từ khóa', max_length=1000, null=True, blank=True,
         help_text='Các từ khóa cách nhau bằng dấu phẩy. Ví dụ: bảo hành, đổi trả',
     )
     is_active = models.BooleanField('Đang sử dụng', default=True)
@@ -89,6 +95,7 @@ class ChatMessage(models.Model):
         on_delete=models.SET_NULL, related_name='messages',
     )
     content = models.TextField()
+    payload = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

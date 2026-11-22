@@ -1,17 +1,8 @@
+{% extends 'admin/management_base.html' %}
 {% load static %}
-<!DOCTYPE html>
-<html lang="vi">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tin nhắn khách hàng — Quốc Hùng Mobile</title>
-    <link rel="stylesheet" href="{% static 'css/auth.css' %}">
-    <link rel="stylesheet" href="{% static 'css/chat.css' %}">
-</head>
-<body class="chat-body">
-{% include 'includes/account_navigation.html' %}
-
-<main class="chat-page chat-page-wide">
+{% block title %}Tin nhắn khách hàng | ADMIN PORTAL{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/chat.css' %}">{% endblock %}
+{% block content %}
     <section class="chat-card" aria-labelledby="inbox-title">
         <header class="chat-card-head">
             <div>
@@ -57,7 +48,5 @@
             <p class="chat-empty">Không có hội thoại nào ở trạng thái này.</p>
         {% endif %}
     </section>
-</main>
-{% include 'catalog/includes/shared_footer.html' %}
-</body>
-</html>
+{% endblock %}
+

@@ -1,6 +1,113 @@
+from django.conf import settings
 from django.db import models, router, transaction
 from django.db.models import Q, F
 from django.core.exceptions import ValidationError
+
+
+class SiteBranding(models.Model):
+    logo = models.FileField(
+        upload_to='branding/',
+        blank=True,
+        null=True,
+        verbose_name='Tệp logo',
+        help_text='Tải logo PNG, JPG, WEBP hoặc SVG. Bỏ chọn tệp hiện tại để xóa logo.'
+    )
+    logo_alt = models.CharField(max_length=150, default='Quốc Hùng Mobile', verbose_name='Mô tả logo')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Cập nhật lần cuối')
+
+    class Meta:
+        db_table = 'catalog_sitebranding'
+        verbose_name = 'Logo thương hiệu'
+        verbose_name_plural = 'Logo thương hiệu'
+
+    def __str__(self):
+        return 'Logo Quốc Hùng Mobile'
+
+    def clean(self):
+        super().clean()
+        if self.pk is None and SiteBranding.objects.exists():
+            raise ValidationError('Chỉ được phép có một cấu hình logo thương hiệu.')
+
+    def save(self, *args, **kwargs):
+        previous_logo = None
+        if self.pk:
+            previous_logo = SiteBranding.objects.filter(pk=self.pk).values_list('logo', flat=True).first()
+        super().save(*args, **kwargs)
+        if previous_logo and previous_logo != self.logo.name:
+            self.logo.storage.delete(previous_logo)
+
+    def delete(self, *args, **kwargs):
+        logo_name = self.logo.name if self.logo else None
+        super().delete(*args, **kwargs)
+        if logo_name:
+            self.logo.storage.delete(logo_name)
+
+
+class ProductPresentation(models.Model):
+    product = models.OneToOneField('Product', on_delete=models.CASCADE, related_name='presentation', verbose_name='Sản phẩm')
+    short_description = models.TextField(blank=True, verbose_name='Mô tả nổi bật')
+    technical_specs = models.JSONField(default=dict, blank=True, verbose_name='Thông số kỹ thuật', help_text='Nhập JSON, ví dụ: {"Màn hình": "6.9 inch", "Chip": "A18 Pro"}.')
+    highlights = models.JSONField(default=list, blank=True, verbose_name='Điểm nổi bật', help_text='Nhập JSON danh sách, ví dụ: ["Chip A18 Pro", "Camera 48MP"].')
+    warranty_text = models.CharField(max_length=120, default='Bảo hành chính hãng 12 tháng', verbose_name='Bảo hành')
+
+    class Meta:
+        verbose_name = 'Nội dung hiển thị sản phẩm'
+        verbose_name_plural = 'Nội dung hiển thị sản phẩm'
+
+    def __str__(self):
+        return f'Nội dung: {self.product.name}'
+
+
+class ProductReview(models.Model):
+    """Nội dung đánh giá hiển thị công khai trên trang sản phẩm."""
+
+    product = models.ForeignKey('Product', on_delete=models.CASCADE, related_name='reviews', verbose_name='Sản phẩm')
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, related_name='product_reviews',
+        blank=True, null=True, verbose_name='Khách hàng'
+    )
+    order_item = models.OneToOneField(
+        'orders.OrderItem', on_delete=models.SET_NULL, related_name='product_review',
+        blank=True, null=True, verbose_name='Dòng sản phẩm đã mua'
+    )
+    reviewer_name = models.CharField(max_length=120, verbose_name='Tên người đánh giá')
+    rating = models.PositiveSmallIntegerField(verbose_name='Số sao')
+    variant_text = models.CharField(max_length=160, blank=True, verbose_name='Phân loại đã mua')
+    content = models.TextField(verbose_name='Nội dung đánh giá')
+    is_verified_purchase = models.BooleanField(default=False, verbose_name='Đã mua hàng')
+    store_reply = models.TextField(blank=True, verbose_name='Phản hồi của cửa hàng')
+    helpful_count = models.PositiveIntegerField(default=0, verbose_name='Lượt hữu ích')
+    is_visible = models.BooleanField(default=True, verbose_name='Hiển thị công khai')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Ngày đăng')
+
+    class Meta:
+        db_table = 'catalog_productreview'
+        verbose_name = 'Đánh giá sản phẩm'
+        verbose_name_plural = 'Đánh giá sản phẩm'
+        ordering = ['-created_at', '-id']
+
+    def __str__(self):
+        return f'{self.product.name} — {self.reviewer_name} ({self.rating} sao)'
+
+    def clean(self):
+        super().clean()
+        if not 1 <= self.rating <= 5:
+            raise ValidationError({'rating': 'Số sao phải nằm trong khoảng từ 1 đến 5.'})
+
+
+class ProductReviewMedia(models.Model):
+    review = models.ForeignKey(ProductReview, on_delete=models.CASCADE, related_name='media', verbose_name='Đánh giá')
+    file = models.FileField(upload_to='reviews/%Y/%m/', verbose_name='Ảnh hoặc video')
+    sort_order = models.PositiveIntegerField(default=0, verbose_name='Thứ tự')
+
+    class Meta:
+        db_table = 'catalog_productreviewmedia'
+        verbose_name = 'Tệp đính kèm đánh giá'
+        verbose_name_plural = 'Tệp đính kèm đánh giá'
+        ordering = ['sort_order', 'id']
+
+    def __str__(self):
+        return f'Tệp #{self.id} của đánh giá #{self.review_id}'
 
 
 def normalize_category_name(raw_name):

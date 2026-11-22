@@ -1,10 +1,13 @@
+import re
+import unicodedata
+
 from django import forms
 from django.core.exceptions import NON_FIELD_ERRORS
 from django.db import transaction
 from catalog.models import (
     Category, Product, ProductImage, normalize_category_name,
     Attribute, AttributeValue, normalize_attribute_text,
-    ProductVariant, VariantAttributeValue, derive_combination_key,
+    ProductVariant, VariantAttributeValue, ProductPresentation, derive_combination_key,
 )
 
 
@@ -116,6 +119,42 @@ class ProductForm(forms.ModelForm):
             if len(raw_brand) > 100:
                 raise forms.ValidationError('Tên thương hiệu không được vượt quá 100 ký tự.')
         return raw_brand or None
+
+
+class ProductPresentationForm(forms.ModelForm):
+    technical_specs = forms.CharField(required=False, label='Thông số kỹ thuật', widget=forms.Textarea(attrs={'class': 'form-input', 'rows': 5, 'placeholder': 'Màn hình: 6.7 inch\nChip: A18 Pro\nCamera: 48MP'}), help_text='Mỗi dòng theo mẫu: Tên thông số: Giá trị.')
+    highlights = forms.CharField(required=False, label='Điểm nổi bật', widget=forms.Textarea(attrs={'class': 'form-input', 'rows': 4, 'placeholder': 'Màn hình sáng, mượt\nCamera chụp đêm tốt\nBảo hành chính hãng'}), help_text='Mỗi dòng là một điểm nổi bật sẽ hiển thị cho khách.')
+
+    class Meta:
+        model = ProductPresentation
+        fields = ['short_description', 'technical_specs', 'highlights', 'warranty_text']
+        widgets = {
+            'short_description': forms.Textarea(attrs={'class': 'form-input', 'rows': 3, 'placeholder': 'Tóm tắt điểm nổi bật hiển thị ngoài storefront'}),
+            'warranty_text': forms.TextInput(attrs={'class': 'form-input', 'maxlength': '120'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance and self.instance.pk:
+            self.initial['technical_specs'] = '\n'.join(f'{key}: {value}' for key, value in (self.instance.technical_specs or {}).items())
+            self.initial['highlights'] = '\n'.join(self.instance.highlights or [])
+
+    def clean_technical_specs(self):
+        specs = {}
+        for line in self.cleaned_data.get('technical_specs', '').splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            if ':' not in line:
+                raise forms.ValidationError('Mỗi thông số cần theo mẫu “Tên thông số: Giá trị”.')
+            key, value = (part.strip() for part in line.split(':', 1))
+            if not key or not value:
+                raise forms.ValidationError('Tên thông số và giá trị đều không được để trống.')
+            specs[key] = value
+        return specs
+
+    def clean_highlights(self):
+        return [line.strip() for line in self.cleaned_data.get('highlights', '').splitlines() if line.strip()]
 
 
 def validate_product_image_file(img_file):
@@ -526,21 +565,13 @@ class ProductVariantForm(forms.ModelForm):
 
     class Meta:
         model = ProductVariant
-        fields = ['sku', 'price', 'original_price', 'is_active']
+        fields = ['price', 'original_price', 'is_active']
         labels = {
-            'sku': 'Mã SKU',
             'price': 'Giá bán (VNĐ)',
             'original_price': 'Giá gốc / niêm yết (VNĐ)',
             'is_active': 'Kích hoạt kinh doanh (Đang bán)',
         }
         widgets = {
-            'sku': forms.TextInput(attrs={
-                'class': 'qhm-form-control',
-                'placeholder': 'Ví dụ: IP15PM-256-BLK',
-                'maxlength': '60',
-                'autocomplete': 'off',
-                'style': 'text-transform: uppercase;',
-            }),
             'price': forms.NumberInput(attrs={
                 'class': 'qhm-form-control',
                 'placeholder': '0.00',
@@ -597,21 +628,22 @@ class ProductVariantForm(forms.ModelForm):
         for field_name, attr in self.attribute_fields:
             yield attr, self[field_name]
 
-    def clean_sku(self):
-        raw_sku = self.cleaned_data.get('sku', '')
-        normalized = raw_sku.strip().upper()
-        if not normalized:
-            raise forms.ValidationError('Mã SKU không được để trống hoặc chỉ chứa khoảng trắng.')
-        if len(normalized) > 60:
-            raise forms.ValidationError('Mã SKU không được vượt quá 60 ký tự.')
+    @staticmethod
+    def _sku_token(value):
+        normalized = unicodedata.normalize('NFKD', str(value))
+        normalized = ''.join(char for char in normalized if not unicodedata.combining(char))
+        normalized = re.sub(r'[^A-Za-z0-9]+', '-', normalized).strip('-').upper()
+        return normalized or 'GIA-TRI'
 
-        qs = ProductVariant.objects.all()
-        if self.instance and self.instance.pk:
-            qs = qs.exclude(pk=self.instance.pk)
-        for other in qs:
-            if (other.sku or '').strip().upper() == normalized:
-                raise forms.ValidationError(f"Mã SKU '{normalized}' đã tồn tại trong hệ thống.")
-        return normalized
+    def _build_automatic_sku(self, selected_values):
+        value_tokens = [self._sku_token(value.value) for value in selected_values]
+        suffix = '-'.join(value_tokens) if value_tokens else 'MAC-DINH'
+        sku = f'{self.product.product_code}-{suffix}'
+        if len(sku) > 60:
+            value_ids = '-'.join(str(value.id) for value in selected_values) or '0'
+            available_length = 60 - len(self.product.product_code) - len(value_ids) - 3
+            sku = f'{self.product.product_code}-{suffix[:max(1, available_length)]}-V{value_ids}'
+        return sku[:60]
 
     def clean_price(self):
         price = self.cleaned_data.get('price')
@@ -657,6 +689,13 @@ class ProductVariantForm(forms.ModelForm):
         derived_key = derive_combination_key(val_ids)
         cleaned_data['derived_combination_key'] = derived_key
         cleaned_data['selected_values'] = selected_values
+        if not self.instance.pk:
+            automatic_sku = self._build_automatic_sku(selected_values)
+            cleaned_data['automatic_sku'] = automatic_sku
+            # ModelForm calls ProductVariant.full_clean() after this method.
+            # Since SKU is intentionally not a visible form field, assign the
+            # generated value before model-level validation runs.
+            self.instance.sku = automatic_sku
 
         siblings = ProductVariant.objects.filter(product_id=self.product.id)
         if self.instance and self.instance.pk:
@@ -686,7 +725,8 @@ class ProductVariantForm(forms.ModelForm):
     def save(self, commit=True):
         instance = super().save(commit=False)
         instance.product = self.product
-        instance.sku = self.cleaned_data['sku']
+        if not instance.pk:
+            instance.sku = self.cleaned_data['automatic_sku']
         instance.price = self.cleaned_data['price']
         instance.original_price = self.cleaned_data.get('original_price')
         instance.is_active = self.cleaned_data.get('is_active', True)

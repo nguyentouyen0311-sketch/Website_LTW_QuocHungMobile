@@ -1,0 +1,430 @@
+{% load static %}
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Quản lý mã giảm giá — Quốc Hùng Mobile Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/tokens.css' %}">
+  <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+  <link rel="stylesheet" href="{% static 'coupons/css/voucher_workspace.css' %}">
+</head>
+<body>
+<div id="qhm-voucher-root">
+  {% include 'catalog/includes/management_sidebar.html' with active_nav='coupons' %}
+  <div class="qhm-overlay" id="qhm-overlay"></div>
+
+  <section class="qhm-workspace">
+    {% include 'admin/includes/backend_header.html' with backend_section='Bán hàng & CSKH' backend_title='Quản lý mã giảm giá' backend_search_placeholder='Tìm kiếm nhanh...' %}
+
+    <main class="qhm-main">
+      <div class="qhm-heading-row">
+        <div>
+          <h1>Quản lý mã giảm giá</h1>
+          <p class="qhm-desc">Thiết lập ưu đãi, điều kiện áp dụng và theo dõi lượt sử dụng.</p>
+        </div>
+        <a href="{% url 'coupons:coupon_create' %}" class="qhm-btn qhm-btn-primary" id="qhm-btn-create-top">
+          <span>＋</span> Tạo mã mới
+        </a>
+      </div>
+
+      {% if messages %}
+        <div class="qhm-messages">
+          {% for message in messages %}
+            <div class="qhm-alert {{ message.tags }}" role="status">{{ message }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      <div class="qhm-kpis" aria-label="Thống kê toàn bộ mã giảm giá">
+        <div class="qhm-kpi-card">
+          <div class="qhm-kpi-label">Tổng mã đã tạo</div>
+          <div class="qhm-kpi-value">{{ metrics.total_coupons }}</div>
+          <div class="qhm-kpi-sub">Toàn bộ mã trong hệ thống</div>
+        </div>
+        <div class="qhm-kpi-card positive">
+          <div class="qhm-kpi-label">Mã đang hiệu lực</div>
+          <div class="qhm-kpi-value">{{ metrics.active_count }}</div>
+          <div class="qhm-kpi-sub">Đúng thời gian, còn lượt dùng</div>
+        </div>
+        <div class="qhm-kpi-card">
+          <div class="qhm-kpi-label">Tổng lượt đã dùng</div>
+          <div class="qhm-kpi-value">{{ metrics.total_used }}</div>
+          <div class="qhm-kpi-sub">Lượt đã được hệ thống ghi nhận</div>
+        </div>
+        <div class="qhm-kpi-card">
+          <div class="qhm-kpi-label">Lượt đang tạm giữ</div>
+          <div class="qhm-kpi-value">{{ metrics.total_reserved }}</div>
+          <div class="qhm-kpi-sub">Được tính vào giới hạn lượt dùng</div>
+        </div>
+      </div>
+
+      <div class="qhm-grid">
+        <section class="qhm-card qhm-list-card" aria-label="Danh sách mã giảm giá">
+          <div class="qhm-card-header">
+            <h2>Danh sách mã giảm giá</h2>
+            <span class="qhm-count-badge">Tổng cộng: {{ total_filtered }} mã</span>
+          </div>
+
+          <form class="qhm-filter-bar" method="get" action="{% url 'coupons:coupon_list' %}">
+            <div class="qhm-search-wrap">
+              <input type="search" name="q" value="{{ filters.q }}" class="qhm-input" placeholder="Nhập mã giảm giá…" aria-label="Tìm kiếm mã giảm giá">
+            </div>
+            <div class="qhm-filter-grid">
+              <div class="qhm-filter-col">
+                <label for="filter-status">Trạng thái</label>
+                <select name="status" id="filter-status" class="qhm-select">
+                  <option value="all" {% if filters.status == 'all' or not filters.status %}selected{% endif %}>Tất cả trạng thái</option>
+                  <option value="active" {% if filters.status == 'active' or filters.status == 'ACTIVE' %}selected{% endif %}>Đang diễn ra</option>
+                  <option value="not_started" {% if filters.status == 'not_started' or filters.status == 'NOT_STARTED' %}selected{% endif %}>Chưa bắt đầu</option>
+                  <option value="expired" {% if filters.status == 'expired' or filters.status == 'EXPIRED' %}selected{% endif %}>Hết hạn</option>
+                  <option value="exhausted" {% if filters.status == 'exhausted' or filters.status == 'EXHAUSTED' %}selected{% endif %}>Đã hết lượt</option>
+                  <option value="inactive" {% if filters.status == 'inactive' or filters.status == 'INACTIVE' %}selected{% endif %}>Tạm ngưng</option>
+                </select>
+              </div>
+              <div class="qhm-filter-col">
+                <label for="filter-type">Loại giảm</label>
+                <select name="type" id="filter-type" class="qhm-select">
+                  <option value="all" {% if filters.type == 'all' or not filters.type %}selected{% endif %}>Tất cả loại</option>
+                  <option value="PERCENT" {% if filters.type == 'PERCENT' %}selected{% endif %}>Phần trăm (%)</option>
+                  <option value="FIXED" {% if filters.type == 'FIXED' %}selected{% endif %}>Số tiền cố định</option>
+                </select>
+              </div>
+              <div class="qhm-filter-col">
+                <label for="filter-scope">Phạm vi</label>
+                <select name="scope" id="filter-scope" class="qhm-select">
+                  <option value="all" {% if filters.scope == 'all' or not filters.scope %}selected{% endif %}>Tất cả phạm vi</option>
+                  <option value="all_products" {% if filters.scope == 'all_products' %}selected{% endif %}>Toàn bộ sản phẩm</option>
+                  <option value="specific_products" {% if filters.scope == 'specific_products' %}selected{% endif %}>Sản phẩm chỉ định</option>
+                </select>
+              </div>
+              <div>
+                <button type="submit" class="qhm-btn qhm-btn-secondary qhm-filter-btn">Lọc</button>
+              </div>
+            </div>
+          </form>
+
+          <p class="qhm-scroll-hint">Kéo ngang bảng để xem đầy đủ thông tin và thao tác.</p>
+
+          <div class="qhm-table-wrap">
+            <table class="qhm-table">
+              <thead>
+                <tr>
+                  <th style="width: 32%;">Mã & Ưu đãi</th>
+                  <th style="width: 25%;">Phạm vi / Thời hạn</th>
+                  <th style="width: 20%;">Lượt sử dụng</th>
+                  <th style="width: 13%;">Trạng thái</th>
+                  <th style="width: 10%;">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for coupon in coupons %}
+                  <tr class="{% if editing_coupon and editing_coupon.id == coupon.id %}qhm-row-selected{% endif %}">
+                    <td>
+                      <div class="qhm-code">{{ coupon.code }}</div>
+                      <div class="qhm-cell-primary">Giảm {{ coupon.value_display }}</div>
+                      {% if coupon.discount_type == 'PERCENT' and coupon.max_discount is not None %}
+                        <div class="qhm-cell-secondary">Tối đa {{ coupon.max_discount_display }}</div>
+                      {% endif %}
+                      <div class="qhm-cell-secondary">
+                        {% if coupon.min_order_amount and coupon.min_order_amount > 0 %}
+                          Đơn từ {{ coupon.min_order_amount_display }}
+                        {% else %}
+                          Không yêu cầu đơn tối thiểu
+                        {% endif %}
+                      </div>
+                    </td>
+                    <td>
+                      <div>
+                        {% if coupon.applies_to_all %}
+                          Toàn bộ sản phẩm
+                        {% else %}
+                          <span title="{% for cp in coupon.coupon_products.all %}{{ cp.product.name }}{% if not forloop.last %}, {% endif %}{% endfor %}">
+                            {% with cp_list=coupon.coupon_products.all %}
+                              {% if cp_list %}
+                                {{ cp_list.0.product.name|truncatechars:28 }}{% if cp_list|length > 1 %} +{{ cp_list|length|add:"-1" }}{% endif %}
+                              {% else %}
+                                Sản phẩm chỉ định
+                              {% endif %}
+                            {% endwith %}
+                          </span>
+                        {% endif %}
+                      </div>
+                      <div class="qhm-cell-secondary">
+                        {{ coupon.starts_at|date:"d/m/Y H:i" }}<br>→ {{ coupon.ends_at|date:"d/m/Y H:i" }}
+                      </div>
+                    </td>
+                    <td>
+                      <div class="qhm-quota">{{ coupon.used_count }} / {{ coupon.max_uses }}</div>
+                      <div class="qhm-track" aria-hidden="true">
+                        <span class="qhm-track-fill" style="width: {% widthratio coupon.used_count|add:coupon.reserved_count coupon.max_uses 100 %}%;"></span>
+                      </div>
+                      <div class="qhm-cell-secondary">
+                        Giữ {{ coupon.reserved_count }} · Còn {{ coupon.remaining_uses }}
+                      </div>
+                    </td>
+                    <td>
+                      {% with st=coupon.derived_status %}
+                        {% if st == 'ACTIVE' %}
+                          <span class="qhm-pill active">Đang diễn ra</span>
+                        {% elif st == 'NOT_STARTED' %}
+                          <span class="qhm-pill not-started">Chưa bắt đầu</span>
+                        {% elif st == 'EXPIRED' %}
+                          <span class="qhm-pill expired">Hết hạn</span>
+                        {% elif st == 'EXHAUSTED' %}
+                          <span class="qhm-pill exhausted">Đã hết lượt</span>
+                        {% else %}
+                          <span class="qhm-pill inactive">Tạm ngưng</span>
+                        {% endif %}
+                      {% endwith %}
+                    </td>
+                    <td>
+                      <a href="{% url 'coupons:coupon_edit' coupon.id %}{% if pagination_query %}?{{ pagination_query }}{% endif %}" class="qhm-btn-edit {% if editing_coupon and editing_coupon.id == coupon.id %}is-active{% endif %}" aria-label="Sửa mã {{ coupon.code }}">
+                        ✎ Sửa
+                      </a>
+                    </td>
+                  </tr>
+                {% empty %}
+                  <tr>
+                    <td colspan="5" class="qhm-empty-row">Không tìm thấy mã giảm giá phù hợp với bộ lọc.</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+
+          <div class="qhm-table-footer">
+            <span>Hiển thị {{ coupons|length }} / {{ total_filtered }} mã</span>
+            {% if page_obj.has_other_pages %}
+              <div class="qhm-pagination" aria-label="Phân trang">
+                {% if page_obj.has_previous %}
+                  <a href="?page={{ page_obj.previous_page_number }}{% if pagination_query %}&{{ pagination_query }}{% endif %}" class="qhm-page-link" aria-label="Trang trước">‹</a>
+                {% endif %}
+
+                {% for p in elided_pages %}
+                  {% if p == page_obj.paginator.ELLIPSIS %}
+                    <span class="qhm-page-link" style="border:none;background:transparent;">…</span>
+                  {% elif p == page_obj.number %}
+                    <span class="qhm-page-link current" aria-current="page">{{ p }}</span>
+                  {% else %}
+                    <a href="?page={{ p }}{% if pagination_query %}&{{ pagination_query }}{% endif %}" class="qhm-page-link">{{ p }}</a>
+                  {% endif %}
+                {% endfor %}
+
+                {% if page_obj.has_next %}
+                  <a href="?page={{ page_obj.next_page_number }}{% if pagination_query %}&{{ pagination_query }}{% endif %}" class="qhm-page-link" aria-label="Trang sau">›</a>
+                {% endif %}
+              </div>
+            {% endif %}
+          </div>
+        </section>
+
+        <section class="qhm-card qhm-editor-card" id="qhm-editor" aria-label="Thiết lập mã giảm giá">
+          <div class="qhm-card-header">
+            <div>
+              <h2>{% if is_edit %}Chỉnh sửa mã{% else %}Thêm mã mới{% endif %}</h2>
+              {% if is_edit %}
+                <p class="qhm-editor-subcode">{{ editing_coupon.code }}</p>
+              {% endif %}
+            </div>
+            <span class="qhm-mode-pill">{% if is_edit %}CHẾ ĐỘ CHỈNH SỬA{% else %}CHẾ ĐỘ THÊM MỚI{% endif %}</span>
+          </div>
+
+          <form method="post" action="{% if is_edit %}{% url 'coupons:coupon_edit' editing_coupon.id %}{% else %}{% url 'coupons:coupon_create' %}{% endif %}" id="qhm-coupon-form" data-is-edit="{% if is_edit %}true{% else %}false{% endif %}" data-coupon-pk="{% if is_edit %}{{ editing_coupon.id }}{% else %}new{% endif %}" data-user-id="{{ request.user.id }}" novalidate>
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+              <div class="qhm-alert error" id="qhm-server-errors" role="alert">
+                {% for err in form.non_field_errors %}
+                  <p style="margin: 0;">{{ err }}</p>
+                {% endfor %}
+              </div>
+            {% endif %}
+
+            <div class="qhm-form-section">
+              <h3 class="qhm-section-title"><span class="qhm-section-num">1</span> Thông tin ưu đãi</h3>
+
+              <div class="qhm-field">
+                <label class="qhm-label" for="{{ form.code.id_for_label }}">
+                  Mã giảm giá <span class="qhm-req">*</span>
+                </label>
+                {{ form.code }}
+                <span class="qhm-help">Tối đa 40 ký tự; viết hoa không dấu; không được trùng lặp.</span>
+                {% if form.code.errors %}
+                  <span class="qhm-error-msg" id="qhm-server-errors">{{ form.code.errors.0 }}</span>
+                {% endif %}
+              </div>
+
+              <div class="qhm-field">
+                <label class="qhm-label" for="{{ form.discount_type.id_for_label }}">
+                  Loại giảm giá <span class="qhm-req">*</span>
+                </label>
+                {{ form.discount_type }}
+                {% if form.discount_type.errors %}
+                  <span class="qhm-error-msg" id="qhm-server-errors">{{ form.discount_type.errors.0 }}</span>
+                {% endif %}
+              </div>
+
+              <div class="qhm-field">
+                <label class="qhm-label" id="qhm-value-label" for="{{ form.value.id_for_label }}">
+                  Mức giảm (%) <span class="qhm-req">*</span>
+                </label>
+                {{ form.value }}
+                <span class="qhm-help" id="qhm-value-help">Lớn hơn 0 và không vượt quá 100%.</span>
+                {% if form.value.errors %}
+                  <span class="qhm-error-msg" id="qhm-server-errors">{{ form.value.errors.0 }}</span>
+                {% endif %}
+              </div>
+
+              <div class="qhm-field" id="qhm-cap-field">
+                <label class="qhm-label" for="{{ form.max_discount.id_for_label }}">
+                  Giảm tối đa (đ)
+                </label>
+                {{ form.max_discount }}
+                <span class="qhm-help">Để trống nếu không giới hạn trần giảm. Nhập 0: mức giảm bằng 0 đ.</span>
+                {% if form.max_discount.errors %}
+                  <span class="qhm-error-msg" id="qhm-server-errors">{{ form.max_discount.errors.0 }}</span>
+                {% endif %}
+              </div>
+            </div>
+
+            <div class="qhm-form-section">
+              <h3 class="qhm-section-title"><span class="qhm-section-num">2</span> Điều kiện & Phạm vi</h3>
+
+              <div class="qhm-field">
+                <label class="qhm-label" for="{{ form.min_order_amount.id_for_label }}">
+                  Giá trị đơn tối thiểu (đ)
+                </label>
+                {{ form.min_order_amount }}
+                <span class="qhm-help">Nhập 0 hoặc để trống nếu không yêu cầu giá trị đơn tối thiểu.</span>
+                {% if form.min_order_amount.errors %}
+                  <span class="qhm-error-msg" id="qhm-server-errors">{{ form.min_order_amount.errors.0 }}</span>
+                {% endif %}
+              </div>
+
+              <div class="qhm-field">
+                <label class="qhm-label">
+                  Sản phẩm áp dụng <span class="qhm-req">*</span>
+                </label>
+                <div class="qhm-radio-group">
+                  {% for radio in form.applies_to_all %}
+                    <label class="qhm-radio-label">
+                      {{ radio.tag }}
+                      <span>{{ radio.choice_label }}</span>
+                    </label>
+                  {% endfor %}
+                </div>
+                {% if form.applies_to_all.errors %}
+                  <span class="qhm-error-msg" id="qhm-server-errors">{{ form.applies_to_all.errors.0 }}</span>
+                {% endif %}
+              </div>
+
+              <div class="qhm-product-picker" id="qhm-product-picker" aria-label="Chọn sản phẩm áp dụng">
+                <div style="font-size: 11px; font-weight: 600; color: var(--qhm-sub); margin-bottom: 8px;">
+                  Chọn ít nhất 1 sản phẩm được áp dụng mã:
+                </div>
+                {% for widget in form.products %}
+                  <label class="qhm-product-item">
+                    {{ widget.tag }}
+                    <span>{{ widget.choice_label }}</span>
+                  </label>
+                {% empty %}
+                  <p class="qhm-help" style="margin: 0;">Chưa có sản phẩm nào trong hệ thống.</p>
+                {% endfor %}
+                {% if form.products.errors %}
+                  <span class="qhm-error-msg" id="qhm-server-errors" style="display: block; margin-top: 6px;">{{ form.products.errors.0 }}</span>
+                {% endif %}
+              </div>
+            </div>
+
+            <div class="qhm-form-section">
+              <h3 class="qhm-section-title"><span class="qhm-section-num">3</span> Hiệu lực & Lượt dùng</h3>
+
+              <div class="qhm-two-col">
+                <div class="qhm-field">
+                  <label class="qhm-label" for="{{ form.starts_at.id_for_label }}">
+                    Bắt đầu <span class="qhm-req">*</span>
+                  </label>
+                  {{ form.starts_at }}
+                  {% if form.starts_at.errors %}
+                    <span class="qhm-error-msg" id="qhm-server-errors">{{ form.starts_at.errors.0 }}</span>
+                  {% endif %}
+                </div>
+                <div class="qhm-field">
+                  <label class="qhm-label" for="{{ form.ends_at.id_for_label }}">
+                    Kết thúc <span class="qhm-req">*</span>
+                  </label>
+                  {{ form.ends_at }}
+                  {% if form.ends_at.errors %}
+                    <span class="qhm-error-msg" id="qhm-server-errors">{{ form.ends_at.errors.0 }}</span>
+                  {% endif %}
+                </div>
+              </div>
+              <p class="qhm-help" style="margin: -6px 0 14px;">Múi giờ Việt Nam (UTC+7). Thời điểm kết thúc phải sau bắt đầu.</p>
+
+              <div class="qhm-field">
+                <label class="qhm-label" for="{{ form.max_uses.id_for_label }}">
+                  Tổng số lượt sử dụng <span class="qhm-req">*</span>
+                </label>
+                {{ form.max_uses }}
+                <span class="qhm-help">Không nhỏ hơn tổng số lượt đã dùng và đang tạm giữ.</span>
+                {% if form.max_uses.errors %}
+                  <span class="qhm-error-msg" id="qhm-server-errors">{{ form.max_uses.errors.0 }}</span>
+                {% endif %}
+              </div>
+
+              <div class="qhm-usage-boxes" aria-label="Thống kê lượt dùng chỉ đọc">
+                <div class="qhm-usage-box">
+                  <strong>{% if is_edit %}{{ editing_coupon.used_count }}{% else %}0{% endif %}</strong>
+                  <span>Đã dùng</span>
+                </div>
+                <div class="qhm-usage-box">
+                  <strong>{% if is_edit %}{{ editing_coupon.reserved_count }}{% else %}0{% endif %}</strong>
+                  <span>Đang giữ</span>
+                </div>
+                <div class="qhm-usage-box">
+                  <strong>{% if is_edit %}{{ editing_coupon.remaining_uses }}{% else %}—{% endif %}</strong>
+                  <span>Còn lại</span>
+                </div>
+              </div>
+
+              <div class="qhm-switch-row">
+                <div>
+                  <span class="qhm-label">Kích hoạt mã</span>
+                  <span class="qhm-help" style="display: block; margin-top: 2px;">Cho phép áp dụng khi đủ điều kiện.</span>
+                </div>
+                <label class="qhm-switch" aria-label="Kích hoạt mã">
+                  {{ form.is_active }}
+                  <span class="qhm-slider"></span>
+                </label>
+              </div>
+            </div>
+
+            <div class="qhm-summary-box">
+              <strong>Tóm tắt điều kiện</strong>
+              <span id="qhm-summary-text">Đang cập nhật...</span>
+            </div>
+
+            <div class="qhm-form-actions">
+              <button type="button" class="qhm-btn qhm-btn-secondary" id="qhm-btn-reset">Làm mới</button>
+              {% if is_edit %}
+                <a href="{% url 'coupons:coupon_list' %}" class="qhm-btn qhm-btn-secondary">Hủy chỉnh sửa</a>
+              {% endif %}
+              <button type="submit" class="qhm-btn qhm-btn-primary">
+                ✓ {% if is_edit %}Cập nhật mã{% else %}Lưu mã{% endif %}
+              </button>
+            </div>
+          </form>
+        </section>
+      </div>
+    </main>
+  </section>
+</div>
+
+<script src="{% static 'coupons/js/voucher_workspace.js' %}"></script>
+</body>
+</html>
+
