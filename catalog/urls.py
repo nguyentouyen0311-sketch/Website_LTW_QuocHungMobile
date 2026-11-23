@@ -15,6 +15,7 @@ from catalog.views import (
     product_images_reorder_view,
     product_image_assign_variant_view,
     public_catalog_view,
+    promotion_list_view,
     public_product_detail_view,
     storefront_category_view,
     attribute_list_view,
@@ -34,6 +35,7 @@ urlpatterns = [
     path('product-preview/', TemplateView.as_view(template_name='storefront/product_detail.html', extra_context={'page_key': 'phones'}), name='product_preview'),
     path('browse/<slug:category_slug>/', storefront_category_view, name='storefront_category'),
     path('', public_catalog_view, name='public_catalog'),
+    path('promotions/', promotion_list_view, name='promotion_list'),
     path('category/<int:category_id>/', public_catalog_view, name='public_category'),
     path('product/<int:product_id>/', public_product_detail_view, name='public_product_detail'),
 

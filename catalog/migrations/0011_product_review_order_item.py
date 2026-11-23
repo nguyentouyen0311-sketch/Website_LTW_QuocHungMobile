@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ('catalog', '0010_alter_productreview_table_and_more'),
         ('orders', '0004_alter_returnrequest_reason_code_and_more'),
