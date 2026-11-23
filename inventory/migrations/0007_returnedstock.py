@@ -4,10 +4,7 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
-    dependencies = [
-        ('inventory', '0006_inventorytransaction_ship_and_order'),
-    ]
+    dependencies = [('inventory', '0006_inventorytransaction_ship_and_order')]
 
     operations = [
         migrations.CreateModel(
@@ -24,10 +21,6 @@ class Migration(migrations.Migration):
                 ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='Thời điểm tạo')),
                 ('updated_at', models.DateTimeField(auto_now=True, verbose_name='Thời điểm cập nhật')),
             ],
-            options={
-                'verbose_name': 'Hàng đổi trả',
-                'verbose_name_plural': 'Quản lý hàng đổi trả',
-                'ordering': ['-created_at', '-id'],
-            },
+            options={'verbose_name': 'Hàng đổi trả', 'verbose_name_plural': 'Quản lý hàng đổi trả', 'ordering': ['-created_at', '-id']},
         ),
     ]

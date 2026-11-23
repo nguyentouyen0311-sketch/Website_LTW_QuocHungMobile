@@ -1,7 +1,9 @@
-{% extends 'cart/base.html' %}
+{% extends 'storefront/base_storefront.html' %}
 {% load static %}
+{% block title %}Giỏ hàng — Quốc Hùng Mobile{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'cart/css/cart.css' %}"><style>.qhm-cart-page{--cart-red:#E62E2D;--cart-red-dark:#C82322;--cart-red-soft:#FEF2F2;--cart-dark:#1F2A24;--cart-dark-secondary:#2A3730;--cart-bg:#F8F9FA;--cart-white:#FFF;--cart-muted-bg:#F3F4F6;--cart-border:#E5E7EB;--cart-ink:#111827;--cart-secondary:#6B7280;--cart-success:#15803D;--cart-success-bg:#ECFDF5;--cart-font:'Inter','Plus Jakarta Sans',system-ui,sans-serif;background:var(--cart-bg);color:var(--cart-ink);font:400 14px/1.5 var(--cart-font)}</style><script src="{% static 'cart/js/cart.js' %}" defer></script>{% endblock %}
 {% block content %}
-<main class="cart-main" id="cart-main">
+<div class="qhm-cart-page"><main class="cart-main" id="cart-main">
   <nav class="cart-breadcrumb" aria-label="Đường dẫn trang"><a href="{% url 'home' %}"><img src="{% static 'cart/assets/home.svg' %}" alt="" width="15" height="15">Trang chủ</a><span aria-hidden="true">/</span><span aria-current="page">Giỏ hàng của bạn</span></nav>
   <div class="cart-heading"><h1>Giỏ hàng của bạn</h1><a href="{% url 'catalog:public_catalog' %}">← Tiếp tục mua sắm</a></div>
   {% if messages %}<div class="cart-messages" aria-live="polite">{% for message in messages %}<p class="cart-message {{ message.tags }}" {% if message.tags == 'error' %}role="alert"{% else %}role="status"{% endif %}>{{ message }}</p>{% endfor %}</div>{% endif %}
@@ -64,5 +66,5 @@
   {% else %}
   <section class="cart-empty"><img src="{% static 'cart/assets/cart.svg' %}" alt="" width="22" height="22"><h2>Giỏ hàng đang trống</h2><p>Khám phá sản phẩm và chọn những món đồ phù hợp với bạn.</p><a class="cart-button cart-button-primary" href="{% url 'catalog:public_catalog' %}">Tiếp tục mua sắm</a></section>
   {% endif %}
-</main>
+</main></div>
 {% endblock %}

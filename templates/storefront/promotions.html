@@ -1,0 +1,20 @@
+{% extends 'storefront/base_storefront.html' %}
+{% load static %}
+
+{% block title %}Khuyến mãi & Ưu đãi đặc biệt — Quốc Hùng Mobile{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/promotions.css' %}"><style>.promo-products-title{margin:0;font:700 20px var(--font-heading)}</style>{% endblock %}
+
+{% block content %}
+<main class="promo-page">
+  <nav class="promo-breadcrumb"><a href="{% url 'home' %}">Trang chủ</a><span>/</span><strong>Khuyến mãi &amp; Ưu đãi đặc biệt</strong></nav>
+  <section class="promo-hero"><div class="promo-hero__copy"><span>CHƯƠNG TRÌNH ƯU ĐÃI</span><h1>Tuần Lễ Vàng Công Nghệ — Giảm đến 30% &amp; tặng Voucher</h1><p>Săn deal chính hãng VN/A, giá tốt nhất năm. Áp dụng đồng thời mã giảm giá và trả góp 0% lãi suất.</p></div></section>
+  <section class="promo-vouchers" aria-labelledby="voucher-title">
+    <div class="promo-section-heading"><div><h2 id="voucher-title">Kho Mã Giảm Giá Độc Quyền</h2><p>Lưu mã ngay để áp dụng giảm trực tiếp tại bước thanh toán đơn hàng</p></div><a href="#sale-products">Điều kiện áp dụng voucher ›</a></div>
+    <div class="promo-voucher-grid">{% for coupon in coupons %}<article class="promo-voucher-card"><span class="promo-voucher-icon">✦</span><div><code>{{ coupon.code }}</code><strong>{{ coupon.scope_display }}</strong><p>Giảm {{ coupon.value_display }}{% if coupon.max_discount_display %}, tối đa {{ coupon.max_discount_display }}{% endif %}</p><small>Còn {{ coupon.remaining_uses }} lượt · HSD: {{ coupon.ends_at|date:'d/m' }}</small></div></article>{% empty %}<div class="promo-empty">Hiện chưa có voucher đang hiệu lực. Ưu đãi mới sẽ được cập nhật tại đây.</div>{% endfor %}</div>
+  </section>
+  <section id="sale-products" class="promo-products" aria-labelledby="sale-title">
+    <h2 class="promo-products-title">Tất cả sản phẩm giảm giá ({{ products|length }})</h2>
+    <div class="promo-product-grid">{% for product in products %}<article class="promo-product-card"><div class="promo-card-top"><b>-{{ product.discount_percent }}%</b><span>Áp dụng Voucher</span></div><a class="promo-product-image" href="{% url 'catalog:public_product_detail' product.id %}">{% if product.card_image %}<img src="{{ product.card_image.image.url }}" alt="{{ product.name }}">{% else %}<i>Hình ảnh đang cập nhật</i>{% endif %}</a><div class="promo-product-body"><small>{{ product.category.name }}</small><h3><a href="{% url 'catalog:public_product_detail' product.id %}">{{ product.name }}</a></h3><strong>{{ product.price_display }}</strong><del>{{ product.original_price_display }}</del><div class="promo-stock"><span></span><em>Ưu đãi có hạn</em></div><a class="promo-buy" href="{% url 'catalog:public_product_detail' product.id %}">Mua ngay giá ưu đãi</a></div></article>{% empty %}<div class="promo-empty">Chưa có sản phẩm giảm giá. Các ưu đãi sản phẩm sẽ hiển thị tại đây khi giá gốc cao hơn giá bán.</div>{% endfor %}</div>
+  </section>
+</main>
+{% endblock %}

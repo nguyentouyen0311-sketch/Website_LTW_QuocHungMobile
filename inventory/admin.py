@@ -1,23 +1,9 @@
-"""
-Cấu hình Quản trị Django Admin cho phân hệ Tồn kho (Inventory) — Quốc Hùng Mobile.
-Thực thi các ràng buộc an toàn nghiêm ngặt theo yêu cầu Task 05.1:
-- Bắt buộc kiểm tra vai trò nghiệp vụ (is_inventory_staff) kết hợp is_staff.
-- Khóa hoàn toàn thao tác thêm mới (has_add_permission = False); tồn kho sinh tự động theo variant.
-- Khóa hoàn toàn thao tác xóa đơn lẻ và xóa hàng loạt (has_delete_permission = False, bỏ delete_selected).
-- Khóa trường variant (chống reparenting), khóa physical_sellable và reserved (chỉ đọc).
-- Chỉ duy nhất min_threshold được phép chỉnh sửa.
-"""
 from django.contrib import admin
 from accounts.permissions import is_inventory_staff
 from inventory.models import Inventory, InventoryTransaction, InventoryAdjustment
 
 
-
 def parse_positive_id(val, max_digits=12):
-    """
-    Chuyển đổi an toàn chuỗi đầu vào thành số nguyên dương (ID).
-    Chỉ chấp nhận chữ số ASCII thuần (0-9), chống tràn số và ký tự số Unicode.
-    """
     if not isinstance(val, str):
         return None
     val = val.strip()
@@ -87,21 +73,17 @@ class InventoryAdmin(admin.ModelAdmin):
         return obj.stock_status_label
 
     def has_add_permission(self, request):
-        # Chặn tạo thủ công từ Admin; Inventory luôn được tạo tự động gắn với ProductVariant
         return False
 
     def has_delete_permission(self, request, obj=None):
-        # Chặn xóa cứng bản ghi tồn kho qua Django Admin
         return False
 
     def has_change_permission(self, request, obj=None):
-        # Chỉ nhân viên kho hoặc Admin có cờ is_staff mới được phép chỉnh sửa ngưỡng
         if not (request.user and request.user.is_authenticated and request.user.is_staff):
             return False
         return is_inventory_staff(request.user)
 
     def has_view_permission(self, request, obj=None):
-        # Chỉ nhân viên kho hoặc Admin có cờ is_staff mới được phép xem danh sách/chi tiết
         if not (request.user and request.user.is_authenticated and request.user.is_staff):
             return False
         return is_inventory_staff(request.user)
@@ -130,7 +112,6 @@ class InventoryAdmin(admin.ModelAdmin):
 
     def save_model(self, request, obj, form, change):
         if change and obj.pk:
-            # Phòng vệ đa tầng: Khóa cứng variant, physical_sellable và reserved ở tầng Admin save
             orig = Inventory.objects.get(pk=obj.pk)
             obj.variant = orig.variant
             obj.physical_sellable = orig.physical_sellable
@@ -138,17 +119,8 @@ class InventoryAdmin(admin.ModelAdmin):
         super().save_model(request, obj, form, change)
 
 
-
 @admin.register(InventoryTransaction)
 class InventoryTransactionAdmin(admin.ModelAdmin):
-    """
-    Cấu hình Quản trị Django Admin cho Sổ cái biến động kho (InventoryTransaction).
-    Thực thi quy tắc bảo mật nghiêm ngặt (Task 05.2):
-    - Chỉ đọc tuyệt đối: has_add_permission = False, has_change_permission = False, has_delete_permission = False.
-    - Loại bỏ action xóa hàng loạt delete_selected.
-    - Tất cả các trường là readonly_fields.
-    - Kiểm tra quyền: is_inventory_staff và is_staff.
-    """
     list_display = (
         'id',
         'created_at',
@@ -220,15 +192,12 @@ class InventoryTransactionAdmin(admin.ModelAdmin):
         return str(obj.request_key)
 
     def has_add_permission(self, request):
-        # Không cho phép tạo thủ công qua Django Admin; chỉ ghi qua service nhập hàng
         return False
 
     def has_change_permission(self, request, obj=None):
-        # Sổ cái biến động kho là append-only, không thể sửa đổi
         return False
 
     def has_delete_permission(self, request, obj=None):
-        # Sổ cái biến động kho là append-only, không thể xóa bỏ
         return False
 
     def has_view_permission(self, request, obj=None):
@@ -243,18 +212,8 @@ class InventoryTransactionAdmin(admin.ModelAdmin):
         return actions
 
 
-
 @admin.register(InventoryAdjustment)
 class InventoryAdjustmentAdmin(admin.ModelAdmin):
-    """
-    Giao diện Django Admin cho Bảng 27: InventoryAdjustment (Chỉ đọc).
-    - Toàn bộ dữ liệu kiểm kê là audit trail bất biến.
-    - has_add_permission = False (chỉ ghi qua service kiểm kê).
-    - has_change_permission = False (không cho phép sửa).
-    - has_delete_permission = False (không cho phép xóa).
-    - Bỏ action delete_selected.
-    - Quyền truy cập: is_inventory_staff và is_staff.
-    """
     list_display = (
         'id',
         'created_at',

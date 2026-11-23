@@ -6,7 +6,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ('catalog', '0006_productimage_variant'),
         ('inventory', '0007_returnedstock'),
@@ -15,54 +14,14 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AddField(
-            model_name='inventoryreservation',
-            name='return_request',
-            field=models.ForeignKey(blank=True, help_text='Yêu cầu đổi trả nguồn giữ hàng thay thế (on_delete=PROTECT).', null=True, on_delete=django.db.models.deletion.PROTECT, related_name='reservations', to='orders.returnrequest', verbose_name='Yêu cầu đổi trả'),
-        ),
-        migrations.AddField(
-            model_name='inventorytransaction',
-            name='return_request',
-            field=models.ForeignKey(blank=True, help_text='Yêu cầu đổi trả phát sinh giao dịch nhập kho lại (nếu có).', null=True, on_delete=django.db.models.deletion.PROTECT, related_name='inventory_transactions', to='orders.returnrequest', verbose_name='Yêu cầu đổi trả liên kết'),
-        ),
-        migrations.AlterField(
-            model_name='inventoryreservation',
-            name='order_item',
-            field=models.ForeignKey(blank=True, help_text='Dòng đơn hàng nguồn giữ hàng (on_delete=PROTECT bảo toàn liên kết giữ hàng).', null=True, on_delete=django.db.models.deletion.PROTECT, related_name='reservations', to='orders.orderitem', verbose_name='Dòng đơn hàng'),
-        ),
-        migrations.AlterField(
-            model_name='inventorytransaction',
-            name='transaction_type',
-            field=models.CharField(choices=[('PURCHASE_IN', 'Nhập hàng'), ('ADJUSTMENT', 'Kiểm kê kho'), ('SHIP', 'Xuất kho giao hàng'), ('RETURN_RESTOCK', 'Nhập hàng đổi trả')], default='PURCHASE_IN', help_text='Loại biến động kho (PURCHASE_IN).', max_length=25, verbose_name='Loại giao dịch'),
-        ),
-        migrations.AddField(
-            model_name='returnedstock',
-            name='inspected_by',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.PROTECT, related_name='inspected_returned_stocks', to=settings.AUTH_USER_MODEL, verbose_name='Nhân viên kiểm tra tình trạng'),
-        ),
-        migrations.AddField(
-            model_name='returnedstock',
-            name='received_by',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.PROTECT, related_name='received_returned_stocks', to=settings.AUTH_USER_MODEL, verbose_name='Nhân viên kho nhận hàng'),
-        ),
-        migrations.AddField(
-            model_name='returnedstock',
-            name='restocked_by',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.PROTECT, related_name='restocked_returned_stocks', to=settings.AUTH_USER_MODEL, verbose_name='Người xác nhận nhập kho'),
-        ),
-        migrations.AddField(
-            model_name='returnedstock',
-            name='return_request',
-            field=models.OneToOneField(help_text='Yêu cầu đổi trả liên kết với lô hàng nhận về.', on_delete=django.db.models.deletion.PROTECT, related_name='returned_stock', to='orders.returnrequest', verbose_name='Yêu cầu đổi trả'),
-        ),
-        migrations.AddField(
-            model_name='returnedstock',
-            name='transaction',
-            field=models.OneToOneField(blank=True, null=True, on_delete=django.db.models.deletion.PROTECT, related_name='returned_stock', to='inventory.inventorytransaction', verbose_name='Giao dịch nhập kho liên kết'),
-        ),
-        migrations.AddField(
-            model_name='returnedstock',
-            name='variant',
-            field=models.ForeignKey(help_text='Biến thể của sản phẩm nhận về.', on_delete=django.db.models.deletion.PROTECT, related_name='returned_stocks', to='catalog.productvariant', verbose_name='Biến thể sản phẩm'),
-        ),
+        migrations.AddField(model_name='inventoryreservation', name='return_request', field=models.ForeignKey(blank=True, help_text='Yêu cầu đổi trả nguồn giữ hàng thay thế (on_delete=PROTECT).', null=True, on_delete=django.db.models.deletion.PROTECT, related_name='reservations', to='orders.returnrequest', verbose_name='Yêu cầu đổi trả')),
+        migrations.AddField(model_name='inventorytransaction', name='return_request', field=models.ForeignKey(blank=True, help_text='Yêu cầu đổi trả phát sinh giao dịch nhập kho lại (nếu có).', null=True, on_delete=django.db.models.deletion.PROTECT, related_name='inventory_transactions', to='orders.returnrequest', verbose_name='Yêu cầu đổi trả liên kết')),
+        migrations.AlterField(model_name='inventoryreservation', name='order_item', field=models.ForeignKey(blank=True, help_text='Dòng đơn hàng nguồn giữ hàng (on_delete=PROTECT bảo toàn liên kết giữ hàng).', null=True, on_delete=django.db.models.deletion.PROTECT, related_name='reservations', to='orders.orderitem', verbose_name='Dòng đơn hàng')),
+        migrations.AlterField(model_name='inventorytransaction', name='transaction_type', field=models.CharField(choices=[('PURCHASE_IN', 'Nhập hàng'), ('ADJUSTMENT', 'Kiểm kê kho'), ('SHIP', 'Xuất kho giao hàng'), ('RETURN_RESTOCK', 'Nhập hàng đổi trả')], default='PURCHASE_IN', help_text='Loại biến động kho (PURCHASE_IN).', max_length=25, verbose_name='Loại giao dịch')),
+        migrations.AddField(model_name='returnedstock', name='inspected_by', field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.PROTECT, related_name='inspected_returned_stocks', to=settings.AUTH_USER_MODEL, verbose_name='Nhân viên kiểm tra tình trạng')),
+        migrations.AddField(model_name='returnedstock', name='received_by', field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.PROTECT, related_name='received_returned_stocks', to=settings.AUTH_USER_MODEL, verbose_name='Nhân viên kho nhận hàng')),
+        migrations.AddField(model_name='returnedstock', name='restocked_by', field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.PROTECT, related_name='restocked_returned_stocks', to=settings.AUTH_USER_MODEL, verbose_name='Người xác nhận nhập kho')),
+        migrations.AddField(model_name='returnedstock', name='return_request', field=models.OneToOneField(help_text='Yêu cầu đổi trả liên kết với lô hàng nhận về.', on_delete=django.db.models.deletion.PROTECT, related_name='returned_stock', to='orders.returnrequest', verbose_name='Yêu cầu đổi trả')),
+        migrations.AddField(model_name='returnedstock', name='transaction', field=models.OneToOneField(blank=True, null=True, on_delete=django.db.models.deletion.PROTECT, related_name='returned_stock', to='inventory.inventorytransaction', verbose_name='Giao dịch nhập kho liên kết')),
+        migrations.AddField(model_name='returnedstock', name='variant', field=models.ForeignKey(help_text='Biến thể của sản phẩm nhận về.', on_delete=django.db.models.deletion.PROTECT, related_name='returned_stocks', to='catalog.productvariant', verbose_name='Biến thể sản phẩm')),
     ]
