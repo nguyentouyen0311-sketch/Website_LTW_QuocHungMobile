@@ -1,1 +1,143 @@
-{% load static %}<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>{{ title }}</title><link rel="stylesheet" href="{% static 'css/admin_forms.css' %}"></head><body><div class="af-shell"><aside class="af-side"><a class="af-brand" href="{% url 'catalog:product_list' %}"><i>QH</i><span>QUỐC HÙNG MOBILE<small>ADMIN PORTAL</small></span></a><nav class="af-nav"><p>QUẢN LÝ HÀNG HÓA</p><a href="{% url 'catalog:category_list' %}">Quản lý danh mục</a><a class="active" href="{% url 'catalog:product_list' %}">Quản lý sản phẩm</a><a href="{% url 'catalog:attribute_list' %}">Biến thể & Thuộc tính</a></nav></aside><section class="af-main"><header class="af-top">Quản lý hàng hóa / <strong>{{ title }}</strong><input placeholder="Tìm kiếm nhanh..."><b class="af-role">ADMINISTRATOR</b></header><main class="af-content"><a class="af-back" href="{% url 'catalog:product_list' %}">← Quay lại quản lý sản phẩm</a><div class="af-heading"><div><h1>{{ title }}</h1><p>Hoàn thiện thông tin được sử dụng để hiển thị trang chi tiết sản phẩm.</p></div></div><form method="post">{% csrf_token %}<section class="af-card"><h2>Thông tin cơ bản</h2><div class="af-grid">{% for field in form %}<label class="af-field {% if field.name == 'description' %}wide{% endif %}">{{ field.label }}{{ field }}{% for error in field.errors %}<small>{{ error }}</small>{% endfor %}</label>{% endfor %}</div></section><section class="af-card"><h2>Nội dung trang chi tiết</h2><div class="af-grid">{% for field in presentation_form %}<label class="af-field {% if field.name == 'short_description' or field.name == 'technical_specs' or field.name == 'highlights' %}wide{% endif %}">{{ field.label }}{{ field }}{% for error in field.errors %}<small>{{ error }}</small>{% endfor %}</label>{% endfor %}</div><div class="af-actions"><a class="af-btn" href="{% url 'catalog:product_list' %}">Hủy</a><button class="af-btn primary">Lưu sản phẩm</button></div></section></form></main></section></div></body></html>
+{% extends 'admin/management_base.html' %}
+{% load static %}
+
+{% block title %}{{ title }} — Quốc Hùng Mobile{% endblock %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/admin_forms.css' %}">
+  <style>
+    .af-notices { margin: 0 0 18px; }
+    .af-notice { margin: 0 0 10px; padding: 12px 14px; border: 1px solid #d8dfda; border-radius: 9px; background: #fff; color: #283630; font-size: 14px; font-weight: 600; }
+    .af-notice.success { border-color: #9ad7b8; background: #ecfdf3; color: #17633a; }
+    .af-notice.error { border-color: #fecaca; background: #fef2f2; color: #b42318; }
+    .product-images__heading { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:18px; }
+    .product-images__heading h2 { margin-bottom:6px; }
+    .product-images__heading p { margin:0; color:#6b7280; line-height:1.5; }
+    .product-images__upload { display:grid; grid-template-columns:minmax(220px,2fr) minmax(180px,1fr) 120px auto; align-items:end; gap:14px; padding:16px; border:1px dashed #cfd8d3; border-radius:12px; background:#f8faf9; }
+    .product-images__upload .af-field { min-width:0; }
+    .product-images__upload input, .product-images__upload select { box-sizing:border-box; }
+    .product-images__grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:16px; margin-top:18px; }
+    .product-image-card { overflow:hidden; border:1px solid #e5e7eb; border-radius:12px; background:#fff; }
+    .product-image-card.is-primary { border:2px solid #e62e2d; }
+    .product-image-card > img { display:block; width:100%; aspect-ratio:1 / .78; object-fit:contain; background:#f7f8f7; }
+    .product-image-card__body { padding:13px; }
+    .product-image-card__primary { display:flex; align-items:center; gap:7px; font-size:13px; font-weight:700; }
+    .product-image-card__order { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:10px; font-size:13px; font-weight:700; }
+    .product-image-card__order input { width:74px; padding:7px; border:1px solid #d8dfda; border-radius:7px; font:inherit; }
+    .product-image-card__body p { min-height:20px; margin:10px 0; color:#66756d; font-size:12px; }
+    .product-image-card__assign { display:flex; gap:8px; }
+    .product-image-card__assign select { min-width:0; flex:1; padding:8px; border:1px solid #d8dfda; border-radius:7px; font:12px inherit; }
+    .product-image-card__assign .af-btn { padding:8px 10px; white-space:nowrap; }
+    .product-image-card__delete { margin-top:10px; padding:0; border:0; background:transparent; color:#c82322; font:700 12px inherit; cursor:pointer; }
+    .product-images__actions { display:flex; justify-content:flex-end; gap:10px; margin-top:18px; }
+    .product-images__empty { margin:18px 0 0; padding:18px; border:1px dashed #cfd8d3; border-radius:10px; color:#66756d; text-align:center; }
+    @media (max-width:900px) { .product-images__upload { grid-template-columns:1fr 1fr; } }
+    @media (max-width:600px) { .product-images__heading { flex-direction:column; } .product-images__upload { grid-template-columns:1fr; } .product-images__actions { align-items:stretch; flex-direction:column; } }
+  </style>
+{% endblock %}
+
+{% block backend_header %}
+  {% include 'admin/includes/backend_header.html' with backend_section='Quản lý hàng hóa' backend_title=title backend_search_placeholder='Tìm kiếm nhanh...' %}
+{% endblock %}
+
+{% block content %}
+  <div class="af-content">
+    <a class="af-back" href="{% url 'catalog:product_list' %}">← Quay lại quản lý sản phẩm</a>
+    <div class="af-heading"><div><h1>{{ title }}</h1><p>Hoàn thiện thông tin được sử dụng để hiển thị trang chi tiết sản phẩm.</p></div></div>
+
+    {% if messages %}
+      <div class="af-notices" role="status">
+        {% for message in messages %}<div class="af-notice {{ message.tags|default:'' }}">{{ message }}</div>{% endfor %}
+      </div>
+    {% endif %}
+    {% if form.errors or presentation_form.errors %}
+      <div class="af-notices" role="alert">
+        <div class="af-notice error">Chưa thể lưu sản phẩm. Vui lòng kiểm tra các trường có thông báo lỗi bên dưới.</div>
+      </div>
+    {% endif %}
+
+    <form method="post">
+      {% csrf_token %}
+      <section class="af-card">
+        <h2>Thông tin cơ bản</h2>
+        <div class="af-grid">
+          {% for field in form %}
+            <label class="af-field {% if field.name == 'description' %}wide{% endif %}">
+              {{ field.label }}{{ field }}{% for error in field.errors %}<small>{{ error }}</small>{% endfor %}
+            </label>
+          {% endfor %}
+        </div>
+      </section>
+
+      <section class="af-card">
+        <h2>Nội dung trang chi tiết</h2>
+        <div class="af-grid">
+          {% for field in presentation_form %}
+            <label class="af-field {% if field.name == 'short_description' or field.name == 'technical_specs' or field.name == 'highlights' %}wide{% endif %}">
+              {{ field.label }}{{ field }}{% for error in field.errors %}<small>{{ error }}</small>{% endfor %}
+            </label>
+          {% endfor %}
+        </div>
+        <div class="af-actions"><a class="af-btn" href="{% url 'catalog:product_list' %}">Hủy</a><button class="af-btn primary" type="submit">Lưu sản phẩm</button></div>
+      </section>
+    </form>
+
+    {% if product %}
+      <section class="af-card product-images" id="product-images">
+        <div class="product-images__heading">
+          <div>
+            <h2>Ảnh sản phẩm</h2>
+            <p>Ảnh có thứ tự <strong>0</strong> là ảnh đại diện. Bạn có thể gán mỗi ảnh cho một biến thể hoặc để trống để dùng chung.</p>
+          </div>
+          <a class="af-btn" href="{% url 'catalog:product_variant_create' product.id %}">＋ Thêm biến thể</a>
+        </div>
+
+        <form class="product-images__upload" method="post" action="{% url 'catalog:product_image_upload' product.id %}" enctype="multipart/form-data">
+          {% csrf_token %}
+          <label class="af-field">{{ image_form.image.label }}{{ image_form.image }}{% for error in image_form.image.errors %}<small>{{ error }}</small>{% endfor %}</label>
+          <label class="af-field">{{ image_form.variant.label }}{{ image_form.variant }}</label>
+          <label class="af-field">{{ image_form.sort_order.label }}{{ image_form.sort_order }}</label>
+          <button class="af-btn primary" type="submit">Tải ảnh lên</button>
+        </form>
+
+        {% if images %}
+          <form id="image-order-form" method="post" action="{% url 'catalog:product_images_reorder' product.id %}">{% csrf_token %}</form>
+          <div class="product-images__grid">
+            {% for image in images %}
+              <article class="product-image-card{% if image.sort_order == 0 %} is-primary{% endif %}">
+                <img src="{{ image.image.url }}" alt="Ảnh {{ forloop.counter }} của {{ product.name }}">
+                <div class="product-image-card__body">
+                  <label class="product-image-card__primary">
+                    <input form="image-order-form" type="radio" name="primary_image_id" value="{{ image.id }}" {% if image.sort_order == 0 %}checked{% endif %}>
+                    Ảnh đại diện
+                  </label>
+                  <label class="product-image-card__order">Thứ tự
+                    <input form="image-order-form" type="number" name="sort_order_{{ image.id }}" value="{{ image.sort_order }}" min="0">
+                  </label>
+                  <p>{% if image.variant %}Biến thể: <strong>{{ image.variant.sku }}</strong>{% else %}Ảnh dùng chung{% endif %}</p>
+                  <form class="product-image-card__assign" method="post" action="{% url 'catalog:product_image_assign_variant' product.id image.id %}">
+                    {% csrf_token %}
+                    <select name="variant" aria-label="Gán ảnh cho biến thể {{ image.id }}">
+                      <option value="">Ảnh chung của sản phẩm</option>
+                      {% for variant in variants %}<option value="{{ variant.id }}" {% if image.variant_id == variant.id %}selected{% endif %}>{{ variant.sku }} — {{ variant.attribute_summary }}</option>{% endfor %}
+                    </select>
+                    <button class="af-btn" type="submit">Gán biến thể</button>
+                  </form>
+                  <form method="post" action="{% url 'catalog:product_image_delete' product.id image.id %}" onsubmit="return confirm('Xóa ảnh này?');">
+                    {% csrf_token %}<button class="product-image-card__delete" type="submit">Xóa ảnh</button>
+                  </form>
+                </div>
+              </article>
+            {% endfor %}
+          </div>
+          <div class="product-images__actions">
+            <button class="af-btn" form="image-order-form" name="action" value="save_order" type="submit">Lưu thứ tự</button>
+            <button class="af-btn primary" form="image-order-form" name="action" value="set_primary" type="submit">Đặt ảnh đã chọn làm đại diện</button>
+          </div>
+        {% else %}
+          <p class="product-images__empty">Chưa có ảnh nào. Hãy tải ảnh đầu tiên của sản phẩm.</p>
+        {% endif %}
+      </section>
+    {% endif %}
+  </div>
+{% endblock %}

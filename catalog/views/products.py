@@ -111,7 +111,7 @@ def product_create_view(request):
             presentation.product = product
             presentation.save()
             messages.success(request, f"Đã thêm mới sản phẩm '{product.name}' ({product.product_code}) thành công.")
-            return redirect(f"{reverse('catalog:product_edit', args=[product.id])}#images")
+            return redirect('catalog:product_edit', product_id=product.id)
     else:
         form = ProductForm()
         presentation_form = ProductPresentationForm()
@@ -146,7 +146,7 @@ def product_edit_view(request, product_id):
             form.save()
             presentation_form.save()
             messages.success(request, f"Đã cập nhật thông tin sản phẩm '{product.name}' ({product.product_code}) thành công.")
-            return redirect(f"{reverse('catalog:product_edit', args=[product.id])}#images")
+            return redirect('catalog:product_edit', product_id=product.id)
     else:
         form = ProductForm(instance=product)
         presentation_form = ProductPresentationForm(instance=getattr(product, 'presentation', None))
@@ -155,6 +155,9 @@ def product_edit_view(request, product_id):
         'form': form,
         'presentation_form': presentation_form,
         'product': product,
+        'images': product.images.select_related('variant').all().order_by('sort_order', 'id'),
+        'variants': product.variants.filter(is_deleted=False).order_by('id'),
+        'image_form': ProductImageForm(product=product),
         'title': f"Chỉnh sửa sản phẩm: {product.name}",
         'active_nav': 'catalog_products',
     }
@@ -168,21 +171,8 @@ def product_detail_view(request, product_id):
     if not is_sales_staff(request.user):
         return HttpResponseForbidden("Bạn không có quyền truy cập chức năng này.")
 
-    product = get_object_or_404(
-        Product.objects.select_related('category').prefetch_related('images'),
-        id=product_id
-    )
-    images = product.images.select_related('variant').all().order_by('sort_order', 'id')
-    image_form = ProductImageForm(product=product)
-
-    context = {
-        'product': product,
-        'images': images,
-        'image_form': image_form,
-        'has_soft_delete': True,
-        'active_nav': 'catalog_products',
-    }
-    return render(request, 'catalog/product_detail.html', context)
+    product = get_object_or_404(Product, id=product_id)
+    return redirect(f"{reverse('catalog:product_edit', args=[product.id])}#product-images")
 
 
 def product_soft_delete_view(request, product_id):

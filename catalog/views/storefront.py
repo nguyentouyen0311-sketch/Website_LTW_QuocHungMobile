@@ -162,6 +162,19 @@ def public_catalog_view(request, category_id=None):
     products = Product.objects.filter(category__is_visible=True, is_active=True, is_deleted=False).select_related('category').prefetch_related('images', 'variants')
     if selected_category:
         products = products.filter(category=selected_category)
+    search_query = ' '.join(request.GET.get('q', '').split())[:100]
+    if search_query:
+        search_filter = (
+            Q(name__icontains=search_query)
+            | Q(brand__icontains=search_query)
+            | Q(category__name__icontains=search_query)
+        )
+        normalized_code = search_query.upper().replace(' ', '')
+        if normalized_code.startswith('SP'):
+            product_id = parse_positive_id(normalized_code[2:])
+            if product_id is not None:
+                search_filter |= Q(id=product_id)
+        products = products.filter(search_filter)
     products = list(products.order_by('name'))
     for item in products:
         first_image = next(iter(item.images.all()), None)
@@ -176,8 +189,15 @@ def public_catalog_view(request, category_id=None):
         'products': products,
         'page_key': '',
         'storefront_nav_category_id': selected_category.id if selected_category else None,
-        'category_title': selected_category.name if selected_category else 'Danh mục sản phẩm',
-        'category_description': selected_category.description if selected_category else '',
+        'category_title': (
+            f'Kết quả tìm kiếm cho “{search_query}”' if search_query
+            else selected_category.name if selected_category else 'Danh mục sản phẩm'
+        ),
+        'category_description': (
+            'Sản phẩm phù hợp với từ khóa bạn vừa tìm kiếm.' if search_query
+            else selected_category.description if selected_category else ''
+        ),
+        'storefront_search_query': search_query,
     })
 
 
@@ -293,6 +313,19 @@ def public_product_detail_view(request, product_id):
         review.empty_stars = range(5 - review.rating)
 
     presentation = getattr(product, 'presentation', None)
+    short_description = (presentation.short_description or '').strip() if presentation else ''
+    detail_description = (product.description or '').strip()
+    if short_description and detail_description:
+        # The storefront has one description panel.  Populate the presentation
+        # value too because the template currently checks it before description.
+        product.description = (
+            f'Mô tả nổi bật:\n{short_description}\n\n'
+            f'Mô tả chi tiết:\n{detail_description}'
+        )
+    elif short_description:
+        product.description = f'Mô tả nổi bật:\n{short_description}'
+    if presentation:
+        presentation.short_description = product.description or short_description
     technical_specs = list(presentation.technical_specs.items()) if presentation else []
     highlights = presentation.highlights if presentation else []
     related_products = list(

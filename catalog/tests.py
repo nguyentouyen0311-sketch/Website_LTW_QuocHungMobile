@@ -1,7 +1,12 @@
+from django.contrib.auth import get_user_model
 from django.test import TestCase
+from django.urls import reverse
 
 from catalog.forms import ProductVariantForm
-from catalog.models import Category, Product
+from catalog.models import (
+    Attribute, AttributeValue, Category, Product, ProductPresentation,
+    ProductVariant, VariantAttributeValue,
+)
 
 
 class ProductVariantFormTests(TestCase):
@@ -22,3 +27,156 @@ class ProductVariantFormTests(TestCase):
 
         variant = form.save()
         self.assertEqual(variant.sku, f'{product.product_code}-MAC-DINH')
+
+
+class ProductImageManagementTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_superuser(
+            username='catalog-admin', email='catalog-admin@example.test', password='safe-password-123'
+        )
+        self.category = Category.objects.create(name='Laptop')
+        self.product = Product.objects.create(category=self.category, name='Laptop kiểm thử')
+        self.client.force_login(self.user)
+
+    def test_product_editor_includes_image_management_section(self):
+        response = self.client.get(reverse('catalog:product_edit', args=[self.product.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Ảnh sản phẩm')
+        self.assertContains(response, reverse('catalog:product_image_upload', args=[self.product.id]))
+
+    def test_legacy_product_detail_redirects_to_editor_image_section(self):
+        response = self.client.get(reverse('catalog:product_detail', args=[self.product.id]))
+
+        self.assertRedirects(
+            response,
+            f"{reverse('catalog:product_edit', args=[self.product.id])}#product-images",
+            fetch_redirect_response=False,
+        )
+
+
+class AttributeDeletionTests(TestCase):
+    def setUp(self):
+        self.admin = get_user_model().objects.create_superuser(
+            username='attribute-admin', email='attribute-admin@example.test', password='safe-password-123'
+        )
+        self.client.force_login(self.admin)
+
+    def test_admin_can_delete_unused_attribute_with_its_values(self):
+        attribute = Attribute.objects.create(name='Màu sắc')
+        value = AttributeValue.objects.create(attribute=attribute, value='Đỏ')
+
+        response = self.client.post(reverse('catalog:attribute_delete', args=[attribute.id]))
+
+        self.assertRedirects(response, reverse('catalog:attribute_list'))
+        self.assertFalse(Attribute.objects.filter(pk=attribute.id).exists())
+        self.assertFalse(AttributeValue.objects.filter(pk=value.id).exists())
+
+    def test_admin_can_delete_unused_attribute_value(self):
+        attribute = Attribute.objects.create(name='Dung lượng')
+        value = AttributeValue.objects.create(attribute=attribute, value='256GB')
+
+        response = self.client.post(reverse('catalog:attribute_value_delete', args=[attribute.id, value.id]))
+
+        self.assertRedirects(response, reverse('catalog:attribute_list'))
+        self.assertTrue(Attribute.objects.filter(pk=attribute.id).exists())
+        self.assertFalse(AttributeValue.objects.filter(pk=value.id).exists())
+
+    def test_used_attribute_value_is_protected_from_deletion(self):
+        category = Category.objects.create(name='Máy tính bảng')
+        product = Product.objects.create(category=category, name='Tablet kiểm thử')
+        attribute = Attribute.objects.create(name='Màu')
+        value = AttributeValue.objects.create(attribute=attribute, value='Xanh')
+        variant = ProductVariant.objects.create(product=product, sku='TABLET-TEST-01', price='1000000', combination_key='1')
+        VariantAttributeValue.objects.create(variant=variant, attribute=attribute, attribute_value=value)
+
+        response = self.client.post(reverse('catalog:attribute_value_delete', args=[attribute.id, value.id]))
+
+        self.assertRedirects(response, reverse('catalog:attribute_list'))
+        self.assertTrue(AttributeValue.objects.filter(pk=value.id).exists())
+
+
+class ProductVariantDeletionTests(TestCase):
+    def setUp(self):
+        self.admin = get_user_model().objects.create_superuser(
+            username='variant-admin', email='variant-admin@example.test', password='safe-password-123'
+        )
+        self.client.force_login(self.admin)
+        category = Category.objects.create(name='Phụ kiện')
+        self.product = Product.objects.create(category=category, name='Sản phẩm kiểm thử biến thể')
+
+    def test_variant_create_page_loads_for_active_product(self):
+        response = self.client.get(reverse('catalog:product_variant_create', args=[self.product.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Thêm biến thể mới')
+
+    def test_admin_can_soft_delete_unused_zero_stock_variant(self):
+        variant = ProductVariant.objects.create(
+            product=self.product, sku='DELETE-ME-01', price='1000000', combination_key='delete-me'
+        )
+
+        response = self.client.post(
+            reverse('catalog:product_variant_delete', args=[self.product.id, variant.id])
+        )
+
+        self.assertRedirects(response, reverse('catalog:attribute_list'))
+        variant.refresh_from_db()
+        self.assertTrue(variant.is_deleted)
+        self.assertFalse(variant.is_active)
+
+    def test_variant_with_stock_is_soft_deleted_and_inventory_is_preserved(self):
+        variant = ProductVariant.objects.create(
+            product=self.product, sku='KEEP-ME-01', price='1000000', combination_key='keep-me'
+        )
+        variant.inventory.physical_sellable = 1
+        variant.inventory.save()
+
+        response = self.client.post(
+            reverse('catalog:product_variant_delete', args=[self.product.id, variant.id])
+        )
+
+        self.assertRedirects(response, reverse('catalog:attribute_list'))
+        variant.refresh_from_db()
+        self.assertTrue(variant.is_deleted)
+        self.assertFalse(variant.is_active)
+        self.assertEqual(variant.inventory.physical_sellable, 1)
+
+
+class StorefrontSearchTests(TestCase):
+    def setUp(self):
+        category = Category.objects.create(name='Laptop')
+        self.product = Product.objects.create(
+            category=category,
+            name='Laptop Tìm Kiếm',
+            brand='Quốc Hùng',
+        )
+
+    def test_searches_storefront_by_name_and_product_code(self):
+        by_name = self.client.get(reverse('catalog:public_catalog'), {'q': 'tìm kiếm'})
+        by_code = self.client.get(reverse('catalog:public_catalog'), {'q': self.product.product_code})
+
+        self.assertContains(by_name, self.product.name)
+        self.assertContains(by_code, self.product.name)
+
+
+class ProductDetailContentTests(TestCase):
+    def test_product_detail_renders_short_and_full_descriptions(self):
+        category = Category.objects.create(name='Điện thoại')
+        product = Product.objects.create(
+            category=category,
+            name='Sản phẩm đủ nội dung',
+            description='Đây là mô tả chi tiết của sản phẩm.',
+        )
+        ProductPresentation.objects.create(
+            product=product,
+            short_description='Đây là mô tả nổi bật của sản phẩm.',
+        )
+
+        response = self.client.get(reverse('catalog:public_product_detail', args=[product.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Mô tả nổi bật:')
+        self.assertContains(response, 'Đây là mô tả nổi bật của sản phẩm.')
+        self.assertContains(response, 'Mô tả chi tiết:')
+        self.assertContains(response, 'Đây là mô tả chi tiết của sản phẩm.')

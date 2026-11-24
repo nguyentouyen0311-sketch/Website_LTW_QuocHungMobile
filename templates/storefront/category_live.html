@@ -1,7 +1,7 @@
 {% extends 'storefront/base_storefront.html' %}
 {% load static %}
-{% block title %}{% if selected_category %}{{ selected_category.name }}{% else %}Danh mục sản phẩm{% endif %} — Quốc Hùng Mobile{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'css/category_live.css' %}"><link rel="stylesheet" href="{% static 'css/storefront_icons.css' %}">{% endblock %}
+{% block title %}{{ category_title }} — Quốc Hùng Mobile{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/category_live.css' %}"><link rel="stylesheet" href="{% static 'css/storefront_icons.css' %}"><style>.live-card-image{position:relative;display:grid!important;place-items:center;overflow:hidden!important}.live-card-image img{display:block!important;width:100%!important;height:100%!important;max-width:100%!important;max-height:100%!important;object-fit:contain!important}.live-product-grid article>p,.live-product-grid article>h3,.live-product-grid article>strong,.live-product-grid article>.live-detail{position:relative;z-index:1;background:#fff}</style>{% endblock %}
 {% block content %}
 <main class="live-category">
   <nav><a href="{% url 'home' %}">Trang chủ</a> / <strong>{{ category_title }}</strong></nav>

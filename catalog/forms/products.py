@@ -2,7 +2,7 @@
 
 from django import forms
 
-from catalog.models import Product, ProductPresentation
+from catalog.models import Category, Product, ProductPresentation
 
 
 class ProductForm(forms.ModelForm):

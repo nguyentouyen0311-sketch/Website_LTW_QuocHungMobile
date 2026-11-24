@@ -20,11 +20,14 @@ from catalog.views import (
     storefront_category_view,
     attribute_list_view,
     attribute_create_view,
+    attribute_delete_view,
     attribute_edit_view,
     attribute_value_create_view,
+    attribute_value_delete_view,
     attribute_value_edit_view,
     product_variant_list_view,
     product_variant_create_view,
+    product_variant_delete_view,
     product_variant_edit_view,
 )
 
@@ -59,10 +62,13 @@ urlpatterns = [
     path('attributes/', attribute_list_view, name='attribute_list'),
     path('attributes/new/', attribute_create_view, name='attribute_create'),
     path('attributes/<int:attribute_id>/edit/', attribute_edit_view, name='attribute_edit'),
+    path('attributes/<int:attribute_id>/delete/', attribute_delete_view, name='attribute_delete'),
     path('attributes/<int:attribute_id>/values/new/', attribute_value_create_view, name='attribute_value_create'),
     path('attributes/<int:attribute_id>/values/<int:value_id>/edit/', attribute_value_edit_view, name='attribute_value_edit'),
+    path('attributes/<int:attribute_id>/values/<int:value_id>/delete/', attribute_value_delete_view, name='attribute_value_delete'),
 
     path('products/<int:product_id>/variants/', product_variant_list_view, name='product_variant_list'),
     path('products/<int:product_id>/variants/new/', product_variant_create_view, name='product_variant_create'),
     path('products/<int:product_id>/variants/<int:variant_id>/edit/', product_variant_edit_view, name='product_variant_edit'),
+    path('products/<int:product_id>/variants/<int:variant_id>/delete/', product_variant_delete_view, name='product_variant_delete'),
 ]

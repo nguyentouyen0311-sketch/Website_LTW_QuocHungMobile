@@ -71,7 +71,7 @@ class ProductImageForm(forms.ModelForm):
             self.fields['variant'].empty_label = "-- Ảnh chung của sản phẩm --"
             self.fields['variant'].required = False
             if product is not None:
-                self.fields['variant'].queryset = product.variants.all().order_by('id')
+                self.fields['variant'].queryset = product.variants.filter(is_deleted=False).order_by('id')
             else:
                 self.fields['variant'].queryset = ProductVariant.objects.all().order_by('id')
             self.fields['variant'].label_from_instance = lambda obj: f"{obj.sku}" + (f" ({obj.attribute_summary})" if obj.attribute_summary != "Mặc định" else "")
@@ -114,7 +114,7 @@ class ProductImageVariantAssignForm(forms.ModelForm):
             self.fields['variant'].empty_label = "-- Ảnh chung của sản phẩm --"
             self.fields['variant'].required = False
             if product is not None:
-                self.fields['variant'].queryset = product.variants.all().order_by('id')
+                self.fields['variant'].queryset = product.variants.filter(is_deleted=False).order_by('id')
             else:
                 self.fields['variant'].queryset = ProductVariant.objects.all().order_by('id')
             self.fields['variant'].label_from_instance = lambda obj: f"{obj.sku}" + (f" ({obj.attribute_summary})" if obj.attribute_summary != "Mặc định" else "")
