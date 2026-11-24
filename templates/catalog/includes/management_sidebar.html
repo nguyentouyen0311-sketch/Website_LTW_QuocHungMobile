@@ -12,7 +12,11 @@
     <!-- Brand Area at Top -->
     <div class="qhm-sidebar-brand dashboard-sidebar-brand">
         <a href="{% url 'dashboard:index' %}" class="dashboard-sidebar-brand-link" title="Về Dashboard thống kê">
-            <div class="dashboard-brand-icon">QH</div>
+            {% if site_branding and site_branding.logo %}
+                <span class="dashboard-brand-logo">
+                    <img src="{{ site_branding.logo.url }}" alt="{{ site_branding.logo_alt }}">
+                </span>
+            {% endif %}
             <div class="dashboard-brand-text">
                 <div class="dashboard-brand-title">QUỐC HÙNG MOBILE</div>
                 <div class="dashboard-brand-subtitle">ADMIN PORTAL</div>
