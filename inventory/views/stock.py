@@ -2,7 +2,7 @@
 
 from django.contrib import messages
 from django.core.paginator import Paginator
-from django.db.models import F, Q
+from django.db.models import F, Q, Sum
 from django.http import HttpResponseForbidden, HttpResponseNotAllowed
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -12,6 +12,7 @@ from inventory.forms import InventoryThresholdForm
 from inventory.models import Inventory
 
 from .common import parse_positive_id
+from .stock_actions import build_stock_action_context
 
 
 def inventory_list_view(request):
@@ -38,6 +39,7 @@ def inventory_list_view(request):
     )
 
     total_variants_count = base_qs.count()
+    totals = base_qs.aggregate(physical=Sum('physical_sellable'), reserved=Sum('reserved'))
     total_low_stock_count = base_qs.filter(available_count__lte=F('min_threshold')).count()
     total_out_of_stock_count = base_qs.filter(available_count__lte=0).count()
 
@@ -47,25 +49,32 @@ def inventory_list_view(request):
         search_filter = (
             Q(variant__sku__icontains=q)
             | Q(variant__product__name__icontains=q)
+            | Q(variant__attribute_values__attribute_value__value__icontains=q)
         )
         clean_code = q.upper()
-        if clean_code.startswith('SP'):
+        if clean_code.startswith('TK'):
+            inventory_id = parse_positive_id(clean_code[2:])
+            if inventory_id is not None:
+                search_filter |= Q(id=inventory_id)
+        elif clean_code.startswith('SP'):
             pid = parse_positive_id(clean_code[2:])
             if pid is not None:
                 search_filter |= Q(variant__product__id=pid)
         else:
             pid = parse_positive_id(q)
             if pid is not None:
-                search_filter |= Q(variant__product__id=pid)
+                search_filter |= Q(id=pid) | Q(variant__product__id=pid)
 
-        queryset = queryset.filter(search_filter)
+        queryset = queryset.filter(search_filter).distinct()
 
-    if alert_filter == 'low_stock':
+    if alert_filter in ('low_stock', 'need_restock'):
         queryset = queryset.filter(available_count__lte=F('min_threshold'))
     elif alert_filter == 'out_of_stock':
         queryset = queryset.filter(available_count__lte=0)
     elif alert_filter == 'in_stock':
         queryset = queryset.filter(available_count__gt=F('min_threshold'))
+    elif alert_filter in ('holding', 'reserved'):
+        queryset = queryset.filter(reserved__gt=0)
     else:
         alert_filter = 'all'
 
@@ -81,6 +90,10 @@ def inventory_list_view(request):
         'q': q,
         'alert_filter': alert_filter,
         'total_variants_count': total_variants_count,
+        'total_physical_count': totals['physical'] or 0,
+        'total_reserved_count': totals['reserved'] or 0,
+        'total_available_count': max(0, (totals['physical'] or 0) - (totals['reserved'] or 0)),
+        'total_holding_count': base_qs.filter(reserved__gt=0).count(),
         'total_low_stock_count': total_low_stock_count,
         'total_out_of_stock_count': total_out_of_stock_count,
         'filtered_count': queryset.count(),
@@ -89,6 +102,7 @@ def inventory_list_view(request):
         'is_admin': is_admin(request.user),
         'is_sales_staff': is_sales_staff(request.user),
         'is_inventory_staff': is_inventory_staff(request.user),
+        **build_stock_action_context(request, page_obj.object_list, base_qs),
     }
     return render(request, 'inventory/inventory_list.html', context)
 

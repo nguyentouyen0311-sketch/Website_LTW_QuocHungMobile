@@ -7,7 +7,7 @@ def storefront_account(request):
     user = getattr(request, 'user', None)
     if not user or not user.is_authenticated or not is_customer(user):
         return {'customer_order_count': 0, 'storefront_customer': None}
-    closed = [OrderStatus.DELIVERED, OrderStatus.CANCELLED, OrderStatus.EXPIRED, OrderStatus.DELIVERY_FAILED, OrderStatus.FAILED_CLOSED]
+    closed = [OrderStatus.DELIVERED, OrderStatus.CANCELLED, OrderStatus.DELIVERY_FAILED, OrderStatus.FAILED_CLOSED]
     display_name = user.get_full_name().strip() or user.username
     initials = ''.join(part[0] for part in display_name.split()[:2]).upper() or 'KH'
     return {

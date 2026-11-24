@@ -24,8 +24,7 @@
 Dự án **Quốc Hùng Mobile** là website thương mại điện tử toàn diện dành cho bán lẻ thiết bị di động và sản phẩm công nghệ. Hệ thống không chỉ cung cấp giao diện mua hàng cho người tiêu dùng (B2C) mà còn tích hợp bộ công cụ quản trị nghiệp vụ nội bộ (Back-office management) mạnh mẽ:
 
 * **Bán lẻ trực tuyến:** Duyệt danh mục, tìm kiếm, lọc theo cấu hình/màu sắc (biến thể sản phẩm), giỏ hàng thông minh, áp dụng mã giảm giá (coupon), đặt hàng và thanh toán.
-* **Thanh toán linh hoạt:** Hỗ trợ thanh toán khi nhận hàng (COD) và thanh toán chuyển khoản qua mã **VietQR** động.
-* **Đối soát thanh toán theo SLA:** Cơ chế đối soát giao dịch chuyển khoản ngân hàng tự động cảnh báo và chuyển cấp xử lý (Escalation) sau 12 giờ làm việc.
+* **Thanh toán COD:** Đặt hàng và thanh toán khi nhận hàng; nhân viên ghi nhận chứng từ thu tiền COD.
 * **Quản lý kho hàng chuyên sâu:** Quản lý xuất/nhập/tồn kho theo từng biến thể sản phẩm, cơ chế giữ hàng tạm thời (reservation) khi đặt hàng và lịch sử điều chỉnh kho (inventory adjustment).
 * **Trợ lý khách hàng tích hợp:** Chatbot trả lời câu hỏi thường gặp (FAQ Bot) tự động theo từ khóa và hộp thư hỗ trợ trực tuyến kết nối khách hàng với nhân viên tư vấn.
 * **Phân quyền vai trò người dùng (RBAC):** Quản lý nghiêm ngặt quyền hạn theo 4 nhóm đối tượng: Khách hàng (Customer), Nhân viên bán hàng (Sales Staff), Nhân viên kho (Inventory Staff) và Quản trị viên (Admin).
@@ -70,14 +69,15 @@ Website Quốc Hùng Mobile/
 │   └── models.py               # Coupon, CouponUsage
 │
 ├── orders/                     # Quy trình đặt hàng, xử lý đơn hàng & hủy đơn
+│   ├── services/               # Nghiệp vụ: checkout, pricing, confirmation, shipping, delivery, cancellation
+│   ├── views/                  # HTTP: checkout, customer, management, returns, reviews
 │   ├── checkout_helpers.py     # Hỗ trợ checkout, tính toán chi phí, xử lý giỏ hàng
 │   └── models.py               # Order, OrderItem, OrderHistory
 │
-├── payments/                   # Cổng thanh toán COD, VietQR & Đối soát SLA
-│   ├── qr.py                   # Tạo mã VietQR động theo chuẩn Napas247
-│   ├── sla.py                  # Thuật toán tính toán hạn chót đối soát 12 giờ làm việc
-│   ├── services.py             # Nghiệp vụ xác thực thanh toán, hoàn tiền, escalation
-│   └── management/commands/    # Lệnh quét đơn quá hạn: escalate_overdue_reconciliations.py
+├── payments/                   # Thanh toán COD & hoàn tiền trả hàng
+│   ├── cod_services.py         # Ghi nhận chứng từ thu tiền COD
+│   ├── return_refund_services.py # Lập và xác nhận hoàn tiền trả hàng
+│   └── models.py               # Thanh toán, chứng từ và lịch sử tài chính
 │
 ├── chat/                       # Chatbot hỗ trợ khách hàng & Hộp thư nhân viên
 │   ├── models.py               # ChatFAQ, ChatConversation, ChatMessage
@@ -92,7 +92,6 @@ Website Quốc Hùng Mobile/
     ├── catalog/                # Trang chủ, danh mục, chi tiết sản phẩm, form quản trị
     ├── cart/                   # Chi tiết giỏ hàng
     ├── orders/                 # Thanh toán (Checkout), chi tiết đơn, duyệt đơn
-    ├── payments/               # Giao diện đối soát, xác nhận chuyển khoản
     ├── inventory/              # Danh sách kho, điều chỉnh kho, nhập kho
     ├── chat/                   # Widget chat khách hàng, Staff Inbox
     └── includes/               # Layout dùng chung (header, footer, sidebar)
@@ -194,7 +193,7 @@ Hệ thống cung cấp các lệnh quản trị tự động phục vụ thiế
    ```bash
    python manage.py seed_chat_faq
    ```
-   *Lệnh này sẽ nạp sẵn các kịch bản câu hỏi thường gặp về giờ mở cửa, cách thanh toán VietQR, chính sách hủy đơn, đổi trả...*
+   *Lệnh này sẽ nạp sẵn các kịch bản câu hỏi thường gặp về giờ mở cửa, cách thanh toán COD, chính sách hủy đơn, đổi trả...*
 
 3. **Tạo tài khoản Quản trị viên tối cao (Superuser):**
    ```bash
@@ -222,9 +221,9 @@ Hệ thống xây dựng theo mô hình phân quyền theo vai trò (Role-Based 
 | Nhóm vai trò (Role) | Phạm vi truy cập & Quyền hạn |
 | :--- | :--- |
 | **Customer** *(Khách hàng)* | Xem sản phẩm, quản lý giỏ hàng, đặt hàng, áp dụng coupon, theo dõi đơn hàng, gửi tin nhắn chat hỗ trợ, hủy đơn hàng (khi đủ điều kiện COD chưa giao). |
-| **Sales Staff** *(Nhân viên bán hàng)* | Duyệt đơn hàng chờ xác nhận, kiểm tra đối soát thanh toán chuyển khoản VietQR, quản lý inbox chat hỗ trợ khách hàng, xem danh mục & sản phẩm. |
+| **Sales Staff** *(Nhân viên bán hàng)* | Duyệt đơn hàng chờ xác nhận, ghi nhận chứng từ thu tiền COD, quản lý inbox chat hỗ trợ khách hàng, xem danh mục & sản phẩm. |
 | **Inventory Staff** *(Nhân viên kho)* | Quản lý kho hàng, nhập kho sản phẩm, kiểm kê điều chỉnh số lượng tồn kho (Inventory Adjustment), xem lịch sử giao dịch kho. |
-| **Admin** *(Quản trị viên)* | Toàn quyền cấu hình hệ thống: Quản lý danh mục & sản phẩm, cấu hình mã coupon, quản lý tài khoản nhân viên, xử lý các đơn hàng bị leo thang quá hạn (Escalation). |
+| **Admin** *(Quản trị viên)* | Toàn quyền cấu hình hệ thống: Quản lý danh mục & sản phẩm, cấu hình mã coupon, quản lý tài khoản nhân viên, quản lý chứng từ thu COD và hoàn tiền trả hàng. |
 
 ---
 
@@ -281,7 +280,7 @@ gitGraph
 * **`feature/<ten-tinh-nang>` (Nhánh phát triển tính năng mới):**
   * Được tách ra từ `develop` (hoặc `main` nếu nhóm phát triển theo mô hình rút gọn) để lập trình một tính năng cụ thể.
   * Sau khi hoàn thành và kiểm thử cục bộ, tạo Pull Request để merge lại vào `develop`.
-  * *Ví dụ:* `feature/vietqr-auto-verify`, `feature/inventory-export-excel`.
+  * *Ví dụ:* `feature/cod-collection`, `feature/inventory-export-excel`.
 
 * **`bugfix/<ten-loi>` (Nhánh sửa lỗi thông thường):**
   * Dùng để sửa các lỗi phát hiện trong quá trình kiểm thử tính năng trên môi trường phát triển.
@@ -528,3 +527,13 @@ Sau khi hoàn tất, trưởng nhóm vào phần **Settings > Branches** trên G
 * **Dự án:** Website Thương Mại Điện Tử Quốc Hùng Mobile
 * **Phiên bản:** `1.0.0-dev`
 * **Hỗ trợ kỹ thuật:** Mọi thắc mắc về mã nguồn hoặc quy trình làm việc với Git, vui lòng liên hệ Trưởng nhóm kỹ thuật để được hỗ trợ kịp thời.
+
+## Phạm vi thanh toán hiện tại
+
+Hệ thống hỗ trợ thanh toán khi nhận hàng (COD), ghi nhận chứng từ thu tiền và hoàn tiền sau trả hàng. Mã giao dịch ngân hàng dùng làm chứng từ cho khoản hoàn tiền. Database phát triển đã được đồng bộ theo các model hiện tại; khi khởi tạo database mới, chạy `python manage.py migrate`.
+
+Sau khi cập nhật mã nguồn, chạy `python manage.py migrate` để nâng cấp database hiện có. Các migration mới giữ nguyên lịch sử migration và dữ liệu COD. Nếu database còn hồ sơ của phương thức thanh toán đã ngừng hỗ trợ, migration sẽ dừng trước khi xóa schema để bảo toàn dữ liệu; cần lưu trữ và xử lý các hồ sơ này trước khi tiếp tục.
+
+## Tổ chức module đơn hàng
+
+`orders.services` và `orders.views` là các package; mỗi nghiệp vụ nằm trong một module riêng. Các file `__init__.py` xuất lại hàm và kiểu kết quả để giữ nguyên import hiện có, kể cả các hàm hỗ trợ đang được kiểm thử. Module nội bộ import trực tiếp từ module chứa thành phần cần dùng để tránh import vòng. URL, template, phân quyền và phạm vi transaction được giữ nguyên; việc tách module không cần migration.

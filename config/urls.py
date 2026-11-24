@@ -17,8 +17,6 @@ urlpatterns = [
     path('inventory/', include('inventory.urls')),
     path('cart/', include('cart.urls', namespace='cart')),
     path('orders/', include('orders.urls', namespace='orders')),
-    path('payments/', include('payments.urls', namespace='payments')),
-    path('management/payments/', include('payments.urls', namespace='payments_mgmt')),
     path('management/coupons/', include('coupons.urls')),
     path('management/dashboard/', include('dashboard.urls', namespace='dashboard')),    
     path('chat/', include('chat.urls')),

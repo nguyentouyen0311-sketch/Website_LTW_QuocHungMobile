@@ -12,7 +12,6 @@ from payments.models import PaymentStatus, Refund, RefundReasonType, RefundStatu
 
 @transaction.atomic
 def create_return_refund_request(return_request_id, actor):
-    """Create a pending internal refund record; never initiates a bank transfer."""
     if not is_admin(actor):
         raise PermissionDenied('Chỉ Quản trị viên mới có thể lập hồ sơ hoàn tiền.')
     request_obj = ReturnRequest.objects.select_for_update().select_related(
@@ -48,7 +47,6 @@ def create_return_refund_request(return_request_id, actor):
 
 @transaction.atomic
 def confirm_return_refund(refund_id, actor, bank_reference, completed_at, audit_note):
-    """Record a completed bank refund after an administrator has performed it externally."""
     if not is_admin(actor):
         raise PermissionDenied('Chỉ Quản trị viên mới được xác nhận hoàn tiền.')
     refund = Refund.objects.select_for_update().select_related('order__payment').get(pk=refund_id)

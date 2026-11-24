@@ -10,6 +10,7 @@ from django.urls import reverse
 from django.utils import timezone
 from urllib.parse import quote, urlencode
 
+from catalog.filters import apply_catalog_price_filter
 from catalog.models import Category, Product, ProductReview, ProductVariant
 from catalog.utils import format_vnd
 from coupons.models import Coupon
@@ -32,9 +33,13 @@ def storefront_category_view(request, category_slug):
     fallback_title, keywords = definition
     visible_categories = list(Category.objects.filter(is_visible=True).order_by('name'))
     selected_category = next((item for item in visible_categories if any(keyword in item.name.casefold() for keyword in keywords)), None)
-    products = []
+    products_qs = Product.objects.none()
     if selected_category:
-        products = list(Product.objects.filter(category=selected_category, is_active=True, is_deleted=False).prefetch_related('images', 'variants').order_by('name'))
+        products_qs = Product.objects.filter(
+            category=selected_category, is_active=True, is_deleted=False,
+        ).select_related('category').prefetch_related('images', 'variants').order_by('name')
+    products_qs, price_filter_context = apply_catalog_price_filter(request, products_qs)
+    products = list(products_qs)
 
     for item in products:
         first_image = next(iter(item.images.all()), None)
@@ -52,6 +57,7 @@ def storefront_category_view(request, category_slug):
         'storefront_nav_category_id': selected_category.id if selected_category else None,
         'category_title': selected_category.name if selected_category else fallback_title,
         'category_description': selected_category.description if selected_category and selected_category.description else '',
+        **price_filter_context,
     })
 
 
@@ -175,6 +181,7 @@ def public_catalog_view(request, category_id=None):
             if product_id is not None:
                 search_filter |= Q(id=product_id)
         products = products.filter(search_filter)
+    products, price_filter_context = apply_catalog_price_filter(request, products)
     products = list(products.order_by('name'))
     for item in products:
         first_image = next(iter(item.images.all()), None)
@@ -198,6 +205,7 @@ def public_catalog_view(request, category_id=None):
             else selected_category.description if selected_category else ''
         ),
         'storefront_search_query': search_query,
+        **price_filter_context,
     })
 
 

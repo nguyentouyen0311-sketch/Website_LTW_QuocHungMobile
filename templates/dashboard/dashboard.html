@@ -594,17 +594,9 @@
                         </div>
                     </div>
 
-                    <!-- Hàng 2: Bốn thẻ bằng nhau (Đang xử lý) -->
+                    <!-- Đơn hàng đang xử lý -->
                     <div style="font-size: 13px; font-weight: 700; color: var(--dashboard-text); margin: 18px 0 10px 0;">Đơn hàng trong tiến trình tiếp nhận:</div>
-                    <div class="order-row-group-4">
-                        <div class="order-mini-card">
-                            <span class="label">Số đơn chờ thanh toán</span>
-                            <div class="val" style="color: var(--dashboard-warning);">{{ order_metrics.pending_payment|vn_number }} <small style="font-size: 14px; font-weight: 500;">đơn</small></div>
-                        </div>
-                        <div class="order-mini-card">
-                            <span class="label">Số đơn chờ đối soát</span>
-                            <div class="val" style="color: var(--dashboard-warning);">{{ order_metrics.pending_reconciliation|vn_number }} <small style="font-size: 14px; font-weight: 500;">đơn</small></div>
-                        </div>
+                    <div class="order-row-group-4" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr))">
                         <div class="order-mini-card">
                             <span class="label">Số đơn chờ xác nhận</span>
                             <div class="val" style="color: var(--dashboard-info);">{{ order_metrics.pending_confirmation|vn_number }} <small style="font-size: 14px; font-weight: 500;">đơn</small></div>
@@ -617,7 +609,7 @@
 
                     <!-- Hàng 3: Bốn thẻ bằng nhau (Vận hành & Kết thúc) -->
                     <div style="font-size: 13px; font-weight: 700; color: var(--dashboard-text); margin: 18px 0 10px 0;">Vận chuyển & Kết quả hoàn tất:</div>
-                    <div class="order-row-group-4">
+                    <div class="order-row-group-4" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr))">
                         <div class="order-mini-card">
                             <span class="label">Số đơn đang giao</span>
                             <div class="val" style="color: var(--dashboard-warning);">{{ order_metrics.shipping|vn_number }} <small style="font-size: 14px; font-weight: 500;">đơn</small></div>
@@ -629,10 +621,6 @@
                         <div class="order-mini-card">
                             <span class="label">Số đơn đã hủy</span>
                             <div class="val" style="color: var(--dashboard-primary);">{{ order_metrics.cancelled|vn_number }} <small style="font-size: 14px; font-weight: 500;">đơn</small></div>
-                        </div>
-                        <div class="order-mini-card">
-                            <span class="label">Số đơn hết hạn thanh toán (Hết hạn thanh toán)</span>
-                            <div class="val" style="color: var(--dashboard-text-secondary);">{{ order_metrics.expired|vn_number }} <small style="font-size: 14px; font-weight: 500;">đơn</small></div>
                         </div>
                     </div>
                 </div>
@@ -779,12 +767,12 @@
                         </div>
                     </div>
 
-                    <!-- 4 Thẻ KPI bằng nhau (Yêu cầu 11) -->
-                    <div class="cancellation-kpi-grid">
+                    <!-- Thống kê hủy đơn -->
+                    <div class="cancellation-kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr))">
                         <div class="inv-kpi-card">
                             <div class="title">Tổng số đơn bị hủy</div>
                             <div class="val" style="color: var(--dashboard-primary);">{{ cancellation_metrics.total_cancelled|vn_number }} <small style="font-size: 15px; font-weight: 500;">đơn</small></div>
-                            <div class="desc">Khách hủy + Hết hạn QR</div>
+                            <div class="desc">Đơn hàng đã hủy</div>
                         </div>
                         <div class="inv-kpi-card">
                             <div class="title">Tỷ lệ hủy đơn</div>
@@ -795,11 +783,6 @@
                             <div class="title">Số đơn khách tự hủy</div>
                             <div class="val" style="color: var(--dashboard-warning);">{{ cancellation_metrics.customer_cancelled_count|vn_number }} <small style="font-size: 15px; font-weight: 500;">đơn</small></div>
                             <div class="desc">Khách hàng chủ động hủy</div>
-                        </div>
-                        <div class="inv-kpi-card">
-                            <div class="title">Hủy nội bộ / Hết hạn</div>
-                            <div class="val" style="color: var(--dashboard-text-secondary);">{{ cancellation_metrics.expired_cancelled_count|vn_number }} <small style="font-size: 15px; font-weight: 500;">đơn</small></div>
-                            <div class="desc">Hết hạn thanh toán qua mã QR</div>
                         </div>
                     </div>
 

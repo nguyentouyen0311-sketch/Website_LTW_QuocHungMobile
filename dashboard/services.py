@@ -28,9 +28,7 @@ from orders.models import (
 from payments.models import (
     Payment,
     PaymentMethod,
-    PaymentReconciliation,
     PaymentStatus,
-    ReconciliationStatus,
     Refund,
     RefundStatus,
 )
@@ -648,7 +646,7 @@ def get_order_metrics(date_range: Dict[str, Any]) -> Dict[str, Any]:
     """
     Thống kê toàn diện trạng thái đơn hàng (Section 7 - Order Dashboard).
     Tuân thủ phân biệt giữa trạng thái đơn hàng (order_status),
-    trạng thái thanh toán (payment.status) và trạng thái đối soát.
+    và trạng thái thanh toán (payment.status).
     """
     orders = Order.objects.filter(
         created_at__gte=date_range['start_dt'],
@@ -659,14 +657,11 @@ def get_order_metrics(date_range: Dict[str, Any]) -> Dict[str, Any]:
     status_counts = orders.values('order_status').annotate(cnt=Count('id'))
     status_map = {row['order_status']: row['cnt'] for row in status_counts}
 
-    pending_payment = status_map.get(OrderStatus.PENDING_PAYMENT, 0)
-    pending_reconciliation = status_map.get(OrderStatus.PENDING_RECONCILIATION, 0)
     pending_confirmation = status_map.get(OrderStatus.PENDING_CONFIRMATION, 0)
     confirmed = status_map.get(OrderStatus.CONFIRMED, 0)
     shipping = status_map.get(OrderStatus.SHIPPING, 0)
     delivered = status_map.get(OrderStatus.DELIVERED, 0)
     cancelled = status_map.get(OrderStatus.CANCELLED, 0)
-    expired = status_map.get(OrderStatus.EXPIRED, 0)
 
     # Đơn hàng thất bại sau xuất kho
     delivery_failed = (
@@ -680,24 +675,15 @@ def get_order_metrics(date_range: Dict[str, Any]) -> Dict[str, Any]:
         1,
     )
 
-    # Đơn chờ đối soát thực tế từ hồ sơ thanh toán
-    open_reconciliations = PaymentReconciliation.objects.filter(
-        status__in=[ReconciliationStatus.OPEN, ReconciliationStatus.ESCALATED],
-    ).count()
-
     return {
         'total_orders': total_orders,
-        'pending_payment': pending_payment,
-        'pending_reconciliation': pending_reconciliation,
         'pending_confirmation': pending_confirmation,
         'confirmed': confirmed,
         'shipping': shipping,
         'delivered': delivered,
         'cancelled': cancelled,
-        'expired': expired,
         'delivery_failed': delivery_failed,
         'delivery_success_rate': delivery_success_rate,
-        'open_reconciliations': open_reconciliations,
     }
 
 
@@ -792,7 +778,6 @@ def get_cancellation_metrics(date_range: Dict[str, Any]) -> Dict[str, Any]:
     Thống kê chi tiết tình trạng hủy đơn (Section 9 - Cancellation Dashboard).
     Công thức:
     Tỷ lệ hủy = Tổng đơn hủy / Tổng đơn tạo trong kỳ × 100%
-    Tách biệt hủy do khách hàng (Customer Cancel) và hết hạn thanh toán QR (QR Expiration).
     """
     cohort_orders = Order.objects.filter(
         created_at__gte=date_range['start_dt'],
@@ -804,11 +789,7 @@ def get_cancellation_metrics(date_range: Dict[str, Any]) -> Dict[str, Any]:
     cancelled_orders = cohort_orders.filter(order_status=OrderStatus.CANCELLED)
     customer_cancelled_count = cancelled_orders.count()
 
-    # Đơn hết hạn thanh toán QR
-    expired_orders = cohort_orders.filter(order_status=OrderStatus.EXPIRED)
-    expired_cancelled_count = expired_orders.count()
-
-    total_cancelled = customer_cancelled_count + expired_cancelled_count
+    total_cancelled = customer_cancelled_count
 
     cancellation_rate = round(
         (total_cancelled / total_orders * 100.0) if total_orders > 0 else 0.0,
@@ -818,7 +799,6 @@ def get_cancellation_metrics(date_range: Dict[str, Any]) -> Dict[str, Any]:
     # Thống kê lý do hủy
     reason_counts: Dict[str, int] = {}
     reason_labels: Dict[str, str] = {
-        'QR_EXPIRED': 'Hết hạn thanh toán qua mã QR (Hệ thống tự hủy)',
         CancellationReasonCode.WRONG_ORDER: 'Đặt nhầm sản phẩm',
         CancellationReasonCode.CHANGE_VARIANT: 'Muốn đổi sản phẩm hoặc biến thể khác',
         CancellationReasonCode.FOUND_BETTER: 'Tìm thấy sản phẩm / giá phù hợp hơn',
@@ -827,11 +807,7 @@ def get_cancellation_metrics(date_range: Dict[str, Any]) -> Dict[str, Any]:
         CancellationReasonCode.OTHER: 'Lý do khác',
     }
 
-    # 1. Hết hạn QR
-    if expired_cancelled_count > 0:
-        reason_counts['QR_EXPIRED'] = expired_cancelled_count
-
-    # 2. Các lý do từ OrderCancellation
+    # Các lý do từ OrderCancellation
     for canc in (
         cancelled_orders.filter(cancellation__isnull=False)
         .values('cancellation__reason_code')
@@ -841,7 +817,7 @@ def get_cancellation_metrics(date_range: Dict[str, Any]) -> Dict[str, Any]:
         reason_counts[code] = reason_counts.get(code, 0) + canc['cnt']
 
     # Nếu có đơn hủy mà chưa có bản ghi cancellation chi tiết, đưa vào Khác
-    recorded_customer_cancellations = sum(v for k, v in reason_counts.items() if k != 'QR_EXPIRED')
+    recorded_customer_cancellations = sum(reason_counts.values())
     unrecorded_diff = customer_cancelled_count - recorded_customer_cancellations
     if unrecorded_diff > 0:
         reason_counts[CancellationReasonCode.OTHER] = reason_counts.get(CancellationReasonCode.OTHER, 0) + unrecorded_diff
@@ -868,7 +844,6 @@ def get_cancellation_metrics(date_range: Dict[str, Any]) -> Dict[str, Any]:
         'total_cancelled': total_cancelled,
         'cancellation_rate': cancellation_rate,
         'customer_cancelled_count': customer_cancelled_count,
-        'expired_cancelled_count': expired_cancelled_count,
         'reasons_breakdown': reasons_breakdown,
     }
 
