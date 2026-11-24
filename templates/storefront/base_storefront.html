@@ -47,5 +47,27 @@
       });
     }());
   </script>
+  {% if variant_matrix %}
+    <script>
+      document.addEventListener('DOMContentLoaded', function () {
+        const matrixNode = document.querySelector('#variantMatrix');
+        if (!matrixNode) return;
+        const variants = JSON.parse(matrixNode.textContent || '[]');
+        const syncOptionAvailability = function () {
+          document.querySelectorAll('.choice-group[data-attribute]').forEach(function (group) {
+            group.querySelectorAll('[data-option-value]').forEach(function (button) {
+              button.disabled = !variants.some(function (variant) {
+                return Number(variant.stock) > 0 && variant.options[group.dataset.attribute] === button.dataset.optionValue;
+              });
+            });
+          });
+        };
+        syncOptionAvailability();
+        document.querySelectorAll('.choice-group[data-attribute] [data-option-value]').forEach(function (button) {
+          button.addEventListener('click', function () { window.requestAnimationFrame(syncOptionAvailability); });
+        });
+      });
+    </script>
+  {% endif %}
 </body>
 </html>
