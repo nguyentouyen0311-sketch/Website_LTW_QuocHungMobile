@@ -162,6 +162,19 @@ def public_catalog_view(request, category_id=None):
     products = Product.objects.filter(category__is_visible=True, is_active=True, is_deleted=False).select_related('category').prefetch_related('images', 'variants')
     if selected_category:
         products = products.filter(category=selected_category)
+    search_query = ' '.join(request.GET.get('q', '').split())[:100]
+    if search_query:
+        search_filter = (
+            Q(name__icontains=search_query)
+            | Q(brand__icontains=search_query)
+            | Q(category__name__icontains=search_query)
+        )
+        normalized_code = search_query.upper().replace(' ', '')
+        if normalized_code.startswith('SP'):
+            product_id = parse_positive_id(normalized_code[2:])
+            if product_id is not None:
+                search_filter |= Q(id=product_id)
+        products = products.filter(search_filter)
     products = list(products.order_by('name'))
     for item in products:
         first_image = next(iter(item.images.all()), None)
@@ -176,8 +189,15 @@ def public_catalog_view(request, category_id=None):
         'products': products,
         'page_key': '',
         'storefront_nav_category_id': selected_category.id if selected_category else None,
-        'category_title': selected_category.name if selected_category else 'Danh mục sản phẩm',
-        'category_description': selected_category.description if selected_category else '',
+        'category_title': (
+            f'Kết quả tìm kiếm cho “{search_query}”' if search_query
+            else selected_category.name if selected_category else 'Danh mục sản phẩm'
+        ),
+        'category_description': (
+            'Sản phẩm phù hợp với từ khóa bạn vừa tìm kiếm.' if search_query
+            else selected_category.description if selected_category else ''
+        ),
+        'storefront_search_query': search_query,
     })
 
 

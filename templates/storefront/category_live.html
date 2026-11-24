@@ -1,6 +1,6 @@
 {% extends 'storefront/base_storefront.html' %}
 {% load static %}
-{% block title %}{% if selected_category %}{{ selected_category.name }}{% else %}Danh mục sản phẩm{% endif %} — Quốc Hùng Mobile{% endblock %}
+{% block title %}{{ category_title }} — Quốc Hùng Mobile{% endblock %}
 {% block extra_css %}<link rel="stylesheet" href="{% static 'css/category_live.css' %}"><link rel="stylesheet" href="{% static 'css/storefront_icons.css' %}">{% endblock %}
 {% block content %}
 <main class="live-category">

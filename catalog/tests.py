@@ -138,3 +138,20 @@ class ProductVariantDeletionTests(TestCase):
         self.assertTrue(variant.is_deleted)
         self.assertFalse(variant.is_active)
         self.assertEqual(variant.inventory.physical_sellable, 1)
+
+
+class StorefrontSearchTests(TestCase):
+    def setUp(self):
+        category = Category.objects.create(name='Laptop')
+        self.product = Product.objects.create(
+            category=category,
+            name='Laptop Tìm Kiếm',
+            brand='Quốc Hùng',
+        )
+
+    def test_searches_storefront_by_name_and_product_code(self):
+        by_name = self.client.get(reverse('catalog:public_catalog'), {'q': 'tìm kiếm'})
+        by_code = self.client.get(reverse('catalog:public_catalog'), {'q': self.product.product_code})
+
+        self.assertContains(by_name, self.product.name)
+        self.assertContains(by_code, self.product.name)
