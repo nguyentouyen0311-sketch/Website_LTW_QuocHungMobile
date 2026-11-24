@@ -313,6 +313,19 @@ def public_product_detail_view(request, product_id):
         review.empty_stars = range(5 - review.rating)
 
     presentation = getattr(product, 'presentation', None)
+    short_description = (presentation.short_description or '').strip() if presentation else ''
+    detail_description = (product.description or '').strip()
+    if short_description and detail_description:
+        # The storefront has one description panel.  Populate the presentation
+        # value too because the template currently checks it before description.
+        product.description = (
+            f'Mô tả nổi bật:\n{short_description}\n\n'
+            f'Mô tả chi tiết:\n{detail_description}'
+        )
+    elif short_description:
+        product.description = f'Mô tả nổi bật:\n{short_description}'
+    if presentation:
+        presentation.short_description = product.description or short_description
     technical_specs = list(presentation.technical_specs.items()) if presentation else []
     highlights = presentation.highlights if presentation else []
     related_products = list(

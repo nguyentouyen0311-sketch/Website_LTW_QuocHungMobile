@@ -3,7 +3,10 @@ from django.test import TestCase
 from django.urls import reverse
 
 from catalog.forms import ProductVariantForm
-from catalog.models import Attribute, AttributeValue, Category, Product, ProductVariant, VariantAttributeValue
+from catalog.models import (
+    Attribute, AttributeValue, Category, Product, ProductPresentation,
+    ProductVariant, VariantAttributeValue,
+)
 
 
 class ProductVariantFormTests(TestCase):
@@ -155,3 +158,25 @@ class StorefrontSearchTests(TestCase):
 
         self.assertContains(by_name, self.product.name)
         self.assertContains(by_code, self.product.name)
+
+
+class ProductDetailContentTests(TestCase):
+    def test_product_detail_renders_short_and_full_descriptions(self):
+        category = Category.objects.create(name='Điện thoại')
+        product = Product.objects.create(
+            category=category,
+            name='Sản phẩm đủ nội dung',
+            description='Đây là mô tả chi tiết của sản phẩm.',
+        )
+        ProductPresentation.objects.create(
+            product=product,
+            short_description='Đây là mô tả nổi bật của sản phẩm.',
+        )
+
+        response = self.client.get(reverse('catalog:public_product_detail', args=[product.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Mô tả nổi bật:')
+        self.assertContains(response, 'Đây là mô tả nổi bật của sản phẩm.')
+        self.assertContains(response, 'Mô tả chi tiết:')
+        self.assertContains(response, 'Đây là mô tả chi tiết của sản phẩm.')
