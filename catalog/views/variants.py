@@ -1,7 +1,8 @@
 """Views for product attributes, values, and SKU variants."""
 
 from django.contrib import messages
-from django.http import HttpResponseForbidden
+from django.db import transaction
+from django.http import HttpResponseForbidden, HttpResponseNotAllowed
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 
@@ -31,6 +32,7 @@ def attribute_list_view(request):
         'attributes': attributes,
         'products': products,
         'variants': variants,
+        'is_admin': is_admin(request.user),
         'active_nav': 'catalog_attributes',
     }
     return render(request, 'admin/variant_attribute_center_v3.html', context)
@@ -89,6 +91,34 @@ def attribute_edit_view(request, attribute_id):
     return render(request, 'admin/standard_form_v2.html', context)
 
 
+def attribute_delete_view(request, attribute_id):
+    if not request.user.is_authenticated:
+        return redirect(f"{reverse('accounts:login')}?next={request.path}")
+    if not is_admin(request.user):
+        return HttpResponseForbidden("Chỉ Quản trị viên (Admin) mới có quyền xóa thuộc tính.")
+    if request.method != 'POST':
+        return HttpResponseNotAllowed(['POST'], "Thao tác yêu cầu phương thức POST.")
+
+    attribute = get_object_or_404(Attribute, pk=attribute_id)
+    used_value_count = AttributeValue.objects.filter(
+        attribute=attribute,
+        variant_value_links__isnull=False,
+    ).distinct().count()
+    if attribute.variant_links.exists() or used_value_count:
+        messages.error(
+            request,
+            f"Không thể xóa thuộc tính '{attribute.name}' vì đã được dùng trong biến thể sản phẩm."
+        )
+        return redirect('catalog:attribute_list')
+
+    attribute_name = attribute.name
+    with transaction.atomic():
+        attribute.values.all().delete()
+        attribute.delete()
+    messages.success(request, f"Đã xóa thuộc tính '{attribute_name}' và các giá trị chưa sử dụng của nó.")
+    return redirect('catalog:attribute_list')
+
+
 def attribute_value_create_view(request, attribute_id):
     if not request.user.is_authenticated:
         return redirect(f"{reverse('accounts:login')}?next={request.path}")
@@ -145,6 +175,29 @@ def attribute_value_edit_view(request, attribute_id, value_id):
         'active_nav': 'catalog_attributes',
     }
     return render(request, 'admin/standard_form_v2.html', context)
+
+
+def attribute_value_delete_view(request, attribute_id, value_id):
+    if not request.user.is_authenticated:
+        return redirect(f"{reverse('accounts:login')}?next={request.path}")
+    if not is_admin(request.user):
+        return HttpResponseForbidden("Chỉ Quản trị viên (Admin) mới có quyền xóa giá trị thuộc tính.")
+    if request.method != 'POST':
+        return HttpResponseNotAllowed(['POST'], "Thao tác yêu cầu phương thức POST.")
+
+    attribute = get_object_or_404(Attribute, pk=attribute_id)
+    value_obj = get_object_or_404(AttributeValue, pk=value_id, attribute=attribute)
+    if value_obj.variant_value_links.exists():
+        messages.error(
+            request,
+            f"Không thể xóa giá trị '{value_obj.value}' vì đã được dùng trong biến thể sản phẩm."
+        )
+        return redirect('catalog:attribute_list')
+
+    value_name = value_obj.value
+    value_obj.delete()
+    messages.success(request, f"Đã xóa giá trị '{value_name}' của thuộc tính '{attribute.name}'.")
+    return redirect('catalog:attribute_list')
 
 
 def product_variant_list_view(request, product_id):

@@ -1,1 +1,68 @@
-{% load static %}<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Biến thể & thuộc tính</title><link rel="stylesheet" href="{% static 'css/tokens.css' %}"><link rel="stylesheet" href="{% static 'css/admin_category.css' %}"><link rel="stylesheet" href="{% static 'css/dashboard.css' %}"><link rel="stylesheet" href="{% static 'css/admin_forms.css' %}"></head><body><div class="adm-shell">{% include 'catalog/includes/management_sidebar.html' with active_nav=active_nav %}<section class="adm-workspace">{% include 'admin/includes/backend_header.html' with backend_section='Quản lý hàng hóa' backend_title='Biến thể & Thuộc tính' backend_search_placeholder='Tìm kiếm nhanh...' %}<main class="adm-main"><div class="af-content"><div class="af-heading"><div><h1>Biến thể & thuộc tính</h1><p>Thiết lập các lựa chọn đơn giản như Màu sắc, Dung lượng để tạo phiên bản bán hàng.</p></div></div><section class="af-card"><div class="af-section-head"><h2>Thuộc tính và giá trị</h2><a class="af-btn primary" href="{% url 'catalog:attribute_create' %}">＋ Thêm thuộc tính</a></div><div class="af-attr-grid">{% for attribute in attributes %}<article class="af-attr"><h3>{{ attribute.name }} <a href="{% url 'catalog:attribute_edit' attribute.id %}">Sửa tên</a></h3><div>{% for value in attribute.values.all %}<a class="af-chip" href="{% url 'catalog:attribute_value_edit' attribute.id value.id %}">{{ value.value }}</a>{% empty %}<span>Chưa có lựa chọn nào.</span>{% endfor %}</div><a class="af-btn primary" href="{% url 'catalog:attribute_value_create' attribute.id %}">＋ Thêm giá trị</a></article>{% empty %}<p>Chưa có thuộc tính. Bấm “Thêm thuộc tính” để bắt đầu.</p>{% endfor %}</div></section><section class="af-card"><div class="af-section-head"><h2>Biến thể sản phẩm</h2></div><p>Chọn sản phẩm, sau đó chọn những giá trị thuộc tính có sẵn để tạo một tổ hợp biến thể.</p><div class="af-product-links">{% for product in products %}<a class="af-btn primary" href="{% url 'catalog:product_variant_create' product.id %}">＋ Thêm biến thể cho {{ product.name }}</a>{% empty %}<span>Chưa có sản phẩm để tạo biến thể.</span>{% endfor %}</div><div class="af-table"><table><thead><tr><th>Sản phẩm</th><th>SKU</th><th>Tổ hợp thuộc tính</th><th>Giá</th><th>Trạng thái</th><th></th></tr></thead><tbody>{% for variant in variants %}<tr><td>{{ variant.product.name }}</td><td>{{ variant.sku }}</td><td>{{ variant.attributes_display }}</td><td>{{ variant.price }}</td><td><span class="af-status {% if not variant.is_active %}off{% endif %}">{% if variant.is_active %}Đang bán{% else %}Ngừng bán{% endif %}</span></td><td><a href="{% url 'catalog:product_variant_edit' variant.product.id variant.id %}">Sửa</a></td></tr>{% empty %}<tr><td colspan="6">Chưa có biến thể.</td></tr>{% endfor %}</tbody></table></div></section></div></main></section></div></body></html>
+{% extends 'admin/management_base.html' %}
+{% load static %}
+
+{% block title %}Biến thể & Thuộc tính — Quốc Hùng Mobile{% endblock %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/admin_forms.css' %}">
+  <style>
+    .attribute-notice { margin:0 0 18px; padding:12px 14px; border:1px solid #d8dfda; border-radius:9px; background:#fff; color:#283630; font-size:14px; font-weight:600; }
+    .attribute-notice.success { border-color:#9ad7b8; background:#ecfdf3; color:#17633a; }
+    .attribute-notice.error { border-color:#fecaca; background:#fef2f2; color:#b42318; }
+    .attribute-actions, .attribute-value-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+    .attribute-actions form, .attribute-value-actions form { margin:0; }
+    .attribute-delete { border:0; background:transparent; color:#c82322; font:700 12px inherit; cursor:pointer; padding:5px; }
+    .attribute-value { display:inline-flex; align-items:center; gap:2px; margin:0 6px 8px 0; }
+    .attribute-value .af-chip { margin:0; }
+    .attribute-value .attribute-delete { padding:4px 5px; }
+    .attribute-help { margin:0 0 16px; color:#66756d; font-size:13px; line-height:1.5; }
+  </style>
+{% endblock %}
+
+{% block backend_header %}
+  {% include 'admin/includes/backend_header.html' with backend_section='Quản lý hàng hóa' backend_title='Biến thể & Thuộc tính' backend_search_placeholder='Tìm kiếm nhanh...' %}
+{% endblock %}
+
+{% block content %}
+  <div class="af-content">
+    <div class="af-heading"><div><h1>Biến thể & Thuộc tính</h1><p>Thiết lập lựa chọn như Màu sắc, Dung lượng để tạo phiên bản bán hàng.</p></div></div>
+
+    {% if messages %}{% for message in messages %}<div class="attribute-notice {{ message.tags|default:'' }}" role="status">{{ message }}</div>{% endfor %}{% endif %}
+
+    <section class="af-card">
+      <div class="af-section-head"><h2>Thuộc tính và giá trị</h2><a class="af-btn primary" href="{% url 'catalog:attribute_create' %}">＋ Thêm thuộc tính</a></div>
+      {% if is_admin %}<p class="attribute-help">Bạn có thể xóa các thuộc tính hoặc giá trị chưa được dùng. Dữ liệu đã gắn vào biến thể sẽ được bảo vệ và không thể xóa.</p>{% endif %}
+      <div class="af-attr-grid">
+        {% for attribute in attributes %}
+          <article class="af-attr">
+            <div class="af-section-head">
+              <h3>{{ attribute.name }}</h3>
+              <div class="attribute-actions">
+                <a href="{% url 'catalog:attribute_edit' attribute.id %}">Sửa tên</a>
+                {% if is_admin %}
+                  <form method="post" action="{% url 'catalog:attribute_delete' attribute.id %}" onsubmit="return confirm('Xóa thuộc tính {{ attribute.name }} và các giá trị chưa được dùng của nó?');">{% csrf_token %}<button class="attribute-delete" type="submit">Xóa</button></form>
+                {% endif %}
+              </div>
+            </div>
+            <div>
+              {% for value in attribute.values.all %}
+                <div class="attribute-value">
+                  <a class="af-chip" href="{% url 'catalog:attribute_value_edit' attribute.id value.id %}">{{ value.value }}</a>
+                  {% if is_admin %}<form method="post" action="{% url 'catalog:attribute_value_delete' attribute.id value.id %}" onsubmit="return confirm('Xóa giá trị {{ value.value }}?');">{% csrf_token %}<button class="attribute-delete" type="submit" aria-label="Xóa {{ value.value }}">×</button></form>{% endif %}
+                </div>
+              {% empty %}<span>Chưa có lựa chọn nào.</span>{% endfor %}
+            </div>
+            <a class="af-btn primary" href="{% url 'catalog:attribute_value_create' attribute.id %}">＋ Thêm giá trị</a>
+          </article>
+        {% empty %}<p>Chưa có thuộc tính. Bấm “Thêm thuộc tính” để bắt đầu.</p>{% endfor %}
+      </div>
+    </section>
+
+    <section class="af-card">
+      <div class="af-section-head"><h2>Biến thể sản phẩm</h2></div>
+      <p>Chọn sản phẩm, sau đó chọn những giá trị thuộc tính có sẵn để tạo một tổ hợp biến thể.</p>
+      <div class="af-product-links">{% for product in products %}<a class="af-btn primary" href="{% url 'catalog:product_variant_create' product.id %}">＋ Thêm biến thể cho {{ product.name }}</a>{% empty %}<span>Chưa có sản phẩm để tạo biến thể.</span>{% endfor %}</div>
+      <div class="af-table"><table><thead><tr><th>Sản phẩm</th><th>SKU</th><th>Tổ hợp thuộc tính</th><th>Giá</th><th>Trạng thái</th><th></th></tr></thead><tbody>{% for variant in variants %}<tr><td>{{ variant.product.name }}</td><td>{{ variant.sku }}</td><td>{{ variant.attributes_display }}</td><td>{{ variant.price }}</td><td><span class="af-status {% if not variant.is_active %}off{% endif %}">{% if variant.is_active %}Đang bán{% else %}Ngừng bán{% endif %}</span></td><td><a href="{% url 'catalog:product_variant_edit' variant.product.id variant.id %}">Sửa</a></td></tr>{% empty %}<tr><td colspan="6">Chưa có biến thể.</td></tr>{% endfor %}</tbody></table></div>
+    </section>
+  </div>
+{% endblock %}
