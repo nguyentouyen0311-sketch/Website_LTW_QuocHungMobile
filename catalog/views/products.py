@@ -111,7 +111,7 @@ def product_create_view(request):
             presentation.product = product
             presentation.save()
             messages.success(request, f"Đã thêm mới sản phẩm '{product.name}' ({product.product_code}) thành công.")
-            return redirect(f"{reverse('catalog:product_edit', args=[product.id])}#images")
+            return redirect('catalog:product_edit', product_id=product.id)
     else:
         form = ProductForm()
         presentation_form = ProductPresentationForm()
@@ -146,7 +146,7 @@ def product_edit_view(request, product_id):
             form.save()
             presentation_form.save()
             messages.success(request, f"Đã cập nhật thông tin sản phẩm '{product.name}' ({product.product_code}) thành công.")
-            return redirect(f"{reverse('catalog:product_edit', args=[product.id])}#images")
+            return redirect('catalog:product_edit', product_id=product.id)
     else:
         form = ProductForm(instance=product)
         presentation_form = ProductPresentationForm(instance=getattr(product, 'presentation', None))

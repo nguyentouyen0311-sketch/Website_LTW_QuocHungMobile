@@ -5,6 +5,12 @@
 
 {% block extra_css %}
   <link rel="stylesheet" href="{% static 'css/admin_forms.css' %}">
+  <style>
+    .af-notices { margin: 0 0 18px; }
+    .af-notice { margin: 0 0 10px; padding: 12px 14px; border: 1px solid #d8dfda; border-radius: 9px; background: #fff; color: #283630; font-size: 14px; font-weight: 600; }
+    .af-notice.success { border-color: #9ad7b8; background: #ecfdf3; color: #17633a; }
+    .af-notice.error { border-color: #fecaca; background: #fef2f2; color: #b42318; }
+  </style>
 {% endblock %}
 
 {% block backend_header %}
@@ -15,6 +21,17 @@
   <div class="af-content">
     <a class="af-back" href="{% url 'catalog:product_list' %}">← Quay lại quản lý sản phẩm</a>
     <div class="af-heading"><div><h1>{{ title }}</h1><p>Hoàn thiện thông tin được sử dụng để hiển thị trang chi tiết sản phẩm.</p></div></div>
+
+    {% if messages %}
+      <div class="af-notices" role="status">
+        {% for message in messages %}<div class="af-notice {{ message.tags|default:'' }}">{{ message }}</div>{% endfor %}
+      </div>
+    {% endif %}
+    {% if form.errors or presentation_form.errors %}
+      <div class="af-notices" role="alert">
+        <div class="af-notice error">Chưa thể lưu sản phẩm. Vui lòng kiểm tra các trường có thông báo lỗi bên dưới.</div>
+      </div>
+    {% endif %}
 
     <form method="post">
       {% csrf_token %}
