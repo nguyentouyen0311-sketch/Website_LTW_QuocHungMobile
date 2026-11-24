@@ -62,7 +62,7 @@ class ChatbotTests(TestCase):
         self.assertEqual(resolve_question('cod và bảo hành')['faq'], self.warranty)
 
     def test_case_specific_and_human_request_escalate(self):
-        for question in ('Đổi địa chỉ nhận hàng giúp tôi', 'Gặp nhân viên', 'Tôi đã chuyển khoản nhưng chưa thấy xác nhận'):
+        for question in ('Đổi địa chỉ nhận hàng giúp tôi', 'Gặp nhân viên', 'Tôi đã thanh toán nhưng chưa thấy xác nhận'):
             self.assertEqual(resolve_question(question)['kind'], 'handoff')
 
     def test_product_price_is_current_and_only_public(self):

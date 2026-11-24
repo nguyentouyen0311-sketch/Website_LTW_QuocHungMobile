@@ -11,7 +11,7 @@ from inventory.forms import StocktakeAdjustmentForm
 from inventory.models import Inventory
 from inventory.services import adjust_inventory, generate_adjustment_token
 
-from .common import _add_validation_error_to_form, _build_inventory_form_context
+from .common import _add_validation_error_to_form, _build_inventory_form_context, _get_inventory_return_url
 
 
 def inventory_adjust_view(request, inventory_id):
@@ -40,6 +40,7 @@ def inventory_adjust_view(request, inventory_id):
         return render(request, 'inventory/inventory_adjust.html', context)
 
     elif request.method == 'POST':
+        return_url = _get_inventory_return_url(request, inventory.pk)
         form = StocktakeAdjustmentForm(request.POST)
         if form.is_valid():
             counted_quantity = form.cleaned_data['counted_quantity']
@@ -65,6 +66,8 @@ def inventory_adjust_view(request, inventory_id):
                         f"Đã điều chỉnh tồn kho cho biến thể '{inventory.variant.sku}': từ {adj.old_quantity} thành {adj.new_quantity} "
                         f"(Chênh lệch: {adj.quantity_delta:+d}, Khả dụng mới: {adj.new_quantity - inventory.reserved}). Lý do: {adj.reason}."
                     )
+                if return_url:
+                    return redirect(return_url)
                 return redirect('inventory:inventory_detail', inventory_id=inventory.id)
             except ValidationError as exc:
                 exc_code = getattr(exc, 'code', None)
@@ -78,6 +81,9 @@ def inventory_adjust_view(request, inventory_id):
             except PermissionDenied as exc:
                 return HttpResponseForbidden(str(exc))
 
+        if return_url:
+            messages.error(request, 'Lỗi điều chỉnh kiểm kê: ' + '; '.join(str(error) for errors in form.errors.values() for error in errors))
+            return redirect(return_url)
         inventory.refresh_from_db()
         context = _build_inventory_form_context(
             inventory, form, form.data.get('request_token', ''), request.user

@@ -45,7 +45,6 @@ CASE_SPECIFIC_PHRASES = [
     'don chua duoc xac nhan',
     'chua thay xac nhan',
     'sao chua xac nhan',
-    'da chuyen khoan nhung',
     'da thanh toan nhung',
     'chua thay giao hang',
     'sao lau giao',

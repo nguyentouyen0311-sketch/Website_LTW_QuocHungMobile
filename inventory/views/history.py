@@ -1,12 +1,14 @@
 """Inventory transaction history views."""
 
+import uuid
+
 from django.core.paginator import Paginator
-from django.db.models import Q
+from django.db.models import Count, Q
 from django.http import HttpResponseForbidden
 from django.shortcuts import redirect, render
 from django.urls import reverse
 
-from accounts.permissions import is_inventory_staff
+from accounts.permissions import is_admin, is_inventory_staff, is_sales_staff
 from inventory.models import InventoryTransaction
 
 from .common import parse_positive_id
@@ -30,11 +32,15 @@ def inventory_transaction_list_view(request):
             'inventory__variant__product',
             'performed_by',
             'adjustment',
+            'order',
+            'return_request',
         )
+        .prefetch_related('inventory__variant__attribute_values__attribute_value')
         .order_by('-created_at', '-id')
     )
 
     total_tx_count = base_qs.count()
+    type_counts = dict(base_qs.order_by().values_list('transaction_type').annotate(count=Count('id')))
     queryset = base_qs
 
     if q:
@@ -62,7 +68,7 @@ def inventory_transaction_list_view(request):
 
         queryset = queryset.filter(search_filter)
 
-    if tx_type in [InventoryTransaction.TYPE_PURCHASE_IN, InventoryTransaction.TYPE_ADJUSTMENT]:
+    if tx_type in dict(InventoryTransaction.TRANSACTION_TYPE_CHOICES):
         queryset = queryset.filter(transaction_type=tx_type)
     else:
         tx_type = 'ALL'
@@ -77,6 +83,10 @@ def inventory_transaction_list_view(request):
         'q': q,
         'tx_type': tx_type,
         'total_tx_count': total_tx_count,
+        'count_purchase': type_counts.get(InventoryTransaction.TYPE_PURCHASE_IN, 0),
+        'count_ship': type_counts.get(InventoryTransaction.TYPE_SHIP, 0),
+        'count_adjust': type_counts.get(InventoryTransaction.TYPE_ADJUSTMENT, 0),
+        'count_return': type_counts.get(InventoryTransaction.TYPE_RETURN_RESTOCK, 0),
         'filtered_count': queryset.count(),
         'active_nav': 'inventory_history',
         'module_badge': 'QUẢN LÝ KHO HÀNG',

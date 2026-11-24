@@ -116,9 +116,3 @@ MAILERS = {
 LOGIN_URL = 'accounts:login'
 LOGIN_REDIRECT_URL = 'accounts:landing'
 LOGOUT_REDIRECT_URL = 'accounts:login'
-
-QR_TRANSFER_CONFIG = None
-
-RECONCILIATION_SLA_CALENDAR = None
-
-

@@ -1,6 +1,10 @@
 """Shared helpers for inventory views."""
 
 from accounts.permissions import is_admin, is_inventory_staff, is_sales_staff
+from urllib.parse import parse_qsl, urlencode, urlsplit
+
+from django.urls import reverse
+from django.utils.http import url_has_allowed_host_and_scheme
 
 
 def parse_positive_id(val, max_digits=12):
@@ -16,6 +20,21 @@ def parse_positive_id(val, max_digits=12):
         return parsed if parsed > 0 else None
     except ValueError:
         return None
+
+
+def _get_inventory_return_url(request, inventory_id):
+    next_url = request.POST.get('next', '').strip()
+    if not next_url or not url_has_allowed_host_and_scheme(
+        next_url, allowed_hosts={request.get_host()}, require_https=request.is_secure(),
+    ):
+        return None
+    parsed = urlsplit(next_url)
+    list_url = reverse('inventory:inventory_list')
+    if parsed.path != list_url:
+        return None
+    params = dict(parse_qsl(parsed.query, keep_blank_values=True))
+    params['selected'] = str(inventory_id)
+    return f'{list_url}?{urlencode(params)}'
 
 
 def _build_inventory_form_context(inventory, form, request_token, user):

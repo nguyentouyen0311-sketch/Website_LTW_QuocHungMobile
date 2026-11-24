@@ -15,7 +15,6 @@ urlpatterns = [
     path('<int:pk>/items/<int:item_pk>/review/', views.purchased_product_review_view, name='purchased_product_review'),
     path('<int:pk>/return-request/', views.return_request_create_view, name='return_request_create'),
     path('<int:pk>/cancel/', views.customer_order_cancel_view, name='cancel_order'),
-    path('<int:pk>/notify-transfer/', views.order_notify_transfer_view, name='notify_transfer'),
 
     path('management/pending/', views.pending_orders_list_view, name='pending_orders_list'),
     path('management/<int:pk>/', views.order_management_detail_view, name='management_detail'),

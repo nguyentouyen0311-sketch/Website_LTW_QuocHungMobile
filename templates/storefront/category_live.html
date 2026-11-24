@@ -1,13 +1,61 @@
 {% extends 'storefront/base_storefront.html' %}
 {% load static %}
 {% block title %}{{ category_title }} — Quốc Hùng Mobile{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'css/category_live.css' %}"><link rel="stylesheet" href="{% static 'css/storefront_icons.css' %}"><style>.live-card-image{position:relative;display:grid!important;place-items:center;overflow:hidden!important}.live-card-image img{display:block!important;width:100%!important;height:100%!important;max-width:100%!important;max-height:100%!important;object-fit:contain!important}.live-product-grid article>p,.live-product-grid article>h3,.live-product-grid article>strong,.live-product-grid article>.live-detail{position:relative;z-index:1;background:#fff}</style>{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/category_live.css' %}?v=20261124-price-sidebar-4">
+<link rel="stylesheet" href="{% static 'css/storefront_icons.css' %}">
+{% endblock %}
 {% block content %}
 <main class="live-category">
   <nav><a href="{% url 'home' %}">Trang chủ</a> / <strong>{{ category_title }}</strong></nav>
-  <section class="live-category-hero"><span>Cam kết sản phẩm chính hãng</span><h1>{{ category_title }}</h1><p>{% if category_description %}{{ category_description }}{% else %}Sản phẩm chính hãng, giá tốt và bảo hành đầy đủ đang được cập nhật từ hệ thống quản trị.{% endif %}</p></section>
-  <div class="live-category-pills"><a class="{% if not selected_category %}active{% endif %}" href="{% url 'catalog:public_catalog' %}">Tất cả</a>{% for category in categories %}<a class="{% if selected_category and selected_category.id == category.id %}active{% endif %}" href="{% url 'catalog:public_category' category.id %}">{{ category.name }}</a>{% endfor %}</div>
-  <div class="live-products-head"><h2>{{ category_title }}</h2><span>{{ products|length }} sản phẩm</span></div>
-  <section class="live-product-grid">{% for product in products %}<article><a class="live-card-image" href="{{ product.product_url }}">{% if product.image_url %}<img src="{{ product.image_url }}" alt="{{ product.name }}">{% else %}<span>Hình ảnh đang cập nhật</span>{% endif %}</a><p>{{ product.category.name }}</p><h3><a href="{{ product.product_url }}">{{ product.name }}</a></h3><strong>{{ product.price_display }} {% if product.original_price_display %}<del>{{ product.original_price_display }}</del>{% endif %}</strong><a class="live-detail" href="{{ product.product_url }}">Xem chi tiết</a></article>{% empty %}<div class="live-empty">Chưa có sản phẩm phù hợp trong danh mục này. Quản trị viên có thể thêm sản phẩm hoặc thay đổi danh mục trong Django Admin.</div>{% endfor %}</section>
+  <section class="live-category-hero">
+    <span>Cam kết sản phẩm chính hãng</span>
+    <h1>{{ category_title }}</h1>
+    <p>{% if category_description %}{{ category_description }}{% else %}Sản phẩm chính hãng, giá tốt và bảo hành đầy đủ đang được cập nhật từ hệ thống quản trị.{% endif %}</p>
+  </section>
+  <div class="live-category-pills">
+    <a class="{% if not selected_category %}active{% endif %}" href="{% url 'catalog:public_catalog' %}{% if category_filter_query %}?{{ category_filter_query }}{% endif %}">Tất cả</a>
+    {% for category in categories %}
+      <a class="{% if selected_category and selected_category.id == category.id %}active{% endif %}" href="{% url 'catalog:public_category' category.id %}{% if category_filter_query %}?{{ category_filter_query }}{% endif %}">{{ category.name }}</a>
+    {% endfor %}
+  </div>
+  <div class="live-catalog-layout">
+    <aside class="catalog-price-filter" aria-labelledby="catalog-price-filter-title">
+      <div class="catalog-price-filter__header">
+        <h2 id="catalog-price-filter-title">Phân khúc giá</h2>
+        {% if selected_price_segment %}<a class="catalog-price-filter__clear" href="{{ clear_price_filter_url }}">Bỏ lọc</a>{% endif %}
+      </div>
+      <div class="catalog-price-filter__options">
+        {% for segment in price_segments %}
+          <a class="catalog-price-filter__option{% if segment.selected %} is-selected{% endif %}" href="{{ segment.url }}"{% if segment.selected %} aria-current="true" aria-label="Bỏ lọc {{ segment.label|lower }}"{% endif %}>{{ segment.label }}</a>
+        {% endfor %}
+      </div>
+    </aside>
+    <div class="live-catalog-results">
+      <div class="live-products-head"><h2>{{ category_title }}</h2><span>{{ products|length }} sản phẩm</span></div>
+      <section class="live-product-grid">
+        {% for product in products %}
+          <article>
+            <a class="live-card-image" href="{{ product.product_url }}">
+              {% if product.image_url %}<img src="{{ product.image_url }}" alt="{{ product.name }}">{% else %}<span>Hình ảnh đang cập nhật</span>{% endif %}
+            </a>
+            <p>{{ product.category.name }}</p>
+            <h3><a href="{{ product.product_url }}">{{ product.name }}</a></h3>
+            <strong>{{ product.price_display }} {% if product.original_price_display %}<del>{{ product.original_price_display }}</del>{% endif %}</strong>
+            <a class="live-detail" href="{{ product.product_url }}">Xem chi tiết</a>
+          </article>
+        {% empty %}
+          <div class="live-empty">
+            {% if selected_price_segment %}
+              Không có sản phẩm trong phân khúc {{ selected_price_segment.label|lower }}.
+              <a href="{{ clear_price_filter_url }}">Bỏ lọc giá</a> để xem các sản phẩm khác.
+            {% else %}
+              Chưa có sản phẩm phù hợp trong danh mục này.
+            {% endif %}
+          </div>
+        {% endfor %}
+      </section>
+    </div>
+  </div>
 </main>
 {% endblock %}

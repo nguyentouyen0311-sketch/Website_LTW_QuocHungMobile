@@ -11,7 +11,7 @@ from inventory.forms import PurchaseReceivingForm
 from inventory.models import Inventory
 from inventory.services import generate_receiving_token, receive_purchase
 
-from .common import _add_validation_error_to_form, _build_inventory_form_context
+from .common import _add_validation_error_to_form, _build_inventory_form_context, _get_inventory_return_url
 
 
 def inventory_receive_view(request, inventory_id):
@@ -40,6 +40,7 @@ def inventory_receive_view(request, inventory_id):
         return render(request, 'inventory/inventory_receive.html', context)
 
     elif request.method == 'POST':
+        return_url = _get_inventory_return_url(request, inventory.pk)
         form = PurchaseReceivingForm(request.POST)
         if form.is_valid():
             quantity = form.cleaned_data['quantity']
@@ -63,12 +64,17 @@ def inventory_receive_view(request, inventory_id):
                         f"Đã nhập thành công {quantity} sản phẩm cho biến thể '{inventory.variant.sku}'. "
                         f"Tồn thực tế mới: {tx.physical_after} (Khả dụng: {tx.physical_after - inventory.reserved})."
                     )
+                if return_url:
+                    return redirect(return_url)
                 return redirect('inventory:inventory_detail', inventory_id=inventory.id)
             except ValidationError as exc:
                 _add_validation_error_to_form(form, exc)
             except PermissionDenied as exc:
                 return HttpResponseForbidden(str(exc))
 
+        if return_url:
+            messages.error(request, 'Lỗi nhập kho: ' + '; '.join(str(error) for errors in form.errors.values() for error in errors))
+            return redirect(return_url)
         context = _build_inventory_form_context(
             inventory, form, form.data.get('request_token', ''), request.user
         )

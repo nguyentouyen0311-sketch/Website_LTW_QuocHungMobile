@@ -7,7 +7,6 @@ from orders.models import (
     validate_delivery_phone,
 )
 from payments.models import PaymentMethod
-from payments.qr import is_qr_transfer_available
 
 
 class CheckoutForm(forms.Form):
@@ -102,10 +101,6 @@ class CheckoutForm(forms.Form):
             ('', 'Không áp dụng mã giảm giá'),
             *(eligible_coupon_choices or []),
         ]
-        choices = [(PaymentMethod.COD, 'Thanh toán khi nhận hàng (COD)')]
-        if is_qr_transfer_available():
-            choices.append((PaymentMethod.QR, 'Chuyển khoản ngân hàng qua mã QR'))
-        self.fields['payment_method'].choices = choices
 
     def clean_recipient_name(self):
         name = self.cleaned_data.get('recipient_name', '').strip()

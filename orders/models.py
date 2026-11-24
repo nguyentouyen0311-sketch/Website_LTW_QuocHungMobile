@@ -31,14 +31,11 @@ def _is_valid_integer(value):
 
 
 class OrderStatus(models.TextChoices):
-    PENDING_PAYMENT = 'PENDING_PAYMENT', 'Chờ thanh toán'
-    PENDING_RECONCILIATION = 'PENDING_RECONCILIATION', 'Chờ đối soát'
     PENDING_CONFIRMATION = 'PENDING_CONFIRMATION', 'Chờ xác nhận'
     CONFIRMED = 'CONFIRMED', 'Đã xác nhận'
     SHIPPING = 'SHIPPING', 'Đang giao hàng'
     DELIVERED = 'DELIVERED', 'Giao hàng thành công'
     CANCELLED = 'CANCELLED', 'Đã hủy'
-    EXPIRED = 'EXPIRED', 'Hết hạn thanh toán'
     DELIVERY_FAILED = 'DELIVERY_FAILED', 'Giao hàng thất bại'
     RETURNING_TO_WAREHOUSE = 'RETURNING_TO_WAREHOUSE', 'Đang chuyển hoàn về kho'
     FAILED_CLOSED = 'FAILED_CLOSED', 'Đóng đơn giao thất bại'
@@ -49,7 +46,7 @@ class Order(models.Model):
         max_length=30,
         unique=True,
         verbose_name='Mã đơn hàng',
-        help_text='Mã đơn hàng duy nhất hệ thống (NOT NULL, UNIQUE; tối đa 30 ký tự; dùng cho QR thanh toán).',
+        help_text='Mã đơn hàng duy nhất hệ thống (NOT NULL, UNIQUE; tối đa 30 ký tự).',
     )
     customer = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -76,7 +73,7 @@ class Order(models.Model):
         max_length=30,
         choices=OrderStatus.choices,
         verbose_name='Trạng thái đơn hàng',
-        help_text='Trạng thái đơn hàng theo quy trình nghiệp vụ (không gán giá trị mặc định để tránh đồng nhất QR và COD).',
+        help_text='Trạng thái đơn hàng theo quy trình xử lý đơn COD; cần gán tường minh.',
     )
     subtotal = models.DecimalField(
         max_digits=14,

@@ -217,7 +217,7 @@ class DashboardTestCase(TestCase):
     def test_cancelled_orders_not_counted_as_successful_sales(self):
         date_range = get_date_range('today')
 
-        # Tạo 1 đơn hủy và 1 đơn hết hạn QR
+        # Tạo một đơn hủy và một đơn giao thất bại.
         ord_cancelled = Order.objects.create(
             order_code='ORD-TEST-CANC-01',
             customer=self.customer_user,
@@ -241,13 +241,13 @@ class DashboardTestCase(TestCase):
             line_total=Decimal('34990000.00'),
         )
 
-        ord_expired = Order.objects.create(
-            order_code='ORD-TEST-EXP-01',
+        ord_failed = Order.objects.create(
+            order_code='ORD-TEST-FAIL-01',
             customer=self.customer_user,
             recipient_name='Người Nhận 2',
             recipient_phone='0987654321',
             shipping_address='Hà Nội',
-            order_status=OrderStatus.EXPIRED,
+            order_status=OrderStatus.FAILED_CLOSED,
             subtotal=Decimal('34990000.00'),
             discount_total=Decimal('0.00'),
             grand_total=Decimal('34990000.00'),
@@ -780,17 +780,14 @@ class DashboardTestCase(TestCase):
         self.assertIn('Trạng thái xử lý đổi/trả', html)
         self.assertIn('Nguyên nhân đổi trả', html)
 
-        # 3. Phân nhóm Order Dashboard 4 nhóm
+        # 3. Dashboard chỉ hiển thị tiến trình COD đang được hỗ trợ.
         self.assertIn('Tổng số đơn hàng', html)
         self.assertIn('Tỷ lệ giao hàng thành công', html)
-        self.assertIn('Số đơn chờ thanh toán', html)
-        self.assertIn('Số đơn chờ đối soát', html)
         self.assertIn('Số đơn chờ xác nhận', html)
         self.assertIn('Số đơn đã xác nhận', html)
         self.assertIn('Số đơn đang giao', html)
         self.assertIn('Số đơn giao thành công', html)
         self.assertIn('Số đơn đã hủy', html)
-        self.assertIn('Số đơn hết hạn thanh toán', html)
 
         # 4. Các đơn vị chuẩn: đơn, %, yêu cầu, sản phẩm
         self.assertIn('đơn', html)
