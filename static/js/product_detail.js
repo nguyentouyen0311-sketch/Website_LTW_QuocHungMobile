@@ -25,8 +25,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const quantity = document.querySelector('#purchaseQuantity');
   const actionButtons = document.querySelectorAll('.buy-now, .add-cart');
 
-  function compatible(option, attribute) {
-    return variants.some((variant) => Object.entries(selected).every(([name, value]) => name === attribute || variant.options[name] === value) && variant.options[attribute] === option);
+  function optionHasAvailableVariant(option, attribute) {
+    return variants.some((variant) => Number(variant.stock) > 0 && variant.options[attribute] === option);
   }
   function syncVariant() {
     const exact = variants.find((variant) => Object.entries(selected).every(([name, value]) => variant.options[name] === value) && Object.keys(variant.options).length === Object.keys(selected).length);
@@ -42,7 +42,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (quantity) { quantity.max = String(stock || 1); quantity.value = String(Math.min(Math.max(1, Number(quantity.value || 1)), stock || 1)); }
     actionButtons.forEach((button) => { button.disabled = !exact || stock < 1; });
     document.querySelectorAll('.choice-group[data-attribute]').forEach((group) => group.querySelectorAll('[data-option-value]').forEach((button) => {
-      button.disabled = !compatible(button.dataset.optionValue, group.dataset.attribute);
+      button.disabled = !optionHasAvailableVariant(button.dataset.optionValue, group.dataset.attribute);
     }));
   }
   document.querySelectorAll('.choice-group[data-attribute] [data-option-value]').forEach((button) => button.addEventListener('click', () => {
