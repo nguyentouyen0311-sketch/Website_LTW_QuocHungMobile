@@ -146,22 +146,6 @@ body.qhm-dashboard-page {
     flex-shrink: 0;
 }
 
-.dashboard-brand-logo {
-    width: 42px;
-    height: 42px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
-
-.dashboard-brand-logo img {
-    display: block;
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-}
-
 .dashboard-brand-text {
     display: flex;
     flex-direction: column;
