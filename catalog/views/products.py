@@ -156,7 +156,7 @@ def product_edit_view(request, product_id):
         'presentation_form': presentation_form,
         'product': product,
         'images': product.images.select_related('variant').all().order_by('sort_order', 'id'),
-        'variants': product.variants.all().order_by('id'),
+        'variants': product.variants.filter(is_deleted=False).order_by('id'),
         'image_form': ProductImageForm(product=product),
         'title': f"Chỉnh sửa sản phẩm: {product.name}",
         'active_nav': 'catalog_products',

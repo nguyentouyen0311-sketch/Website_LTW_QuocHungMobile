@@ -102,7 +102,7 @@ class ProductVariantDeletionTests(TestCase):
         category = Category.objects.create(name='Phụ kiện')
         self.product = Product.objects.create(category=category, name='Sản phẩm kiểm thử biến thể')
 
-    def test_admin_can_delete_unused_zero_stock_variant(self):
+    def test_admin_can_soft_delete_unused_zero_stock_variant(self):
         variant = ProductVariant.objects.create(
             product=self.product, sku='DELETE-ME-01', price='1000000', combination_key='delete-me'
         )
@@ -112,9 +112,11 @@ class ProductVariantDeletionTests(TestCase):
         )
 
         self.assertRedirects(response, reverse('catalog:attribute_list'))
-        self.assertFalse(ProductVariant.objects.filter(pk=variant.id).exists())
+        variant.refresh_from_db()
+        self.assertTrue(variant.is_deleted)
+        self.assertFalse(variant.is_active)
 
-    def test_variant_with_stock_is_not_deleted(self):
+    def test_variant_with_stock_is_soft_deleted_and_inventory_is_preserved(self):
         variant = ProductVariant.objects.create(
             product=self.product, sku='KEEP-ME-01', price='1000000', combination_key='keep-me'
         )
@@ -125,8 +127,8 @@ class ProductVariantDeletionTests(TestCase):
             reverse('catalog:product_variant_delete', args=[self.product.id, variant.id])
         )
 
-        self.assertRedirects(
-            response,
-            reverse('catalog:product_variant_edit', args=[self.product.id, variant.id]),
-        )
-        self.assertTrue(ProductVariant.objects.filter(pk=variant.id).exists())
+        self.assertRedirects(response, reverse('catalog:attribute_list'))
+        variant.refresh_from_db()
+        self.assertTrue(variant.is_deleted)
+        self.assertFalse(variant.is_active)
+        self.assertEqual(variant.inventory.physical_sellable, 1)

@@ -470,6 +470,16 @@ class ProductVariant(models.Model):
         verbose_name="Kích hoạt kinh doanh",
         help_text="Mặc định True (1). Nếu False (0), biến thể tạm ngưng kinh doanh."
     )
+    is_deleted = models.BooleanField(
+        default=False,
+        verbose_name="Đã xóa mềm",
+        help_text="Biến thể xóa mềm được giữ lại để bảo toàn lịch sử kho, đơn hàng và đổi trả."
+    )
+    deleted_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="Thời điểm xóa mềm"
+    )
 
     class Meta:
         db_table = 'catalog_productvariant'
@@ -567,6 +577,8 @@ class ProductVariant(models.Model):
                     })
 
     def save(self, *args, **kwargs):
+        if self.is_deleted:
+            self.is_active = False
         if self.sku:
             self.sku = self.sku.strip().upper()
         self.full_clean()

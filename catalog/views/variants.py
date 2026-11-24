@@ -5,6 +5,7 @@ from django.db import transaction
 from django.http import HttpResponseForbidden, HttpResponseNotAllowed
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils import timezone
 
 from accounts.permissions import is_admin, is_sales_staff
 from catalog.forms import AttributeForm, AttributeValueForm, ProductVariantForm
@@ -20,7 +21,7 @@ def attribute_list_view(request):
 
     attributes = Attribute.objects.prefetch_related('values').all().order_by('name')
     products = Product.objects.filter(is_deleted=False).order_by('name')
-    variants = ProductVariant.objects.select_related('product').prefetch_related(
+    variants = ProductVariant.objects.filter(is_deleted=False).select_related('product').prefetch_related(
         'attribute_values__attribute', 'attribute_values__attribute_value'
     ).order_by('product__name', 'id')
     for variant in variants:
@@ -208,7 +209,7 @@ def product_variant_list_view(request, product_id):
         return HttpResponseForbidden("Bạn không có quyền truy cập chức năng này.")
 
     product = get_object_or_404(Product.objects.select_related('category'), pk=product_id)
-    variants = product.variants.all().prefetch_related(
+    variants = product.variants.filter(is_deleted=False).prefetch_related(
         'attribute_values__attribute',
         'attribute_values__attribute_value'
     ).order_by('id')
@@ -251,7 +252,7 @@ def product_variant_create_view(request, product_id):
 
     product = get_object_or_404(Product.objects.select_related('category'), pk=product_id)
 
-    if product.is_deleted:
+    if product.is_deleted or variant.is_deleted:
         messages.error(request, 'Không thể tạo biến thể cho sản phẩm đã bị xóa mềm.')
         return redirect('catalog:product_variant_list', product_id=product.id)
 
@@ -320,34 +321,13 @@ def product_variant_delete_view(request, product_id, variant_id):
 
     product = get_object_or_404(Product, pk=product_id)
     variant = get_object_or_404(ProductVariant, pk=variant_id, product=product)
-    blocked_by = []
-    if variant.order_items.exists():
-        blocked_by.append('đơn hàng')
-    if variant.images.exists():
-        blocked_by.append('ảnh sản phẩm')
-    if variant.reservations.exists():
-        blocked_by.append('giữ hàng')
-    if variant.returned_stocks.exists() or variant.replacement_return_requests.exists():
-        blocked_by.append('yêu cầu đổi/trả')
+    if variant.is_deleted:
+        messages.info(request, f"Biến thể '{variant.sku}' đã được ngừng kinh doanh trước đó.")
+        return redirect('catalog:attribute_list')
 
-    inventory = getattr(variant, 'inventory', None)
-    if inventory:
-        if inventory.transactions.exists():
-            blocked_by.append('lịch sử giao dịch kho')
-        if inventory.physical_sellable or inventory.reserved:
-            blocked_by.append('tồn kho hiện có')
-
-    if blocked_by:
-        messages.error(
-            request,
-            f"Không thể xóa biến thể '{variant.sku}' vì đã có liên kết: {', '.join(blocked_by)}."
-        )
-        return redirect('catalog:product_variant_edit', product_id=product.id, variant_id=variant.id)
-
-    sku = variant.sku
-    with transaction.atomic():
-        if inventory:
-            inventory.delete()
-        variant.delete()
-    messages.success(request, f"Đã xóa biến thể '{sku}' thành công.")
+    variant.is_deleted = True
+    variant.is_active = False
+    variant.deleted_at = timezone.now()
+    variant.save(update_fields=['is_deleted', 'is_active', 'deleted_at'])
+    messages.success(request, f"Đã ngừng kinh doanh biến thể '{variant.sku}'. Lịch sử liên quan được giữ nguyên.")
     return redirect('catalog:attribute_list')
