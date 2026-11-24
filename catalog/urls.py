@@ -27,6 +27,7 @@ from catalog.views import (
     attribute_value_edit_view,
     product_variant_list_view,
     product_variant_create_view,
+    product_variant_delete_view,
     product_variant_edit_view,
 )
 
@@ -69,4 +70,5 @@ urlpatterns = [
     path('products/<int:product_id>/variants/', product_variant_list_view, name='product_variant_list'),
     path('products/<int:product_id>/variants/new/', product_variant_create_view, name='product_variant_create'),
     path('products/<int:product_id>/variants/<int:variant_id>/edit/', product_variant_edit_view, name='product_variant_edit'),
+    path('products/<int:product_id>/variants/<int:variant_id>/delete/', product_variant_delete_view, name='product_variant_delete'),
 ]

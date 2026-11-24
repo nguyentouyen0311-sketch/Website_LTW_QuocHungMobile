@@ -91,3 +91,42 @@ class AttributeDeletionTests(TestCase):
 
         self.assertRedirects(response, reverse('catalog:attribute_list'))
         self.assertTrue(AttributeValue.objects.filter(pk=value.id).exists())
+
+
+class ProductVariantDeletionTests(TestCase):
+    def setUp(self):
+        self.admin = get_user_model().objects.create_superuser(
+            username='variant-admin', email='variant-admin@example.test', password='safe-password-123'
+        )
+        self.client.force_login(self.admin)
+        category = Category.objects.create(name='Phụ kiện')
+        self.product = Product.objects.create(category=category, name='Sản phẩm kiểm thử biến thể')
+
+    def test_admin_can_delete_unused_zero_stock_variant(self):
+        variant = ProductVariant.objects.create(
+            product=self.product, sku='DELETE-ME-01', price='1000000', combination_key='delete-me'
+        )
+
+        response = self.client.post(
+            reverse('catalog:product_variant_delete', args=[self.product.id, variant.id])
+        )
+
+        self.assertRedirects(response, reverse('catalog:attribute_list'))
+        self.assertFalse(ProductVariant.objects.filter(pk=variant.id).exists())
+
+    def test_variant_with_stock_is_not_deleted(self):
+        variant = ProductVariant.objects.create(
+            product=self.product, sku='KEEP-ME-01', price='1000000', combination_key='keep-me'
+        )
+        variant.inventory.physical_sellable = 1
+        variant.inventory.save()
+
+        response = self.client.post(
+            reverse('catalog:product_variant_delete', args=[self.product.id, variant.id])
+        )
+
+        self.assertRedirects(
+            response,
+            reverse('catalog:product_variant_edit', args=[self.product.id, variant.id]),
+        )
+        self.assertTrue(ProductVariant.objects.filter(pk=variant.id).exists())

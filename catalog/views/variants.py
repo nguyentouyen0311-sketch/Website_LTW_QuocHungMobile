@@ -304,6 +304,50 @@ def product_variant_edit_view(request, product_id, variant_id):
         'form': form,
         'title': f"Chỉnh sửa biến thể: {variant.sku}",
         'is_edit': True,
+        'is_admin': is_admin(request.user),
         'active_nav': 'catalog_attributes',
     }
     return render(request, 'admin/standard_form_v3.html', context)
+
+
+def product_variant_delete_view(request, product_id, variant_id):
+    if not request.user.is_authenticated:
+        return redirect(f"{reverse('accounts:login')}?next={request.path}")
+    if not is_admin(request.user):
+        return HttpResponseForbidden("Chỉ Quản trị viên (Admin) mới có quyền xóa biến thể sản phẩm.")
+    if request.method != 'POST':
+        return HttpResponseNotAllowed(['POST'], "Thao tác yêu cầu phương thức POST.")
+
+    product = get_object_or_404(Product, pk=product_id)
+    variant = get_object_or_404(ProductVariant, pk=variant_id, product=product)
+    blocked_by = []
+    if variant.order_items.exists():
+        blocked_by.append('đơn hàng')
+    if variant.images.exists():
+        blocked_by.append('ảnh sản phẩm')
+    if variant.reservations.exists():
+        blocked_by.append('giữ hàng')
+    if variant.returned_stocks.exists() or variant.replacement_return_requests.exists():
+        blocked_by.append('yêu cầu đổi/trả')
+
+    inventory = getattr(variant, 'inventory', None)
+    if inventory:
+        if inventory.transactions.exists():
+            blocked_by.append('lịch sử giao dịch kho')
+        if inventory.physical_sellable or inventory.reserved:
+            blocked_by.append('tồn kho hiện có')
+
+    if blocked_by:
+        messages.error(
+            request,
+            f"Không thể xóa biến thể '{variant.sku}' vì đã có liên kết: {', '.join(blocked_by)}."
+        )
+        return redirect('catalog:product_variant_edit', product_id=product.id, variant_id=variant.id)
+
+    sku = variant.sku
+    with transaction.atomic():
+        if inventory:
+            inventory.delete()
+        variant.delete()
+    messages.success(request, f"Đã xóa biến thể '{sku}' thành công.")
+    return redirect('catalog:attribute_list')

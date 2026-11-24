@@ -25,6 +25,14 @@
           <div class="af-grid">{% for field in form %}<label class="af-field {% if field.name == 'attribute_value_ids' %}wide{% endif %}">{{ field.label }}{{ field }}{% if field.help_text %}<small style="color:#6B7280">{{ field.help_text }}</small>{% endif %}{% for error in field.errors %}<small>{{ error }}</small>{% endfor %}</label>{% endfor %}</div>
           <div class="af-actions"><a class="af-btn" href="{% url 'catalog:attribute_list' %}">Hủy</a><button class="af-btn primary">{% if is_edit %}Lưu thay đổi{% else %}Lưu biến thể{% endif %}</button></div>
         </form>
+        {% if is_edit and is_admin and product and variant %}
+          <form method="post" action="{% url 'catalog:product_variant_delete' product.id variant.id %}" class="af-card" style="border-color:#fecaca" onsubmit="return confirm('Xóa vĩnh viễn biến thể {{ variant.sku }}? Chỉ biến thể chưa có tồn hoặc lịch sử liên quan mới có thể xóa.');">
+            {% csrf_token %}
+            <h2 style="margin-top:0;color:#b42318">Vùng nguy hiểm</h2>
+            <p style="color:#66756d;line-height:1.5">Xóa biến thể chỉ áp dụng khi chưa có tồn kho, ảnh, đơn hàng hoặc giao dịch liên quan.</p>
+            <button class="af-btn" type="submit" style="border-color:#fecaca;color:#b42318">Xóa biến thể</button>
+          </form>
+        {% endif %}
       </div></main>
     </section>
   </div>

@@ -47,6 +47,7 @@ from .variants import (
     attribute_value_delete_view,
     attribute_value_edit_view,
     product_variant_create_view,
+    product_variant_delete_view,
     product_variant_edit_view,
     product_variant_list_view,
 )
@@ -60,7 +61,7 @@ __all__ = [
     "product_image_assign_variant_view", "product_image_delete_view",
     "product_image_upload_view", "product_images_reorder_view",
     "product_list_view", "product_soft_delete_view",
-    "product_variant_create_view", "product_variant_edit_view",
+    "product_variant_create_view", "product_variant_delete_view", "product_variant_edit_view",
     "product_variant_list_view", "promotion_list_view", "public_catalog_view",
     "public_product_detail_view", "storefront_category_view",
 ]
