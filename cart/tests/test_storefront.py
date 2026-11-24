@@ -46,7 +46,9 @@ class CartStorefrontTests(TestCase):
         self.assertTemplateUsed(response, 'cart/detail.html')
         self.assertContains(response, self.product.name)
         self.assertContains(response, '2.000.000')
-        for text in ('Mã giảm giá', 'coupon', 'voucher', 'Áp dụng'):
+        # Footer navigation may legitimately mention promotions.  The cart
+        # itself must not expose an endpoint or input that applies a voucher.
+        for text in ('/cart/coupon/', 'name="coupon"', 'name="voucher"', 'cart-voucher'):
             self.assertNotContains(response, text)
         self.assertEqual(response.context['evaluation']['total_quantity'], 2)
 
