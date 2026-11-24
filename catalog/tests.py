@@ -102,6 +102,12 @@ class ProductVariantDeletionTests(TestCase):
         category = Category.objects.create(name='Phụ kiện')
         self.product = Product.objects.create(category=category, name='Sản phẩm kiểm thử biến thể')
 
+    def test_variant_create_page_loads_for_active_product(self):
+        response = self.client.get(reverse('catalog:product_variant_create', args=[self.product.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Thêm biến thể mới')
+
     def test_admin_can_soft_delete_unused_zero_stock_variant(self):
         variant = ProductVariant.objects.create(
             product=self.product, sku='DELETE-ME-01', price='1000000', combination_key='delete-me'

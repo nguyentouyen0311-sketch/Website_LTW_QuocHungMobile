@@ -252,7 +252,7 @@ def product_variant_create_view(request, product_id):
 
     product = get_object_or_404(Product.objects.select_related('category'), pk=product_id)
 
-    if product.is_deleted or variant.is_deleted:
+    if product.is_deleted:
         messages.error(request, 'Không thể tạo biến thể cho sản phẩm đã bị xóa mềm.')
         return redirect('catalog:product_variant_list', product_id=product.id)
 
@@ -286,7 +286,7 @@ def product_variant_edit_view(request, product_id, variant_id):
     product = get_object_or_404(Product.objects.select_related('category'), pk=product_id)
     variant = get_object_or_404(ProductVariant, pk=variant_id, product=product)
 
-    if product.is_deleted:
+    if product.is_deleted or variant.is_deleted:
         messages.error(request, 'Không thể chỉnh sửa biến thể của sản phẩm đã bị xóa mềm.')
         return redirect('catalog:product_variant_list', product_id=product.id)
 
